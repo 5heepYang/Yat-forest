@@ -1,0 +1,48 @@
+.nav {
+	display: flex;
+	flex-direction: column;
+	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	background-color: #FFFCF6;
+	padding-left: 20px;
+	padding-right: 20px;
+	padding-bottom: 12px;
+}
+
+.status-pad {
+	width: 100%;
+}
+
+.nav-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 14px;
+}
+
+.nav-left {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+}
+
+.nav-title {
+	font-size: 24px;
+	font-weight: bold;
+	color: #2E6B4F;
+	font-family: HYSansBold;
+}
+
+.nav-sub {
+	font-size: 11px;
+	color: #9AA394;
+	margin-top: 6px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.nav-right {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}

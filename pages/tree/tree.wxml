@@ -1,0 +1,175 @@
+<view class="page">
+	<nav-bar title="我的林地" subtitle="{{navSubtitle}}">
+		<view class="icon-btn" bindtap="onBell">
+			<image class="icon-18" src="/static/ui/bell.png"></image>
+		</view>
+	</nav-bar>
+
+	<scroll-view class="body" scroll-y>
+		<view class="main-card">
+			<view class="mc-head">
+				<view class="mc-left">
+					<text class="mc-name">{{tree.name}}</text>
+					<text class="mc-meta">{{tree.species}} · 树龄 {{tree.age}}</text>
+				</view>
+				<view class="lv-pill">
+					<text class="lv-t">Lv.{{tree.level}} 护林人</text>
+				</view>
+			</view>
+
+			<view class="stage">
+				<image class="stage-img" src="/static/illus/palm.png"></image>
+				<view class="weather-pill">
+					<text class="weather-t">{{weatherLine}}</text>
+				</view>
+			</view>
+
+			<view class="growth-row">
+				<text class="growth-lb">成长值 {{tree.growthScore}} / 1000</text>
+				<text class="growth-hint">{{nextNeed}}</text>
+			</view>
+			<view class="gbar">
+				<view class="gbar-in" style="{{growthBarStyle}}"></view>
+			</view>
+
+			<view class="act-row">
+				<view class="act-btn" bindtap="onWater">
+					<text class="act-t">浇水</text>
+				</view>
+				<view class="act-btn" bindtap="onFertilize">
+					<text class="act-t">施肥</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="pk-card">
+			<view class="pk-head">
+				<text class="pk-title">成长 PK 擂台</text>
+				<view class="pk-btn" bindtap="openPk">
+					<text class="pk-btn-t">发起 PK</text>
+				</view>
+			</view>
+			<view class="pk-row">
+				<text class="pk-name">我</text>
+				<view class="pk-track">
+					<view class="pk-in-me" style="{{pkMeStyle}}"></view>
+				</view>
+				<text class="pk-score">{{tree.growthScore}}</text>
+			</view>
+			<view class="pk-row">
+				<text class="pk-name">同龄</text>
+				<view class="pk-track">
+					<view class="pk-in-rival" style="{{pkRivalStyle}}"></view>
+				</view>
+				<text class="pk-score">{{rivalScore}}</text>
+			</view>
+		</view>
+
+		<view class="tl-head">
+			<text class="sec-title">线下生长时光轴</text>
+			<text class="tl-add-t" bindtap="openUpload">＋ 上传实拍</text>
+		</view>
+
+		<view class="tl-row">
+			<view class="tl-card" wx:for="{{growthLogs}}" wx:key="logId">
+				<image class="tl-img" src="{{item.imageUrl}}"></image>
+				<text class="tl-label">{{item.label}}</text>
+			</view>
+		</view>
+
+		<view class="hazard-card">
+			<view class="hz-ico-box">
+				<image class="hz-ico" src="/static/ui/camera.png"></image>
+			</view>
+			<view class="hz-left">
+				<text class="hz-title">树有异常？</text>
+				<text class="hz-sub">拍一张，AI 判断风险并通知后勤</text>
+			</view>
+			<view class="hz-btn" bindtap="openHazard">
+				<text class="hz-btn-t">拍照上报</text>
+			</view>
+		</view>
+
+		<view class="bottom-pad"></view>
+	</scroll-view>
+
+	<app-tabbar active="tree"></app-tabbar>
+
+	<view class="mask" wx:if="{{sheetMode != ''}}">
+		<view class="mask-hit" bindtap="closeSheet"></view>
+		<view class="sheet">
+			<view wx:if="{{sheetMode == 'pk'}}">
+				<text class="sheet-title">树木成长 PK</text>
+				<text class="sheet-sub">与同龄树「中山楼后 · 香樟」比一比战力</text>
+				<view class="pk-compare">
+					<view class="pkc-box">
+						<text class="pkc-name">我的树</text>
+						<text class="pkc-score">{{tree.growthScore}}</text>
+					</view>
+					<text class="pkc-vs">VS</text>
+					<view class="pkc-box">
+						<text class="pkc-name">同龄树</text>
+						<text class="pkc-score">{{rivalScore}}</text>
+					</view>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">{{pkResultText}}</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="doPk">
+					<text class="sheet-btn-t sheet-btn-t-white">发起挑战</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'hazard'}}">
+				<text class="sheet-title">拍一拍：隐患 / 虫害上报</text>
+				<text class="sheet-sub">AI 会识别风险等级并生成后勤工单</text>
+				<view class="hint-box">
+					<text class="hint-t">重点排查：大王椰枯叶悬垂、台风断枝、树干白蚁或红火蚁。上报成功可获得 100 护林积分。</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="useSampleHazard">
+					<text class="sheet-btn-t sheet-btn-t-white">使用示例现场照片（演示）</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="pickHazardPhoto">
+					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'hazardLoading'}}" class="loading-box">
+				<text class="loading-t">AI 树木安全巡检中{{dots}}</text>
+				<text class="loading-s">正在识别病虫害类型与高空坠叶风险</text>
+			</view>
+
+			<view wx:if="{{sheetMode == 'hazardResult'}}">
+				<view class="ticket-head">
+					<view class="lv-badge">
+						<text class="lv-badge-t">{{hazard.level}}预警</text>
+					</view>
+					<text class="ticket-no">工单号 {{hazard.ticket}}</text>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">{{hazard.analysis}}</text>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">建议处理：{{hazard.advice}}</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="submitHazard">
+					<text class="sheet-btn-t sheet-btn-t-white">提交后勤工单 · 领 {{hazard.reward}} 积分</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'upload'}}">
+				<text class="sheet-title">上传线下生长实拍</text>
+				<text class="sheet-sub">每张实拍 +20 积分，都会记入树的生长历程</text>
+				<view class="hint-box">
+					<text class="hint-t">建议每两周拍一张，完整记录它从春芽到枝繁叶茂的全过程。</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="useSampleUpload">
+					<text class="sheet-btn-t sheet-btn-t-white">使用示例照片（演示）</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="pickGrowthPhoto">
+					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</view>

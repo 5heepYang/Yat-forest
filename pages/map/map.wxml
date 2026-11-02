@@ -1,0 +1,89 @@
+<view class="page">
+	<nav-bar title="森友地图" subtitle="{{subtitle}}">
+		<view class="icon-btn" bindtap="onAddTree">
+			<image class="icon-18" src="/static/ui/plus.png"></image>
+		</view>
+	</nav-bar>
+
+	<view class="map-wrap">
+		<view class="map-bg"></view>
+		<view class="blob blob-1"></view>
+		<view class="blob blob-2"></view>
+		<view class="blob blob-3"></view>
+		<view class="road road-1"></view>
+		<view class="road road-2"></view>
+		<view class="lake"></view>
+		<view class="bld bld-1"></view>
+		<view class="bld bld-2"></view>
+		<view class="bld bld-3"></view>
+		<view class="dot dot-1"></view>
+		<view class="dot dot-2"></view>
+		<view class="dot dot-3"></view>
+
+		<view
+			class="pin"
+			wx:for="{{pins}}"
+			wx:key="treeId"
+			style="left:{{item.posX}}%;top:{{item.posY}}%"
+			data-id="{{item.treeId}}"
+			bindtap="onSelect"
+		>
+			<view class="pin-head {{item.pinHeadClass}}">
+				<text wx:if="{{item.status == 'hazard'}}" class="pin-bang">!</text>
+				<image wx:else src="{{item.pinIcon}}" class="pin-ico"></image>
+			</view>
+			<view class="pin-tail {{item.pinTailClass}}"></view>
+		</view>
+
+		<view class="float-top">
+			<view class="search-row">
+				<view class="search-pill" bindtap="onSearch">
+					<image class="ic-search" src="/static/ui/search.png"></image>
+					<text class="search-ph">搜树种 / 认养人 / 楼栋</text>
+				</view>
+				<view class="filter-btn" bindtap="onSearch">
+					<image class="ic-sliders" src="/static/ui/sliders.png"></image>
+				</view>
+			</view>
+			<view class="chip-row">
+				<view
+					wx:for="{{filters}}"
+					wx:key="key"
+					class="{{filter == item.key ? 'chip chip-on' : 'chip'}}"
+					data-key="{{item.key}}"
+					bindtap="setFilter"
+				>
+					<view wx:if="{{filter != item.key && item.key == 'mine'}}" class="chip-dot"></view>
+					<view wx:if="{{filter != item.key && item.key == 'free'}}" class="chip-ring"></view>
+					<text class="{{filter == item.key ? 'chip-t chip-t-on' : 'chip-t'}}">{{item.label}}</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="hint-pill">
+			<text class="hint-t">{{hintText}}</text>
+		</view>
+
+		<view class="tree-card" wx:if="{{showCard && sel}}">
+			<view class="tc-row">
+				<view class="tc-thumb">
+					<image class="tc-img" src="/static/illus/palm.png"></image>
+				</view>
+				<view class="tc-info">
+					<text class="tc-name">{{sel.name}}</text>
+					<text class="tc-meta">{{sel.species}} · 树龄 {{sel.age}} · 距你 {{sel.distance}} m</text>
+					<view class="tc-tag-row">
+						<view class="tc-tag {{sel.tagBg}}">
+							<text class="tc-tag-t {{sel.tagColor}}">{{sel.tagText}}</text>
+						</view>
+					</view>
+				</view>
+			</view>
+			<view class="tc-btn {{sel.btnBg}}" bindtap="onCardAction">
+				<text class="tc-btn-t {{sel.btnColor}}">{{sel.btnText}}</text>
+			</view>
+		</view>
+	</view>
+
+	<app-tabbar active="map"></app-tabbar>
+</view>

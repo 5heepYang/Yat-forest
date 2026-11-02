@@ -1,0 +1,127 @@
+<view class="page">
+	<scroll-view class="body" scroll-y>
+		<view class="hero">
+			<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
+			<text class="hero-sub">南校园 · 护林第 {{days}} 天</text>
+			<text class="hero-name">{{nickname}}</text>
+			<view class="hero-row">
+				<view class="avatar-box">
+					<image class="avatar-img" src="{{avatar}}"></image>
+				</view>
+				<view class="hero-info">
+					<text class="hero-line1">Lv.{{treeLevel}} 护林人 · 椰林排雷兵</text>
+					<text class="hero-line2">已点亮 {{unlockedCount}} / {{badgeTotal}} 枚勋章</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="stats">
+			<view class="stat-cell">
+				<text class="stat-num">{{pointsText}}</text>
+				<text class="stat-lb">可用碳积分</text>
+			</view>
+			<view class="stat-cell">
+				<text class="stat-num">{{growthText}}</text>
+				<text class="stat-lb">累计成长值</text>
+			</view>
+			<view class="stat-cell">
+				<view class="stat-num-row">
+					<text class="stat-num">{{adoptedCount}}</text>
+					<text class="stat-unit">棵</text>
+				</view>
+				<text class="stat-lb">我的树</text>
+			</view>
+		</view>
+
+		<view class="sec-row">
+			<text class="sec-title">勋章墙 · 已点亮 {{unlockedCount}} / {{badgeTotal}}</text>
+		</view>
+
+		<view class="badge-row">
+			<view class="badge-cell" wx:for="{{topBadges}}" wx:key="badgeId">
+				<view class="{{item.cls}}">
+					<image class="badge-ico" src="{{item.icon}}"></image>
+				</view>
+				<text class="{{item.unlocked ? 'badge-name badge-name-on' : 'badge-name'}}">{{item.name}}</text>
+			</view>
+		</view>
+
+		<view class="sec-row">
+			<text class="sec-title">森林补给站 · 用积分换周边</text>
+		</view>
+
+		<view class="mytree-card" bindtap="goTree">
+			<view class="mt-thumb">
+				<image class="mt-img" src="/static/illus/palm.png"></image>
+			</view>
+			<view class="mt-info">
+				<text class="mt-name">我的树 · {{treeName}}</text>
+				<text class="mt-sub">Lv.{{treeLevel}} · 成长值 {{treeGrowth}} / 1000</text>
+			</view>
+			<view class="go-pill">
+				<text class="go-pill-t">去看看</text>
+			</view>
+		</view>
+
+		<view class="list-card">
+			<view class="list-row">
+				<text class="list-k">我的认养</text>
+				<text class="list-v">{{adoptText}}</text>
+			</view>
+			<view class="list-row">
+				<text class="list-k">兑换记录</text>
+				<text class="list-v">{{recordText}}</text>
+			</view>
+		</view>
+
+		<view class="goods-row">
+			<view
+				class="goods-card"
+				wx:for="{{topGoods}}"
+				wx:key="itemId"
+				data-id="{{item.itemId}}"
+				bindtap="openExchange"
+			>
+				<view class="{{item.boxCls}}">
+					<image class="goods-img" src="{{item.image}}"></image>
+				</view>
+				<text class="goods-name">{{item.name}}</text>
+				<text class="goods-cost">{{item.costText}} 积分</text>
+			</view>
+		</view>
+
+		<view class="bottom-pad"></view>
+	</scroll-view>
+
+	<app-tabbar active="me"></app-tabbar>
+
+	<view class="mask" wx:if="{{sheetMode != ''}}">
+		<view class="mask-hit" bindtap="closeSheet"></view>
+		<view class="sheet">
+			<view wx:if="{{sheetMode == 'confirm'}}">
+				<text class="sheet-title">{{currentGoods.name}}</text>
+				<text class="sheet-sub">{{currentGoods.desc}}</text>
+				<view class="hint-box">
+					<text class="hint-t">将消耗 {{currentGoods.costText}} 积分，兑换后生成专属凭证码，到校园绿化服务点出示即可领取。</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="doExchange">
+					<text class="sheet-btn-t sheet-btn-t-white">确认兑换</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'ok'}}">
+				<view class="ok-head">
+					<text class="ok-title">兑换成功</text>
+					<text class="ok-sub">{{currentGoods.name}}</text>
+				</view>
+				<view class="code-box">
+					<text class="code-lb">兑换凭证码</text>
+					<text class="code-t">{{codeText}}</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+					<text class="sheet-btn-t sheet-btn-t-deep">收好了</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</view>

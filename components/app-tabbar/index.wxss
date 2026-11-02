@@ -1,0 +1,60 @@
+.tabbar-wrap {
+	display: flex;
+	flex-direction: column;
+	background-color: transparent;
+	padding-left: 12px;
+	padding-right: 12px;
+	padding-top: 6px;
+	padding-bottom: 10px;
+}
+
+.tabbar {
+	display: flex;
+	flex-direction: row;
+	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	height: 62px;
+	background-color: #FFFFFF;
+	border-radius: 31px;
+	align-items: center;
+	box-shadow: 0px 6px 24px rgba(46, 107, 79, 0.12);
+}
+
+.tb-cell {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+}
+
+.tb-pill {
+	display: flex;
+	flex-direction: column;
+	height: 50px;
+	padding-left: 13px;
+	padding-right: 13px;
+	border-radius: 25px;
+	align-items: center;
+	justify-content: center;
+}
+
+.tb-pill-on {
+	background-color: #EAF4E6;
+}
+
+.tb-ico {
+	width: 20px;
+	height: 20px;
+}
+
+.tb-t {
+	font-size: 9px;
+	color: #9AA394;
+	margin-top: 4px;
+	font-family: HYSans;
+}
+
+.tb-t-on {
+	color: #2E6B4F;
+	font-weight: bold;
+}

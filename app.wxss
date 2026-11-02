@@ -1,0 +1,19 @@
+/* 全局样式 */
+
+page {
+  background-color: #FFFCF6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* uvue 里 view 默认是纵向 flex；小程序 view 默认 block。
+   凡是需要参与弹性布局的容器，都要显式写 display:flex 并补 flex-direction:column，
+   否则会退化成 CSS 默认的 row 方向，布局会全乱。 */
+.fx {
+  display: flex;
+  flex-direction: column;
+}
+
+.fx-row {
+  display: flex;
+  flex-direction: row;
+}

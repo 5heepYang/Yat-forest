@@ -1,0 +1,117 @@
+<view class="page">
+	<nav-bar title="低碳日程" subtitle="{{dateLine}}">
+		<view class="icon-btn" bindtap="onCalendar">
+			<image class="icon-18" src="/static/ui/calendar.png"></image>
+		</view>
+	</nav-bar>
+
+	<scroll-view class="body" scroll-y>
+		<view class="energy-card">
+			<text class="e-label">今日碳能量</text>
+			<view class="e-row">
+				<view class="e-left">
+					<text class="e-num">{{todayPoints}}</text>
+					<text class="e-unit">分</text>
+				</view>
+				<view class="e-right">
+					<text class="e-acc">{{totalGrowth}} g</text>
+					<text class="e-acc-lb">累计少排 CO₂e</text>
+				</view>
+			</view>
+			<view class="e-bar">
+				<view class="e-bar-in" style="{{barStyle}}"></view>
+			</view>
+			<text class="e-hint">今日目标 {{carbonGoal}} 分 · 已完成 {{progressPct}}%</text>
+		</view>
+
+		<text class="sec-label">{{sectionLabel}}</text>
+
+		<view class="task-card">
+			<view
+				class="task-row"
+				wx:for="{{tasks}}"
+				wx:key="taskId"
+				data-id="{{item.taskId}}"
+				bindtap="openTask"
+			>
+				<text class="task-time">{{item.slot}}</text>
+				<view class="task-main">
+					<text class="{{item.done ? 'task-title task-title-done' : 'task-title'}}">{{item.title}}</text>
+					<text class="task-desc">{{item.desc}}</text>
+				</view>
+				<text class="{{item.done ? 'task-pt task-pt-done' : 'task-pt'}}">+{{item.basePoints}}</text>
+			</view>
+		</view>
+
+		<view class="week-head">
+			<text class="sec-title">本周碳账本</text>
+			<text class="week-streak">连续 5 天</text>
+		</view>
+
+		<view class="bars">
+			<view class="bar-col" wx:for="{{weekBars}}" wx:key="idx">
+				<view class="{{item.cls}}" style="height:{{item.h}}"></view>
+			</view>
+		</view>
+
+		<view class="ai-btn" bindtap="askAi">
+			<text class="ai-t">✦  问 AI 管家：今天还能再省多少？</text>
+		</view>
+
+		<view class="bottom-pad"></view>
+	</scroll-view>
+
+	<app-tabbar active="task"></app-tabbar>
+
+	<view class="mask" wx:if="{{sheetMode != ''}}">
+		<view class="mask-hit" bindtap="closeSheet"></view>
+		<view class="sheet">
+			<view wx:if="{{sheetMode == 'task'}}">
+				<text class="sheet-title">{{current.title}}</text>
+				<text class="sheet-sub">{{current.slot}} · {{current.desc}}</text>
+				<view class="hint-box">
+					<text class="hint-t">上传凭证照片（乘车码截图 / 空盘 / 骑行记录），AI 会自动核验真实性与减碳量。</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="useSample">
+					<text class="sheet-btn-t sheet-btn-t-white">使用示例凭证（模拟核验）</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="pickPhoto">
+					<text class="sheet-btn-t sheet-btn-t-deep">从相册选一张照片</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'loading'}}" class="loading-box">
+				<text class="loading-t">AI 多模态核验中{{dots}}</text>
+				<text class="loading-s">正在识别凭证场景并核算碳排放</text>
+			</view>
+
+			<view wx:if="{{sheetMode == 'result'}}">
+				<view class="result-head">
+					<view class="result-badge">
+						<text class="result-badge-t">核验通过</text>
+					</view>
+					<text class="result-carbon">{{result.carbonSavedG}} g</text>
+					<text class="result-carbon-lb">本次减少碳排放</text>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">{{result.comment}}</text>
+				</view>
+				<text class="result-detail">{{result.detail}}</text>
+				<view class="sheet-btn sheet-btn-main" bindtap="claim">
+					<text class="sheet-btn-t sheet-btn-t-white">领取 {{currentPoints}} 积分</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'advice'}}">
+				<text class="sheet-title">AI 日程碳管家</text>
+				<text class="sheet-sub">基于你今天的日程与任务完成情况</text>
+				<view class="hint-box">
+					<text class="hint-t">{{advice}}</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+					<text class="sheet-btn-t sheet-btn-t-deep">知道了</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</view>

@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/map/map",
+    "pages/task/task",
+    "pages/tree/tree",
+    "pages/honor/honor"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#FFFCF6",
+    "backgroundTextStyle": "dark",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "中大森友会"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

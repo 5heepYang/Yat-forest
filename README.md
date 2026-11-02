@@ -1,120 +1,140 @@
-# 中大森友会 · SYSU Eco-Twin
+# 中大森友会 · 原生小程序版
 
-> 基于多模态 AI 的校园树木认养与低碳共治平台
-> 环保主题 · 菁英杯参赛作品
+「中大森友会 SYSU Eco-Twin」的微信原生小程序实现，由原 uni-app x（`.uvue` + UTS）工程 1:1 转换而来。
 
-把「日程减碳」和「校园真实树木」绑在一起：日常通勤、光盘、骑行等低碳行为由 AI 核验后换成碳积分，积分用来认养中大校园里的真实树木，认养后可以浇水养大、线下打卡记录生长、上报虫害隐患，并参与成长 PK 与积分换周边。
-
-**当前版本：1.0（四页完整可交互，Mock 数据 + 本地 AI 模拟）**
+四个页面、全部交互与 Mock 数据与原版一致，**零框架依赖**，只需要微信开发者工具即可开发和调试。
 
 ---
 
-## 一、四个核心页面
+## 一、怎么跑起来
 
-| 页面 | 路由 | 核心功能 |
-| --- | --- | --- |
-| **森友地图** | `/pages/map/map` | 地图铺满内容区，树木点位按状态区分（待认养 / 已认养 / 隐患预警）；顶部浮层搜索框与「全部 / 我认养的 / 已认养 / 待认养」筛选；点击点位弹出树木详情卡，未认养可直接消耗 300 积分认养 |
-| **低碳日程** | `/pages/task/task` | 今日碳能量与累计少排 CO₂e 概览；按 08:00 / 12:00 / 15:00 / 19:00 排列的日程任务链；上传凭证后由 AI 核验并给出减碳量与趣味评语；本周 7 天碳账本；AI 日程碳管家 |
-| **我的林地** | `/pages/tree/tree` | 认养树木的养成主舞台（浇水 / 施肥提成长值）；成长 PK 擂台；线下生长时光轴（幼芽 → 新叶 → 枝繁）；虫害与坠叶隐患拍照上报，AI 判风险等级并生成后勤工单 `SYSU-xxxx` |
-| **我的** | `/pages/honor/honor` | 个人信息与资产（碳积分 / 成长值 / 认养数）；勋章墙；我的树与兑换记录；森林补给站（积分兑换校园纪念品并生成兑换码） |
+1. 打开微信开发者工具 → 导入项目
+2. 目录选 **本文件夹**（`elite-cup-native`），不要选上一层的 `elite-cup`
+3. AppID 填 `wx986e1936b714fb78`（已预填在 `project.config.json`）
+4. 点编译即可，无需任何额外安装、无需 HBuilderX、无需云开发
 
-底部导航为自绘悬浮 TabBar（`components/app-tabbar.uvue`），选中项为浅绿胶囊。
+如果 AppID 报不匹配，右上角「详情 → 基本信息」里换成你自己的即可。
 
-## 二、视觉设计
+---
 
-![四页面视觉稿](docs/design-preview.png)
+## 二、目录结构对照
 
-**设计基调**：奶油白底 + 森绿柔光。不用深色描边，阴影一律同色系柔光；可爱感由插画和配色承担，文字保持规整。
-
-| 项 | 值 |
+| 原 uni-app x 工程 | 现在 |
 | --- | --- |
-| 底色 / 卡片 | `#FFFCF6` / `#FFFFFF` |
-| 墨绿（标题） | `#2E6B4F` |
-| 主绿（按钮、选中） | `#4E8A6B` |
-| 浅绿（进度条） | `#6BB98A` |
-| 浅绿面（胶囊、标签底） | `#EAF4E6` / `#F3F9EF` |
-| 地图底色 / 草坪 | `#E7F0D8` / `#CFE3BC` |
-| 奶黄（积分标签） | `#FBF0D9`（文字 `#8A6A3B`） |
-| 珊瑚（隐患预警） | `#E07A5F`（底 `#FFF6F2`） |
-| 次级文字 | `#9AA394` / `#B4BCAF` |
-| 字体 | **HarmonyOS Sans SC**（Regular / Bold 已内嵌，免费商用） |
-| 圆角 | 卡片 20–24，大卡 28，胶囊全圆角 |
-| 阴影 | 同色系绿调、大模糊低透明度（`0 6px 24px rgba(46,107,79,.12)`），不使用硬边偏移 |
+| `App.uvue` | `app.js` + `app.wxss` |
+| `pages.json` | `app.json` + 各页 `*.json` |
+| `pages/*/index.uvue` | `pages/*/*.wxml` + `.wxss` + `.js` + `.json` |
+| `components/nav-bar.uvue` | `components/nav-bar/` |
+| `components/app-tabbar.uvue` | `components/app-tabbar/` |
+| `common/*.uts` | `common/*.js` |
+| `static/` | `static/`（原样复用） |
 
-图标与插画全部为项目内自绘 PNG（`static/ui`、`static/illus`），零第三方图标库依赖。
+逻辑层函数名、字段名、数值口径**完全保留**，方便对照原代码：
 
-## 三、AI 能力
+- `common/store.js` —— 全局状态 + 全部写操作（认养/浇水/施肥/任务/隐患/兑换）
+- `common/mock.js` —— 12 棵树、4 条任务、3 件纪念品、6 枚勋章、排行榜
+- `common/ai.js` —— 三个 AI 能力的模拟实现，函数签名不变
+- `common/theme.js` —— 设计 token 与数值常量
+- `common/util.js` —— 格式化与 toast
 
-1. **多模态凭证核验**：拍照 / 截图上传（乘车码、骑行记录、光盘照片、无纸化笔记），视觉模型判断是否真实完成并计算减碳量（g CO₂e），同时生成一句趣味点评。
-2. **AI 树木巡检医生**：识别病虫害类型与高空坠物风险等级（高危 / 中危 / 正常），生成结构化《校园绿化安全隐患反馈工单》并给予护林积分。
-3. **AI 日程碳管家**：结合今日任务完成情况给出还能减多少碳的建议。
+---
 
-> 1.0 中三个能力均为**本地模拟**（`common/ai.uts`，带 1.2–1.6s 延迟与规则推演），函数签名按真实视觉大模型调用设计。接入真实模型只需改这一个文件，页面代码零改动。
+## 三、转换时改了什么（重要）
 
-## 四、技术栈
+### 1. flex 布局必须显式声明
 
-- **uni-app x**（`.uvue` + UTS + **vapor 蒸汽渲染模式**），HBuilderX 5.34 验证
-- 状态：`common/store.uts` 中一个 `reactive` 全局单例，所有写操作收敛为函数，页面只读
-- 数据：5 个核心对象 —— User / Tree / TreeLog / CarbonTask / Souvenir（见 `common/model.uts`）
-- 地图：纯 view 插画底图 + 百分比坐标点位，不依赖地图 SDK 与 key
-- 字体：`uni.loadFontFace` 加载内嵌 HarmonyOS Sans SC（Regular / Bold 注册为两个 family）
+uvue 的 `view` **默认就是 `flex-direction: column`**，所以原样式里大量容器没有写 `display: flex`。小程序 `view` 默认是 `block`，直接照搬会导致布局全塌。
 
-### 目录结构
+处理方式：所有容器补 `display: flex`，**并显式写 `flex-direction: column`**（CSS 的 flex 默认是 row，方向不写会反过来）。搜索 wxss 里成对出现的 `display: flex` + `flex-direction` 就能看出规律。
 
-```
-App.uvue                    应用入口（字体加载、退出确认）
-pages.json                  页面注册（自定义导航栏，无原生 tabBar）
-common/
-  model.uts                 数据类型定义（对齐手册数据模型）
-  mock.uts                  12 棵树 / 4 条任务 / 3 件纪念品 / 6 枚勋章 / 排行榜
-  store.uts                 全局状态与全部写操作
-  ai.uts                    三个 AI 能力的封装（可替换为真实接口）
-  theme.uts                 设计 token 与数值（认养 300、浇水 -10/+20…）
-  util.uts                  格式化、日期、toast
-components/
-  nav-bar.uvue              自绘顶部导航（标题 + 副标题 + 右侧插槽）
-  app-tabbar.uvue           自绘悬浮底部导航
-pages/map|task|tree|honor   四个功能页
-static/tabbar · ui · illus  自绘图标与插画
-static/fonts                HarmonyOS Sans SC（Regular / Bold）
+### 2. 状态管理从 reactive 改为手动同步
+
+原版 `common/store.uts` 用 `reactive()` 做响应式，小程序没有这个机制。现在 `common/store.js` 导出普通对象 `state`：
+
+```js
+const store = require('../../common/store')
+store.adoptTree('t_103')   // 改数据
+this.refresh()             // 再同步到页面
 ```
 
-## 五、如何运行
+每个页面都有 `refresh()`，在 `onShow` 和每次写操作之后调用。**这是改动代码时最容易忘的一步**——只改 state 不调 refresh，界面不会变。
 
-1. HBuilderX 5.34+ 打开本目录（已含 `manifest.json`，`appid` 需在 HBuilderX 中生成）
-2. 运行到 **Web** 可直接查看交互；运行到 **Android** 需登录 DCloud 账号并连接设备
-3. 首次运行 Android 会下载标准基座（约 300MB，仅一次）
-4. 字体随包内嵌，无需联网即可生效；控制台可看到 `font ok HYSans` / `font ok HYSansBold`
+状态本身是模块级单例，页面之间 `wx.reLaunch` 切换不会丢（只要小程序没重启）。
 
-> 说明：uni-app x 的蒸汽模式运行时仅提供 **arm64-v8a**，x86 模拟器（MuMu / 雷电 / AVD x86_64）会白屏或闪退，验收请用真机。
+### 3. 模板里不能调用函数
 
-## 六、团队分工（五人均摊）
+原模板里有 `unownedCount()`、`t.distance.toFixed(0)`、`pinClass(t)` 这类写法，小程序 wxml 只支持简单表达式。全部改为在 js 里预计算，模板只读字段：
 
-| 成员 | 负责模块 | 主要交付 |
+- 树点位：`pinHeadClass` / `pinTailClass` / `pinIcon` 在 `decoratePins()` 里算好
+- 详情卡：`tagText` / `btnText` / `btnBg` 等在 `decorateSelected()` 里算好
+- 周柱状图：`{ idx, h, cls }`
+- 时光轴：`{ logId, imageUrl, label }`
+
+### 4. API 替换
+
+| uni | 微信原生 |
+| --- | --- |
+| `uni.showToast` | `wx.showToast` |
+| `uni.reLaunch` | `wx.reLaunch` |
+| `uni.chooseImage` | `wx.chooseImage` |
+| `uni.loadFontFace` | `wx.loadFontFace` |
+| `var(--status-bar-height)` | `getApp().globalData.statusBarHeight`（CSS 变量小程序不支持） |
+
+---
+
+## 四、字体：为什么只有 500KB
+
+原始 HarmonyOS Sans SC 两个字重共 **15.7 MB**，而微信小程序主包上限是 **2 MB**，原样打包会直接编译失败。
+
+处理方案：用 `fonttools` 按工程实际用到的字符做子集化，15.7 MB → **519 KB**，视觉上无损（字形数据一个没少，只是去掉了用不到的字）。
+
+### 加了新文案、发现字体不一致怎么办
+
+子集里没有的字会**自动回退到系统字体**（不会出现方块乱码），但字重和字形会略有差异。想保持一致就重跑一次：
+
+```bash
+pip install fonttools
+python tools/build-fonts.py
+```
+
+脚本会自动扫描所有 `.wxml` / `.js` 里的字符 + 1553 个常用汉字兜底，重新生成 `static/fonts/*.ttf`。原始字体放在 `assets-src/fonts/`（已在 `packOptions.ignore` 里排除，不会打进包）。
+
+---
+
+## 五、当前体积
+
+| 项 | 大小 |
+| --- | --- |
+| 字体（2 个子集） | 519 KB |
+| 图片（ui / illus / tabbar） | 67 KB |
+| 代码 + 样式 | 约 80 KB |
+| **主包合计** | **约 0.75 MB** |
+
+主包 2 MB 上限，还有充足余量。如果后面加大图，优先压图或放 CDN，不要直接塞包内。
+
+---
+
+## 六、给队友的分工入口
+
+| 模块 | 页面文件 | 对应原分工 |
 | --- | --- | --- |
-| 队长 | 总架构统筹 + 1.0 基建 + 合并部署验收 | 仓库与路由骨架、全局状态与接口封装、打包部署、答辩控场 |
-| 队员 A | 模块一：森友地图与认养（页面 1） | 地图渲染、树木点位、认养闭环、校园实景数据采集 |
-| 队员 B | 模块二：低碳日程与 AI 核验（页面 2） | 任务清单、凭证上传、AI 算碳对接、本周碳账本、演示视频录制 |
-| 队员 C | 模块三：我的林地（页面 3） | 浇水施肥养成、成长 PK 擂台、生长时光轴、隐患上报、比赛海报 |
-| 队员 D | 模块四：我的（页面 4） | 个人中心与资产、勋章馆、森林补给站兑换、答辩 PPT |
+| 森友地图与认养 | `pages/map/` | 队员 A |
+| 低碳日程与 AI 核验 | `pages/task/` | 队员 B |
+| 我的林地 | `pages/tree/` | 队员 C |
+| 我的 / 补给站 | `pages/honor/` | 队员 D |
+| 公共层 | `common/`、`components/` | 队长，改动需先同步 |
 
-详细的功能架构、数据规范、时间节点与答辩要点见 [`docs/团队开发手册与分工指南.docx`](docs/团队开发手册与分工指南.docx)；
-代码结构、数据模型与 AI 接口约定见 [`docs/1.0实现说明.md`](docs/1.0实现说明.md)。
+改页面时的注意顺序：
 
-## 七、开发进度
+1. 模板改 `*.wxml`，样式改 `*.wxss`（**记得给新容器补 `display: flex` + `flex-direction`**）
+2. 需要新字段就在 `data` 里声明，再在 `refresh()` 里 `setData`
+3. 涉及全局数值（积分、成长值）的写操作，一律走 `common/store.js`，不要在页面里直接改 state
 
-- [x] 四页面视觉稿与设计规范
-- [x] 功能架构、数据模型与五人分工
-- [x] 1.0 基础骨架（路由 / 全局 store / AI 调用封装 / 自绘导航）
-- [x] 四个页面完整 UI 与交互闭环
-- [x] 内嵌设计稿字体 HarmonyOS Sans SC
-- [ ] 真实多模态 AI 接口接入（`common/ai.uts` 单点替换）
-- [ ] 校园实拍树木数据替换图示占位
-- [ ] 联调、打包与部署
+---
 
-## 八、参与贡献
+## 七、与原版的已知差异
 
-1. 从 `master` 拉取最新代码，各自在独立功能文件夹内开发（A → `/pages/map`，B → `/pages/task`，C → `/pages/tree`，D → `/pages/honor`）
-2. 提交 Pull Request 给队长验收合并
-3. 互不修改他人模块文件，避免冲突；公共层（`common/`、`components/`）改动需先在群里同步
-4. 提交前确认 `console` 无报错，并跑一遍四页主流程：做任务拿积分 → 地图认养 → 浇水/上报 → PK 与兑换
+- **没有跨端能力**：原 uni-app x 工程可编译 Android / iOS / 鸿蒙 / Web，这份只能在微信里跑
+- **小程序端本来就是 VDOM 渲染**（基础库架构决定的），原版蒸汽模式的原生渲染性能在这里不存在
+- 字体是子集，未覆盖的生僻字回退系统字体
+- `pages/task` 的周柱状图高度按 66px 基准算，与原版一致
