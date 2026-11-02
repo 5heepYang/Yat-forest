@@ -20,7 +20,7 @@ const MODE_LOCAL = 'local'
 const MODE_CLOUD = 'cloud'
 
 /** 云开发环境 ID。留空 = 用默认环境（只有一个环境时没问题）。 */
-const CLOUD_ENV = ''
+const CLOUD_ENV = 'jchan-d6g7u9or6ce1d060c'
 
 let mode = MODE_LOCAL
 let cloudDb = null
