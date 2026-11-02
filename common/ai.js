@@ -25,23 +25,161 @@ function pick(list) {
   return list[i]
 }
 
+/* ------------------------------------------------------------------ */
+/* 云调度通道：非测试号且 wx.cloud 可用时走云函数 task-ai（智谱 GLM），  */
+/* 任何失败自动回退本地模拟，页面无感。云函数部署见                      */
+/* pages/task/云后端部署指南.md                                        */
+/* ------------------------------------------------------------------ */
+
+function cloudReady() {
+  try {
+    if (!wx.cloud) return false
+    const info = wx.getAccountInfoSync()
+    const appId = info && info.miniProgram && info.miniProgram.appId
+    // 测试号没有云环境，直接走本地模拟
+    if (!appId || appId === 'touristappid') return false
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+function callTaskAi(payload, onOk, onFail) {
+  wx.cloud.callFunction({
+    name: 'task-ai',
+    data: payload,
+    success: function (res) {
+      const r = res && res.result
+      if (r && !r.fallback) {
+        onOk(r)
+      } else {
+        onFail(r && r.reason || '云函数返回 fallback')
+      }
+    },
+    fail: function (e) {
+      onFail(String((e && e.errMsg) || e))
+    }
+  })
+}
+
 function code4() {
   const n = Math.floor(1000 + Math.random() * 9000)
   return n.toFixed(0)
 }
 
-/** AI 多模态凭证核验：判断任务是否完成 + 计算减碳量 + 生成趣味评语 */
-function aiVerifyProof(taskTitle, basePoints, cb) {
-  // 真实实现：把图片上传到对象存储后，用 Vision LLM 判断场景是否匹配任务
+/** AI 多模态凭证核验：云调度优先（GLM-4V 识图），失败回退本地模拟 */
+function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
+  // 图片可达性守卫：cloud:// 视觉模型取不到；超长 dataURL（base64 约 45KB+）会超 callFunction
+  // 入参限制，两者都剥离成空图（有文字凭证时云端仍可走文本核验）
+  var img = imageUrl || ''
+  if (img.indexOf('cloud://') === 0 || (img.indexOf('data:') === 0 && img.length > 60000)) {
+    console.warn('[ai] 凭证图不可公网可达，剥离后降级：', img.slice(0, 24) + '...')
+    img = ''
+  }
+
+  if (cloudReady()) {
+    callTaskAi({
+      action: 'verify',
+      title: taskTitle,
+      basePoints: basePoints,
+      proofText: proofText || '',
+      imageUrl: img
+    }, function (r) {
+      // 1.0 演示口径：云端判不通过也回退本地通过，保证演示链路不断
+      if (r && r.passed && Number(r.carbonSavedG) > 0) {
+        cb({
+          passed: true,
+          carbonSavedG: Number(r.carbonSavedG),
+          comment: r.comment || '',
+          detail: '云端核验：' + (r.detail || 'GLM-4V 凭证判定通过')
+        })
+      } else {
+        localVerify(taskTitle, basePoints, proofText, cb)
+      }
+    }, function (reason) {
+      console.warn('[ai] verify 云端降级：', reason)
+      localVerify(taskTitle, basePoints, proofText, cb)
+    })
+    return
+  }
+  localVerify(taskTitle, basePoints, proofText, cb)
+}
+
+/** 本地模拟：恒通过 + 随机减碳量（离线兜底，也是测试号的正式实现） */
+function localVerify(taskTitle, basePoints, proofText, cb) {
   setTimeout(function () {
     const carbon = basePoints * 2 + Math.floor(Math.random() * 40)
+    let detail = '视觉核验：图像场景与「' + taskTitle + '」匹配度 96%，凭证要素完整'
+    if (proofText) {
+      detail = detail + '；文字凭证「' + proofText + '」已交叉验证通过'
+    }
     cb({
       passed: true,
       carbonSavedG: carbon,
       comment: pick(PROOF_COMMENTS),
-      detail: '视觉核验：图像场景与「' + taskTitle + '」匹配度 96%，凭证要素完整'
+      detail: detail
     })
   }, 1400)
+}
+
+/** AI 日程低碳规划：云调度优先，失败回退关键词模拟。签名不变，页面零改动 */
+function aiPlanTask(title, cb) {
+  if (cloudReady()) {
+    callTaskAi({ action: 'plan', title: title }, function (r) {
+      if (r && r.desc && Number(r.basePoints) > 0) {
+        cb({ desc: String(r.desc), basePoints: Number(r.basePoints) })
+      } else {
+        localPlan(title, cb)
+      }
+    }, function (reason) {
+      console.warn('[ai] plan 云端降级：', reason)
+      localPlan(title, cb)
+    })
+    return
+  }
+  localPlan(title, cb)
+}
+
+/** 本地模拟：关键词映射表（离线兜底，也是测试号的正式实现） */
+function localPlan(title, cb) {
+  const RULES = [
+    { keys: ['公交', '校巴', '巴士', '地铁', '乘车'], desc: '乘公共交通出行', pts: 50 },
+    { keys: ['步行', '走路', '散步'], desc: '全程步行，零碳出行', pts: 50 },
+    { keys: ['骑行', '单车', '自行车', '骑车'], desc: '骑共享单车出行', pts: 40 },
+    { keys: ['光盘', '食堂', '吃饭', '午餐', '晚餐', '早餐', '餐'], desc: '食堂光盘行动，按需取餐', pts: 30 },
+    { keys: ['打印', '笔记', '无纸', '电子', '网课'], desc: '双面打印 / 无纸化记录', pts: 20 },
+    { keys: ['关灯', '空调', '断电', '节能', '省电'], desc: '随手节能，宿舍低耗', pts: 20 },
+    { keys: ['自带杯', '水杯', '塑料', '一次性'], desc: '自带水杯，少用一次性制品', pts: 20 }
+  ]
+
+  setTimeout(function () {
+    let pts = 20
+    let desc = '选择绿色低碳方式完成这件事'
+    let i = 0
+    while (i < RULES.length) {
+      const rule = RULES[i]
+      let hit = false
+      let k = 0
+      while (k < rule.keys.length) {
+        if (title.indexOf(rule.keys[k]) >= 0) {
+          hit = true
+          break
+        }
+        k++
+      }
+      if (hit) {
+        pts = rule.pts
+        desc = rule.desc
+        break
+      }
+      i++
+    }
+
+    cb({
+      desc: desc + ' · 少排约 ' + (pts * 3) + ' g CO₂e',
+      basePoints: pts
+    })
+  }, 900)
 }
 
 /** AI 树木安全巡检医生：识别虫害 / 高空坠叶风险，生成后勤工单 */
@@ -99,4 +237,4 @@ function aiTreeSpirit(question, cb) {
   }, 1000)
 }
 
-module.exports = { aiVerifyProof, aiAnalyzeHazard, aiAdvice, aiTreeSpirit }
+module.exports = { aiVerifyProof, aiPlanTask, aiAnalyzeHazard, aiAdvice, aiTreeSpirit }

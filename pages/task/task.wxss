@@ -135,6 +135,27 @@
 	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
 }
 
+/* 时段分组小标签（卡片内） */
+.group-label {
+	display: flex;
+	font-size: 11px;
+	color: #9AA394;
+	padding-top: 12px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+/* 空日程提示 */
+.empty-t {
+	display: flex;
+	font-size: 12px;
+	color: #B4BCAF;
+	padding: 22px 0;
+	justify-content: center;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
 .task-row {
 	display: flex;
 	flex-direction: row;
@@ -181,17 +202,18 @@
 }
 
 .task-pt {
-	width: 42px;
+	width: 64px;
 	font-size: 13px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #B4BCAF;
 	text-align: right;
 	padding-top: 2px;
 	font-family: HYSansBold;
 }
 
+/* 核验通过后积分变绿 */
 .task-pt-done {
-	color: #B4BCAF;
+	color: #4E8A6B;
 }
 
 .week-head {
@@ -425,4 +447,64 @@
 	margin-top: 10px;
 	line-height: 16px;
 	font-family: HYSans;
+}
+
+/* 添加日程表单 */
+.sheet-field {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	background-color: #F6FAF2;
+	border-radius: 14px;
+	padding: 12px;
+	margin-top: 12px;
+}
+
+.field-lb {
+	width: 64px;
+	font-size: 12px;
+	color: #5C6B60;
+	font-family: HYSans;
+}
+
+.field-input {
+	flex: 1;
+	height: 34px;
+	font-size: 13px;
+	color: #22302A;
+	font-family: HYSans;
+}
+
+.field-picker {
+	flex: 1;
+}
+
+.picker-val {
+	font-size: 15px;
+	font-weight: bold;
+	color: #2E6B4F;
+	font-family: HYSansBold;
+}
+
+/* 凭证缩略图与拍照/相册按钮行 */
+.proof-thumb {
+	width: 100%;
+	height: 150px;
+	border-radius: 14px;
+	margin-top: 14px;
+}
+
+.proof-row {
+	display: flex;
+	flex-direction: row;
+	margin-top: 12px;
+}
+
+.proof-btn {
+	flex: 1;
+	margin-top: 0;
+}
+
+.proof-btn:first-child {
+	margin-right: 10px;
 }
