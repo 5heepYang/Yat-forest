@@ -6,6 +6,7 @@
 	</nav-bar>
 
 	<scroll-view class="body" scroll-y>
+		<!-- 认养的树 -->
 		<view class="main-card">
 			<view class="mc-head">
 				<view class="mc-left">
@@ -13,14 +14,17 @@
 					<text class="mc-meta">{{tree.species}} · 树龄 {{tree.age}}</text>
 				</view>
 				<view class="lv-pill">
-					<text class="lv-t">Lv.{{tree.level}} 护林人</text>
+					<text class="lv-t">Lv.{{tree.level}} {{levelTitle}}</text>
 				</view>
 			</view>
 
 			<view class="stage">
 				<image class="stage-img" src="/static/illus/palm.png"></image>
-				<view class="weather-pill">
-					<text class="weather-t">{{weatherLine}}</text>
+				<view class="weather-pill" bindtap="onSpirit">
+					<text class="weather-t">{{spiritLine}}</text>
+				</view>
+				<view class="gain-pill" wx:if="{{gainShow}}">
+					<text class="gain-t">+{{gainText}}</text>
 				</view>
 			</view>
 
@@ -33,50 +37,116 @@
 			</view>
 
 			<view class="act-row">
-				<view class="act-btn" bindtap="onWater">
-					<text class="act-t">浇水</text>
+				<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onWater">
+					<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
 				</view>
-				<view class="act-btn" bindtap="onFertilize">
-					<text class="act-t">施肥</text>
+				<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onFertilize">
+					<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '施肥'}}</text>
 				</view>
+			</view>
+			<view class="care-tip-row">
+				<text class="care-tip">{{careTip}}</text>
 			</view>
 		</view>
 
-		<view class="pk-card">
-			<view class="pk-head">
-				<text class="pk-title">成长 PK 擂台</text>
-				<view class="pk-btn" bindtap="openPk">
-					<text class="pk-btn-t">发起 PK</text>
-				</view>
+		<!-- 成长任务 -->
+		<view class="task-card">
+			<view class="sec-head">
+				<text class="sec-title">成长任务</text>
+				<text class="sec-extra">{{pointsText}} · 护林币 {{coinsText}} · {{dailyText}}</text>
 			</view>
-			<view class="pk-row">
-				<text class="pk-name">我</text>
-				<view class="pk-track">
-					<view class="pk-in-me" style="{{pkMeStyle}}"></view>
-				</view>
-				<text class="pk-score">{{tree.growthScore}}</text>
+			<view class="streak-row">
+				<text class="streak-l">{{streakText}}</text>
+				<text class="streak-r">{{streakHint}}</text>
 			</view>
-			<view class="pk-row">
-				<text class="pk-name">同龄</text>
-				<view class="pk-track">
-					<view class="pk-in-rival" style="{{pkRivalStyle}}"></view>
+			<view class="trow {{item.done ? 'trow-done' : ''}}" wx:for="{{tasks}}" wx:key="kind" bindtap="onTask" data-kind="{{item.kind}}">
+				<view class="tdot {{item.done ? 'tdot-done' : ''}}"></view>
+				<view class="tmain">
+					<text class="ttitle {{item.done ? 'ttitle-done' : ''}}">{{item.title}}</text>
+					<text class="tsub">{{item.sub}}</text>
+					<view class="tbar" wx:if="{{item.kind == 'photo'}}">
+						<view class="tbar-in" style="{{photoBar}}"></view>
+					</view>
 				</view>
-				<text class="pk-score">{{rivalScore}}</text>
+				<text class="trew {{item.done ? 'trew-done' : ''}}">+{{item.reward}}</text>
 			</view>
 		</view>
 
+		<!-- 同校树木等级榜 -->
+		<view class="rank-card">
+			<view class="sec-head">
+				<text class="sec-title">同校树木等级榜</text>
+				<text class="sec-extra">{{rankText}}</text>
+			</view>
+			<view class="rrow {{item.mine ? 'rrow-mine' : ''}}" wx:for="{{rankTop}}" wx:key="treeId">
+				<view class="{{item.noCls}}">
+					<text class="rno-t">{{item.no}}</text>
+				</view>
+				<view class="rmain">
+					<text class="rname">{{item.name}}</text>
+					<text class="rsub">{{item.owner}}</text>
+				</view>
+				<view class="rlv">
+					<text class="rlv-t">Lv.{{item.level}}</text>
+				</view>
+				<text class="rscore">{{item.score}}</text>
+			</view>
+			<view class="rrow rrow-mine" wx:if="{{myOutOfTop}}">
+				<view class="rno rno-plain">
+					<text class="rno-t">{{myRankRow.no}}</text>
+				</view>
+				<view class="rmain">
+					<text class="rname">{{myRankRow.name}}</text>
+					<text class="rsub">我</text>
+				</view>
+				<view class="rlv">
+					<text class="rlv-t">Lv.{{myRankRow.level}}</text>
+				</view>
+				<text class="rscore">{{myRankRow.score}}</text>
+			</view>
+		</view>
+
+		<!-- 线下生长时光轴 -->
 		<view class="tl-head">
-			<text class="sec-title">线下生长时光轴</text>
-			<text class="tl-add-t" bindtap="openUpload">＋ 上传实拍</text>
+			<view class="tl-left">
+				<text class="sec-title">线下生长时光轴</text>
+				<text class="tl-hint">{{photoHint}}</text>
+			</view>
+			<view class="tl-acts">
+				<text class="tl-add-t" wx:if="{{photoCount > 3}}" bindtap="openAllLogs">全部 {{photoCount}}</text>
+				<text class="tl-add-t" bindtap="openUpload">＋ 上传</text>
+			</view>
 		</view>
 
-		<view class="tl-row">
-			<view class="tl-card" wx:for="{{growthLogs}}" wx:key="logId">
+		<view class="tl-empty" wx:if="{{photos.length == 0}}">
+			<text class="tl-empty-t">还没有线下实拍，拍一张记录它的第一天</text>
+		</view>
+		<view class="tl-row" wx:else>
+			<view class="tl-card" wx:for="{{photos}}" wx:key="logId">
 				<image class="tl-img" src="{{item.imageUrl}}"></image>
 				<text class="tl-label">{{item.label}}</text>
 			</view>
 		</view>
 
+		<!-- 我的隐患工单 -->
+		<view class="ticket-card" wx:if="{{tickets.length > 0}}">
+			<view class="sec-head">
+				<text class="sec-title">我的隐患工单</text>
+				<text class="sec-extra">共 {{tickets.length}} 张</text>
+			</view>
+			<view class="ht-row" wx:for="{{tickets}}" wx:key="id">
+				<view class="ht-badge {{item.resolved ? 'ht-badge-done' : ''}}">
+					<text class="ht-badge-t {{item.resolved ? 'ht-badge-t-done' : ''}}">{{item.level}}</text>
+				</view>
+				<view class="ht-main">
+					<text class="ht-no">{{item.ticket}}</text>
+					<text class="ht-sub">{{item.dateText}} · {{item.resolved ? '后勤已处理' : '待后勤处理'}}</text>
+				</view>
+				<text class="ht-act" wx:if="{{!item.resolved}}" bindtap="resolveTicket" data-id="{{item.id}}">演示·已处理</text>
+			</view>
+		</view>
+
+		<!-- 隐患入口 -->
 		<view class="hazard-card">
 			<view class="hz-ico-box">
 				<image class="hz-ico" src="/static/ui/camera.png"></image>
@@ -98,33 +168,12 @@
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
 		<view class="sheet">
-			<view wx:if="{{sheetMode == 'pk'}}">
-				<text class="sheet-title">树木成长 PK</text>
-				<text class="sheet-sub">与同龄树「中山楼后 · 香樟」比一比战力</text>
-				<view class="pk-compare">
-					<view class="pkc-box">
-						<text class="pkc-name">我的树</text>
-						<text class="pkc-score">{{tree.growthScore}}</text>
-					</view>
-					<text class="pkc-vs">VS</text>
-					<view class="pkc-box">
-						<text class="pkc-name">同龄树</text>
-						<text class="pkc-score">{{rivalScore}}</text>
-					</view>
-				</view>
-				<view class="hint-box">
-					<text class="hint-t">{{pkResultText}}</text>
-				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="doPk">
-					<text class="sheet-btn-t sheet-btn-t-white">发起挑战</text>
-				</view>
-			</view>
-
+			<!-- 隐患上报 -->
 			<view wx:if="{{sheetMode == 'hazard'}}">
 				<text class="sheet-title">拍一拍：隐患 / 虫害上报</text>
 				<text class="sheet-sub">AI 会识别风险等级并生成后勤工单</text>
 				<view class="hint-box">
-					<text class="hint-t">重点排查：大王椰枯叶悬垂、台风断枝、树干白蚁或红火蚁。上报成功可获得 100 护林积分。</text>
+					<text class="hint-t">重点排查：大王椰枯叶悬垂、台风断枝、树干白蚁或红火蚁。上报成功可获得护林积分。</text>
 				</view>
 				<view class="sheet-btn sheet-btn-main" bindtap="useSampleHazard">
 					<text class="sheet-btn-t sheet-btn-t-white">使用示例现场照片（演示）</text>
@@ -146,6 +195,7 @@
 					</view>
 					<text class="ticket-no">工单号 {{hazard.ticket}}</text>
 				</view>
+				<image class="hz-preview" src="{{hazardImage}}" mode="aspectFill"></image>
 				<view class="hint-box">
 					<text class="hint-t">{{hazard.analysis}}</text>
 				</view>
@@ -157,9 +207,30 @@
 				</view>
 			</view>
 
+			<!-- 养护核验 -->
+			<view wx:if="{{sheetMode == 'care'}}">
+				<text class="sheet-title">AI 养护核验</text>
+				<text class="sheet-sub">每天第一次{{careLabel}}需要一张现场照片，通过后当天免核验</text>
+				<view class="hint-box">
+					<text class="hint-t">照片里要能看到你正在{{careLabel}}。演示时可直接用示例照片，AI 会给出核验评语。</text>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="useSampleCare">
+					<text class="sheet-btn-t sheet-btn-t-white">使用示例照片（演示）</text>
+				</view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="pickCarePhoto">
+					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
+				</view>
+			</view>
+
+			<view wx:if="{{sheetMode == 'careLoading'}}" class="loading-box">
+				<text class="loading-t">AI 养护核验中{{dots}}</text>
+				<text class="loading-s">正在识别画面里的{{careLabel}}动作</text>
+			</view>
+
+			<!-- 上传实拍 -->
 			<view wx:if="{{sheetMode == 'upload'}}">
 				<text class="sheet-title">上传线下生长实拍</text>
-				<text class="sheet-sub">每张实拍 +20 积分，都会记入树的生长历程</text>
+				<text class="sheet-sub">完成本周期任务可得 +50 护林币与 +30 成长</text>
 				<view class="hint-box">
 					<text class="hint-t">建议每两周拍一张，完整记录它从春芽到枝繁叶茂的全过程。</text>
 				</view>
@@ -168,6 +239,38 @@
 				</view>
 				<view class="sheet-btn sheet-btn-soft" bindtap="pickGrowthPhoto">
 					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
+				</view>
+			</view>
+
+			<!-- 全部时光轴 -->
+			<view wx:if="{{sheetMode == 'allLogs'}}">
+				<text class="sheet-title">生长时光轴 · 共 {{photoCount}} 张</text>
+				<text class="sheet-sub">按时间从新到旧排列</text>
+				<scroll-view class="all-scroll" scroll-y>
+					<view class="al-row" wx:for="{{allPhotos}}" wx:key="logId">
+						<image class="al-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+						<view class="al-main">
+							<text class="al-title">{{item.label}}</text>
+							<text class="al-desc">{{item.desc}}</text>
+						</view>
+					</view>
+				</scroll-view>
+				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+					<text class="sheet-btn-t sheet-btn-t-deep">关闭</text>
+				</view>
+			</view>
+
+			<!-- 提醒周期 -->
+			<view wx:if="{{sheetMode == 'period'}}">
+				<text class="sheet-title">拍照提醒周期</text>
+				<text class="sheet-sub">到了周期，林地页会提醒你线下给它拍张照</text>
+				<view class="period-row">
+					<view class="popt {{item == photoPeriod ? 'popt-on' : ''}}" wx:for="{{periodOptions}}" wx:key="*this" bindtap="setPeriod" data-days="{{item}}">
+						<text class="popt-t {{item == photoPeriod ? 'popt-t-on' : ''}}">{{item}} 天</text>
+					</view>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">周期拉长可以减少打扰，但照片太少就看不出四季变化，建议 14 天。</text>
 				</view>
 			</view>
 		</view>
