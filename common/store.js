@@ -15,7 +15,7 @@ const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./
 const { stamp } = require('./util')
 const db = require('./db')
 
-/** 全局唯一状态。直接改这里的字段，改完调 persist()。 */
+/** 全局唯一状态。直接改这里的字段，改完调 persist([...])。 */
 const state = {
   user: mockUser(),
   trees: mockTrees(),
@@ -75,13 +75,22 @@ function ready() {
   return readyPromise
 }
 
-/** 落库。不阻塞界面，失败了本地也已经存住。 */
-function persist() {
+/**
+ * 落库。不阻塞界面，失败了本地也已经存住。
+ *
+ * @param {Array} only 本次改动涉及的集合名，如 ['trees','users']。
+ *                     不传则 6 个集合全写（慢，别这么干）。
+ *                     集合名对照：users / trees / tasks / tree_logs / goods / records
+ *
+ * 队友新增写函数时，照抄下面任意一个函数末尾的 persist([...]) 即可，
+ * 把你改到的字段所在的集合列出来。
+ */
+function persist(only) {
   if (!hydrated) {
     // 还没拉到远端数据就写，会把种子数据覆盖到云端，必须拦住
     return
   }
-  db.save(state)
+  db.save(state, only)
 }
 
 bootstrap()
@@ -183,7 +192,7 @@ function myTreeCount() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 写（每个函数末尾都要 persist()）                                     */
+/* 写（每个函数末尾都要 persist([...])，标明本次动到的集合）           */
 /* ------------------------------------------------------------------ */
 
 /** 认养：成功返回空串，失败返回提示语 */
@@ -211,7 +220,7 @@ function adoptTree(id) {
   t.growthScore = 30
   state.adoptedTreeId = id
   state.user.totalGrowthScore = state.user.totalGrowthScore + 30
-  persist()
+  persist(['trees', 'users'])
   return ''
 }
 
@@ -229,7 +238,7 @@ function water() {
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
-  persist()
+  persist(['trees', 'users'])
   return ''
 }
 
@@ -247,7 +256,7 @@ function fertilize() {
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
-  persist()
+  persist(['trees', 'users'])
   return ''
 }
 
@@ -264,7 +273,7 @@ function completeTask(taskId, carbon, comment) {
       t.aiComment = comment
       state.user.availablePoints = state.user.availablePoints + t.basePoints
       state.user.totalGrowthScore = state.user.totalGrowthScore + t.basePoints
-      persist()
+      persist(['tasks', 'users'])
       return ''
     }
     i++
@@ -287,7 +296,7 @@ function addGrowthLog(image, desc) {
   state.logs.push(log)
   state.user.availablePoints = state.user.availablePoints + 20
   state.user.totalGrowthScore = state.user.totalGrowthScore + 10
-  persist()
+  persist(['tree_logs', 'users'])
   return log
 }
 
@@ -309,7 +318,7 @@ function reportHazard(r, desc, image) {
   state.logs.push(log)
   state.user.availablePoints = state.user.availablePoints + r.reward
   state.user.totalGrowthScore = state.user.totalGrowthScore + r.reward
-  persist()
+  persist(['tree_logs', 'users'])
   return ''
 }
 
@@ -329,7 +338,7 @@ function exchange(itemId) {
       g.stock = g.stock - 1
       const code = 'SYSU-' + Math.floor(100000 + Math.random() * 899999).toFixed(0)
       state.records.push(g.name + ' · ' + code)
-      persist()
+      persist(['goods', 'users', 'records'])
       return { ok: true, code: code, msg: '' }
     }
     i++
@@ -344,7 +353,7 @@ function exchange(itemId) {
 /** 新增一棵树（走审核流程：pending -> approved 才会在地图上显示点位） */
 function addTree(tree) {
   state.trees.push(tree)
-  persist()
+  persist(['trees'])
   return tree
 }
 
@@ -355,14 +364,14 @@ function updateTree(treeId, patch) {
   Object.keys(patch).forEach(function (k) {
     t[k] = patch[k]
   })
-  persist()
+  persist(['trees'])
   return true
 }
 
 /** 新增一条日程 */
 function addTask(task) {
   state.tasks.push(task)
-  persist()
+  persist(['tasks'])
   return task
 }
 
@@ -371,7 +380,7 @@ function updateUser(patch) {
   Object.keys(patch).forEach(function (k) {
     state.user[k] = patch[k]
   })
-  persist()
+  persist(['users'])
 }
 
 module.exports = {

@@ -156,24 +156,31 @@ function fetchAll(name) {
 
 /** 全量覆盖写入：先清空再插入，保证前后端一致（比赛项目数据量小，够用） */
 function replaceAll(name, docs) {
-  if (!docs || !docs.length) return Promise.resolve()
+  const list = docs || []
 
-  return cloudDb.collection(name).where({ _id: cloudDb.command.exists(true) }).get()
-    .then(function (res) {
-      const tasks = res.data.map(function (d) {
+  return fetchAll(name)
+    .then(function (rows) {
+      if (!rows.length) return null
+      const tasks = rows.map(function (d) {
         return cloudDb.collection(name).doc(d._id).remove()
       })
       return Promise.all(tasks)
     })
     .then(function () {
-      const tasks = docs.map(function (d) {
-        // _id 由云开发自动生成，这里的业务 id 存到 dataId 字段
-        const copy = Object.assign({}, d)
-        delete copy._id
-        return cloudDb.collection(name).add({ data: copy })
+      if (!list.length) return null
+      const tasks = list.map(function (d) {
+        return cloudDb.collection(name).add({ data: copyDoc(d) })
       })
       return Promise.all(tasks)
     })
+}
+
+/** 去掉云端自动生成的字段，回写时带着它们会报错 */
+function copyDoc(d) {
+  const c = Object.assign({}, d)
+  delete c._id
+  delete c._openid
+  return c
 }
 
 function pullCloud() {
@@ -193,11 +200,20 @@ function pullCloud() {
     if (!trees.length) {
       console.log('[db] 云端为空，注入初始数据')
       const seed = seedState()
-      return pushCloud(seed).then(function () { return seed })
+      return writeSnapshot(snapshotOf(seed, null)).then(function () { return seed })
     }
 
+    // adoptedTreeId / carbonGoal 没有独立集合，寄存在 users 文档里一起存
+    const u = Object.assign({}, users[0] || mockUser())
+    const adoptedTreeId = u.adoptedTreeId || 't_101'
+    const carbonGoal = u.carbonGoal || 100
+    delete u.adoptedTreeId
+    delete u.carbonGoal
+
     return {
-      user: users[0] || mockUser(),
+      user: u,
+      adoptedTreeId: adoptedTreeId,
+      carbonGoal: carbonGoal,
       trees: trees,
       tasks: tasks,
       logs: logs,
@@ -207,16 +223,46 @@ function pullCloud() {
   })
 }
 
-function pushCloud(state) {
-  return Promise.all([
-    replaceAll('users', [state.user]),
-    replaceAll('trees', state.trees),
-    replaceAll('tasks', state.tasks),
-    replaceAll('tree_logs', state.logs),
-    replaceAll('goods', state.goods),
-    replaceAll('records', (state.records || []).map(function (r) { return { text: r } }))
-  ])
+/**
+ * 把内存状态转成"集合名 -> 文档数组"的快照。
+ * 立即快照是为了排队写入期间 state 又被改了也能写对。
+ *
+ * @param {object} state 全量状态
+ * @param {Array}  only  只落这些集合（如 ['trees','users']），不传则全写
+ */
+function snapshotOf(state, only) {
+  const all = {
+    // 认养的树 id 和碳目标没有独立集合，附在 users 文档上一起存
+    users: [Object.assign(copyDoc(state.user || {}), {
+      adoptedTreeId: state.adoptedTreeId || 't_101',
+      carbonGoal: state.carbonGoal || 100
+    })],
+    trees: (state.trees || []).map(copyDoc),
+    tasks: (state.tasks || []).map(copyDoc),
+    tree_logs: (state.logs || []).map(copyDoc),
+    goods: (state.goods || []).map(copyDoc),
+    records: (state.records || []).map(function (r) {
+      return typeof r === 'string' ? { text: r } : copyDoc(r)
+    })
+  }
+
+  const keys = only || Object.keys(all)
+  const out = {}
+  keys.forEach(function (k) {
+    out[k] = all[k] || []
+  })
+  return out
 }
+
+/** 真正落库：并发写各个集合，互不影响 */
+function writeSnapshot(snap) {
+  return Promise.all(Object.keys(snap).map(function (k) {
+    return replaceAll(k, snap[k])
+  }))
+}
+
+/** 串行队列：防止两次写入的"删-插"交叉，把集合写空 */
+let writeChain = Promise.resolve()
 
 /* ------------------------------------------------------------------ */
 /* 对外接口                                                            */
@@ -249,20 +295,30 @@ function pull() {
     })
 }
 
-/** 保存全量数据。调用方不 await 也不会阻塞界面。 */
-function save(state) {
+/**
+ * 保存数据。调用方不 await 也不会阻塞界面。
+ * @param {object} state 全量状态
+ * @param {Array}  only  只落库这些集合（如 ['trees','users']），不传则全写
+ */
+function save(state, only) {
   saveLocal(state)
 
   if (mode !== MODE_CLOUD) {
     return Promise.resolve(true)
   }
 
-  return pushCloud(state)
+  const snap = snapshotOf(state, only)
+
+  writeChain = writeChain
+    .catch(function () { /* 上一次失败不影响下一次 */ })
+    .then(function () { return writeSnapshot(snap) })
     .then(function () { return true })
     .catch(function (e) {
       console.warn('[db] 云端写入失败（本地已保存，下次启动会重试拉取）', e)
       return false
     })
+
+  return writeChain
 }
 
 /**
