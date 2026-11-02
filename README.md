@@ -31,7 +31,7 @@ git clone https://gitee.com/chen-zirui112/elite-cup.git
 | 想用自己的小程序身份 | 详情 → 基本信息 → AppID 改成自己的 |
 | 要真机预览 / 上传代码 | 让队长把你的微信号加进小程序成员 |
 
-本项目是纯前端 Mock，**不依赖任何云开发能力**，用测试号跑起来效果和截图完全一致。
+**测试号下照常开发**：数据读写走 `common/db.js`，测试号自动落在本地 Storage（重启不丢）；只有队长的正式 AppID 才连云数据库。所以**不需要**：HBuilderX、DCloud 账号、node_modules、云开发环境、团队成员权限。
 
 克隆下来就有的：四个页面、两个组件、Mock 数据、全部图片、子集字体。
 **不需要**：HBuilderX、DCloud 账号、node_modules、云开发环境。
@@ -190,6 +190,31 @@ python tools/build-fonts.py
 1. 模板改 `*.wxml`，样式改 `*.wxss`（**记得给新容器补 `display: flex` + `flex-direction`**）
 2. 需要新字段就在 `data` 里声明，再在 `refresh()` 里 `setData`
 3. 涉及全局数值（积分、成长值）的写操作，一律走 `common/store.js`，不要在页面里直接改 state
+
+### 开发循环（每人照此执行）
+
+```bash
+# 0. 一次性：clone + 导入 + 测试号（见第一节）
+git clone https://gitee.com/chen-zirui112/elite-cup.git
+
+# 1. 认领模块后，开自己的分支（分支名 = 模块名）
+git checkout -b feat/map     # A：地图    feat/task：B 日程
+                             # feat/tree：C 林地    feat/honor：D 个人页
+
+# 2. 开发……改完一批就提交
+git add -A
+git commit -m "feat(map): 地图页接入定位与半径筛选"
+git push origin feat/map
+```
+
+3. 做完后去 Gitee 发 **Pull Request**（`feat/xxx` → `master`），描述里写清：改了哪些文件、新增了哪些 data 字段、依赖了 CONTRACT 里哪几条
+4. 队长 review 合并。合并后队长用正式 AppID 编译验收一遍云端链路
+
+**边界纪律**（CONTRACT.md 有完整版）：
+
+- 只改自己模块的 `pages/<模块>/`；要动 `common/`、`components/`、`app.*` 先在群里说，合并冲突基本都出在这
+- 数据读写只走 `store.xxx()`，**不要**自己碰 `wx.cloud` / `wx.setStorageSync`
+- wxml 里不能调函数，格式化/类名都在 js 里算好再 `setData`
 
 ---
 
