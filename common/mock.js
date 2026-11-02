@@ -21,6 +21,20 @@ function mockUser() {
   }
 }
 
+/**
+ * 新用户注册用：云端查不到"我的"文档时，用这个开号。
+ * 初始送 520 积分 + 120 护林币，保证新用户进来就能认养、浇水、兑换，演示不冷场。
+ */
+function newUser() {
+  const u = mockUser()
+  u.userId = 'u_' + Date.now().toString(36) + Math.floor(Math.random() * 1000)
+  u.nickname = '护林员' + Math.floor(1000 + Math.random() * 9000)
+  u.totalGrowthScore = 0
+  u.badgeCount = 0
+  u.days = 1
+  return u
+}
+
 function emptyTree() {
   return {
     treeId: '', name: '', species: '', posX: 0, posY: 0, lat: 0, lng: 0,
@@ -226,7 +240,7 @@ function mockRanks() {
 }
 
 module.exports = {
-  mockUser, emptyTree, mockTrees, mockTasks,
+  mockUser, newUser, emptyTree, mockTrees, mockTasks,
   mockGoods, mockBadges, mockWeekBars, mockRanks,
   today, DEFAULT_TREE_IMG
 }

@@ -10,7 +10,7 @@
  * 这样做的原因：小程序没有 reactive，硬改成全异步会让四个页面的交互都要加 loading，
  * 演示时反而卡顿。同步改内存 + 后台落库，体验最好，也最不容易写错。
  */
-const { mockUser, mockTrees, mockTasks, mockGoods } = require('./mock')
+const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges } = require('./mock')
 const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
 const { stamp } = require('./util')
 const db = require('./db')
@@ -35,6 +35,8 @@ const state = {
     }
   ],
   goods: mockGoods(),
+  // 勋章是静态展示数据，不落库、不隔离（没有 badges 集合），每端各持一份
+  badges: mockBadges(),
   adoptedTreeId: 't_101',
   carbonGoal: 100,
   records: [
@@ -55,9 +57,9 @@ function bootstrap() {
     .then(function (data) {
       if (data) {
         Object.assign(state, data)
-        // 认养的那棵树可能变了，兜一下
-        if (!state.adoptedTreeId) {
-          state.adoptedTreeId = 't_101'
+        // 云端会返回明确的字符串（新用户是 ''），这里只兜"字段不存在"
+        if (typeof state.adoptedTreeId !== 'string') {
+          state.adoptedTreeId = ''
         }
       }
     })

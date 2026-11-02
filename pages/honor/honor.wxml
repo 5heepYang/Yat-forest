@@ -3,7 +3,7 @@
 		<view class="hero">
 			<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
 			<text class="hero-sub">南校园 · 护林第 {{days}} 天</text>
-			<text class="hero-name">{{nickname}}</text>
+			<text class="hero-name" bindtap="openProfile">{{nickname}}</text>
 			<view class="hero-row">
 				<view class="avatar-box">
 					<image class="avatar-img" src="{{avatar}}"></image>
@@ -98,6 +98,18 @@
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
 		<view class="sheet">
+			<view wx:if="{{sheetMode == 'profile'}}">
+				<text class="sheet-title">改个名字</text>
+				<text class="sheet-sub">认养树牌、排行榜上都会显示这个名字</text>
+				<view class="form-row">
+					<text class="form-label">昵称</text>
+					<input class="form-input" value="{{nicknameInput}}" bindinput="onNickInput" maxlength="12" placeholder="最多 12 个字" />
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="saveProfile">
+					<text class="sheet-btn-t sheet-btn-t-white">保存</text>
+				</view>
+			</view>
+
 			<view wx:if="{{sheetMode == 'confirm'}}">
 				<text class="sheet-title">{{currentGoods.name}}</text>
 				<text class="sheet-sub">{{currentGoods.desc}}</text>

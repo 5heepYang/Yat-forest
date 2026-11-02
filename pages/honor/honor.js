@@ -33,7 +33,8 @@ Page({
 
     sheetMode: '',
     currentGoods: null,
-    codeText: ''
+    codeText: '',
+    nicknameInput: ''
   },
 
   onLoad() {
@@ -156,6 +157,29 @@ Page({
 
   closeSheet() {
     this.setData({ sheetMode: '' })
+  },
+
+  /** 点昵称 → 改名弹层 */
+  openProfile() {
+    this.setData({
+      sheetMode: 'profile',
+      nicknameInput: store.state.user.nickname
+    })
+  },
+
+  onNickInput(e) {
+    this.setData({ nicknameInput: e.detail.value })
+  },
+
+  saveProfile() {
+    const nick = (this.data.nicknameInput || '').trim()
+    if (!nick) {
+      toast('先写个名字吧')
+      return
+    }
+    store.updateUser({ nickname: nick })
+    this.setData({ sheetMode: '', nickname: nick })
+    toast('改好了')
   },
 
   goTree() {

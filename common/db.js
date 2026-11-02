@@ -9,10 +9,15 @@
  * 这样队友用测试号开发时，增删改查全部可用（数据存在各自的开发者工具里，重启不丢），
  * 队长合并后用正式 AppID 跑，自动切到云端，一份代码两套后端，谁都不用改自己的代码。
  *
+ * 云端按 _openid 做数据隔离（见 PERSONAL 表）：
+ *   users / tasks / tree_logs / records  每人一份，查不到就静默注册（这就是"登录"）
+ *   trees / goods                        全局共享，大家看同一片林子、同一批库存
+ * 不需要 wx.login / code2Session —— 云开发在写入时自动注入 _openid，登录是免费的。
+ *
  * 判断依据：wx.getAccountInfoSync().miniProgram.appId === 'touristappid'
  * 就是测试号，直接走本地模式，不去碰 wx.cloud（碰了会报错刷屏）。
  */
-const { mockUser, mockTrees, mockTasks, mockGoods } = require('./mock')
+const { mockUser, newUser, mockTrees, mockTasks, mockGoods } = require('./mock')
 const { stamp } = require('./util')
 
 const STATE_KEY = 'ec_state_v1'
@@ -132,13 +137,39 @@ function saveLocal(state) {
 /* 云端实现                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * 集合归属：
+ *   true  = 每个用户一份（读写时按 _openid 过滤，互相看不见）
+ *   false = 全局共享一份（大家看同一片林子、同一批商品库存）
+ */
+const PERSONAL = {
+  users: true,
+  trees: false,
+  tasks: true,
+  tree_logs: true,
+  goods: false,
+  records: true
+}
+
+/** 生成某用户的初始日程（每人自己的低碳日程，内容同一套模板） */
+function personalTasks(userId) {
+  return mockTasks().map(function (t) {
+    return Object.assign({}, t, { userId: userId })
+  })
+}
+
 /** 小程序端单次最多取 100 条，多了要翻页 */
-function fetchAll(name) {
+function fetchAll(name, personal) {
   const MAX = 100
   let all = []
 
   function page(skip) {
-    return cloudDb.collection(name)
+    let q = cloudDb.collection(name)
+    if (personal) {
+      // '{openid}' 是云开发的通配写法，服务端会替换成当前用户的 openid
+      q = q.where({ _openid: '{openid}' })
+    }
+    return q.orderBy('_id', 'asc')
       .skip(skip)
       .limit(MAX)
       .get()
@@ -154,11 +185,16 @@ function fetchAll(name) {
   return page(0)
 }
 
-/** 全量覆盖写入：先清空再插入，保证前后端一致（比赛项目数据量小，够用） */
+/**
+ * 覆盖写入一个集合：先删后插。
+ * personal 集合只删"我的"文档，不会碰到别人的数据。
+ * 注意：trees/goods 是全量覆盖，两人同时写会以后写的为准（比赛规模可接受，
+ * 要严格就改成 .doc(id).update() 逐字段更新，或上云函数）。
+ */
 function replaceAll(name, docs) {
   const list = docs || []
 
-  return fetchAll(name)
+  return fetchAll(name, PERSONAL[name])
     .then(function (rows) {
       if (!rows.length) return null
       const tasks = rows.map(function (d) {
@@ -184,48 +220,74 @@ function copyDoc(d) {
 }
 
 function pullCloud() {
-  const names = ['users', 'trees', 'tasks', 'tree_logs', 'goods', 'records']
+  return Promise.all([
+    fetchAll('users', true),
+    fetchAll('trees', false),
+    fetchAll('tasks', true),
+    fetchAll('tree_logs', true),
+    fetchAll('goods', false),
+    fetchAll('records', true)
+  ]).then(function (r) {
+    let users = r[0]
+    let trees = r[1]
+    let tasks = r[2]
+    let logs = r[3]
+    let goods = r[4]
+    let records = r[5]
 
-  return Promise.all(names.map(function (n) {
-    return fetchAll(n).catch(function () { return [] })
-  })).then(function (results) {
-    const users = results[0]
-    const trees = results[1]
-    const tasks = results[2]
-    const logs = results[3]
-    const goods = results[4]
-    const records = results[5]
-
-    // 哪个集合是空的就补哪个，避免只建了部分集合时页面白屏
     const seed = seedState()
-    const missing = []
-    if (!users.length) missing.push('users')
-    if (!trees.length) missing.push('trees')
-    if (!tasks.length) missing.push('tasks')
-    if (!logs.length) missing.push('tree_logs')
-    if (!goods.length) missing.push('goods')
-    if (!records.length) missing.push('records')
+    const jobs = []
 
-    if (missing.length) {
-      console.log('[db] 这些集合还没有数据，补种：', missing.join(', '))
-      const fill = writeSnapshot(snapshotOf(seed, missing))
-      // 补种失败不影响本次进页面，本地还有缓存兜底
-      return fill.catch(function (e) {
-        console.warn('[db] 补种失败（多半是集合还没在控制台建好）', e)
-      }).then(function () {
-        return buildState(users, trees, tasks, logs, goods, records, seed)
-      })
+    // —— 全局数据只播种一次：谁先进来谁播 ——
+    // （两人同一秒首次进入会有重复种子，比赛规模可接受）
+    const isFirstUser = !trees.length
+    if (!trees.length) jobs.push(['trees', seed.trees])
+    if (!goods.length) jobs.push(['goods', seed.goods])
+
+    // —— 个人数据：查不到"我的"文档 = 第一次来，注册即登录（无感知）——
+    let me = users[0]
+    if (!me) {
+      // 第一个用户沿用种子身份 u_001（种子树 t_101 的 ownerId 就是它），
+      // 之后的用户发新 id
+      me = isFirstUser ? Object.assign({}, mockUser()) : newUser()
+      me.adoptedTreeId = isFirstUser ? 't_101' : ''
+      jobs.push(['users', [me]])
+      jobs.push(['tasks', personalTasks(me.userId)])
+      if (isFirstUser) {
+        // 第一个进来的用户拿完整演示数据：认养 t_101 + 三条成长日志 + 两条兑换记录
+        jobs.push(['tree_logs', seed.logs])
+        jobs.push(['records', seed.records.map(function (t) { return { text: t } })])
+      }
+    } else if (!tasks.length) {
+      // 老用户但日程被清了，补一份
+      jobs.push(['tasks', personalTasks(me.userId)])
     }
 
-    return buildState(users, trees, tasks, logs, goods, records, seed)
+    return Promise.all(jobs.map(function (j) {
+      return replaceAll(j[0], j[1]).catch(function (e) {
+        console.warn('[db] 初始化写入失败（检查集合是否建好、权限是否放开）', j[0], e)
+        return null
+      })
+    })).then(function () {
+      // 写入完成后再拼 state，新写入的文档这里直接用内存值兜底
+      if (!users.length) users = [me]
+      if (!trees.length) trees = seed.trees
+      if (!tasks.length) tasks = personalTasks(me.userId)
+      if (!goods.length) goods = seed.goods
+      if (isFirstUser && !logs.length) logs = seed.logs
+      if (isFirstUser && !records.length) {
+        records = seed.records.map(function (t) { return { text: t } })
+      }
+
+      return buildState(users, trees, tasks, logs, goods, records)
+    })
   })
 }
 
-/** 把云端拉到的各集合拼成 state，空的部分用种子数据兜底 */
-function buildState(users, trees, tasks, logs, goods, records, seed) {
-  // adoptedTreeId / carbonGoal 没有独立集合，寄存在 users 文档里一起存
-  const u = Object.assign({}, users[0] || seed.user)
-  const adoptedTreeId = u.adoptedTreeId || 't_101'
+/** 把云端拉到的各集合拼成 state。badges 是静态数据，不进云端，由 store 自带 */
+function buildState(users, trees, tasks, logs, goods, records) {
+  const u = Object.assign({}, users[0] || mockUser())
+  const adoptedTreeId = typeof u.adoptedTreeId === 'string' ? u.adoptedTreeId : 't_101'
   const carbonGoal = u.carbonGoal || 100
   delete u.adoptedTreeId
   delete u.carbonGoal
@@ -234,13 +296,11 @@ function buildState(users, trees, tasks, logs, goods, records, seed) {
     user: u,
     adoptedTreeId: adoptedTreeId,
     carbonGoal: carbonGoal,
-    trees: trees.length ? trees : seed.trees,
-    tasks: tasks.length ? tasks : seed.tasks,
-    logs: logs.length ? logs : seed.logs,
-    goods: goods.length ? goods : seed.goods,
-    records: records.length
-      ? records.map(function (r) { return typeof r === 'string' ? r : (r.text || '') })
-      : seed.records
+    trees: trees,
+    tasks: tasks,
+    logs: logs,
+    goods: goods,
+    records: records.map(function (r) { return typeof r === 'string' ? r : (r.text || '') })
   }
 }
 
