@@ -196,31 +196,52 @@ function pullCloud() {
     const goods = results[4]
     const records = results[5]
 
-    // 云端还没有数据：把种子数据推上去，第一次打开就有内容
-    if (!trees.length) {
-      console.log('[db] 云端为空，注入初始数据')
-      const seed = seedState()
-      return writeSnapshot(snapshotOf(seed, null)).then(function () { return seed })
+    // 哪个集合是空的就补哪个，避免只建了部分集合时页面白屏
+    const seed = seedState()
+    const missing = []
+    if (!users.length) missing.push('users')
+    if (!trees.length) missing.push('trees')
+    if (!tasks.length) missing.push('tasks')
+    if (!logs.length) missing.push('tree_logs')
+    if (!goods.length) missing.push('goods')
+    if (!records.length) missing.push('records')
+
+    if (missing.length) {
+      console.log('[db] 这些集合还没有数据，补种：', missing.join(', '))
+      const fill = writeSnapshot(snapshotOf(seed, missing))
+      // 补种失败不影响本次进页面，本地还有缓存兜底
+      return fill.catch(function (e) {
+        console.warn('[db] 补种失败（多半是集合还没在控制台建好）', e)
+      }).then(function () {
+        return buildState(users, trees, tasks, logs, goods, records, seed)
+      })
     }
 
-    // adoptedTreeId / carbonGoal 没有独立集合，寄存在 users 文档里一起存
-    const u = Object.assign({}, users[0] || mockUser())
-    const adoptedTreeId = u.adoptedTreeId || 't_101'
-    const carbonGoal = u.carbonGoal || 100
-    delete u.adoptedTreeId
-    delete u.carbonGoal
-
-    return {
-      user: u,
-      adoptedTreeId: adoptedTreeId,
-      carbonGoal: carbonGoal,
-      trees: trees,
-      tasks: tasks,
-      logs: logs,
-      goods: goods,
-      records: records.map(function (r) { return typeof r === 'string' ? r : (r.text || '') })
-    }
+    return buildState(users, trees, tasks, logs, goods, records, seed)
   })
+}
+
+/** 把云端拉到的各集合拼成 state，空的部分用种子数据兜底 */
+function buildState(users, trees, tasks, logs, goods, records, seed) {
+  // adoptedTreeId / carbonGoal 没有独立集合，寄存在 users 文档里一起存
+  const u = Object.assign({}, users[0] || seed.user)
+  const adoptedTreeId = u.adoptedTreeId || 't_101'
+  const carbonGoal = u.carbonGoal || 100
+  delete u.adoptedTreeId
+  delete u.carbonGoal
+
+  return {
+    user: u,
+    adoptedTreeId: adoptedTreeId,
+    carbonGoal: carbonGoal,
+    trees: trees.length ? trees : seed.trees,
+    tasks: tasks.length ? tasks : seed.tasks,
+    logs: logs.length ? logs : seed.logs,
+    goods: goods.length ? goods : seed.goods,
+    records: records.length
+      ? records.map(function (r) { return typeof r === 'string' ? r : (r.text || '') })
+      : seed.records
+  }
 }
 
 /**
