@@ -1,0 +1,73 @@
+<template>
+	<view class="nav">
+		<view class="status-pad"></view>
+		<view class="nav-row">
+			<view class="nav-left">
+				<text class="nav-title">{{ title }}</text>
+				<text class="nav-sub">{{ subtitle }}</text>
+			</view>
+			<view class="nav-right">
+				<slot></slot>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	defineProps({
+		title: {
+			type: String,
+			default: ''
+		},
+		subtitle: {
+			type: String,
+			default: ''
+		}
+	})
+</script>
+
+<style>
+	.nav {
+		font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+		background-color: #FFFCF6;
+		padding-left: 20px;
+		padding-right: 20px;
+		padding-bottom: 12px;
+	}
+
+	.status-pad {
+		height: var(--status-bar-height);
+	}
+
+	.nav-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 14px;
+	}
+
+	.nav-left {
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.nav-title {
+		font-size: 24px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.nav-sub {
+		font-size: 11px;
+		color: #9AA394;
+		margin-top: 6px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.nav-right {
+		flex-direction: row;
+		align-items: center;
+	}
+</style>

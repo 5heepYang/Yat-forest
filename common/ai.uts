@@ -1,0 +1,103 @@
+/**
+ * AI 能力封装层（1.0 为本地模拟，接口签名与真实多模态调用一致）
+ *
+ * 接真实大模型时只需改这一个文件：把 setTimeout 里的本地推演替换成
+ * uni.request 调用 Vision LLM，回调仍然通过 cb 返回同样的结构，页面代码零改动。
+ */
+import { AiProofResult, AiHazardResult } from './model.uts'
+
+const PROOF_COMMENTS : Array<string> = [
+	'识别到乘车凭证！今日少排碳，你的小树又长高了一截~',
+	'空盘验真通过 ✅ 光盘是最朴素的减碳，食堂阿姨都替你骄傲。',
+	'骑行轨迹清晰，两条腿的发动机比四个轮子环保多了。',
+	'无纸化笔记识别成功，纸张：谢谢你放过我。'
+]
+
+const SPIRIT_REPLIES : Array<string> = [
+	'我在这条路上站了三十八年，早八的人流我一眼就能看出谁是刚醒的。',
+	'台风天别靠我太近，我的老叶子比你的拖延症还沉。',
+	'你浇的水我收到了，虽然虚拟的，但心意是真的。',
+	'期末周？我一年四季都站着不动，你这点考试算什么。',
+	'记得帮我看一眼头顶有没有枯叶，我不想当校园里最危险的那棵树。'
+]
+
+function pick(list : Array<string>) : string {
+	const i = Math.floor(Math.random() * list.length)
+	return list[i]
+}
+
+function code4() : string {
+	const n = Math.floor(1000 + Math.random() * 9000)
+	return n.toFixed(0)
+}
+
+/** AI 多模态凭证核验：判断任务是否完成 + 计算减碳量 + 生成趣味评语 */
+export function aiVerifyProof(taskTitle : string, basePoints : number, cb : (r : AiProofResult) => void) {
+	// 真实实现：把图片上传到对象存储后，用 Vision LLM 判断场景是否匹配任务
+	setTimeout(() => {
+		const carbon = basePoints * 2 + Math.floor(Math.random() * 40)
+		const r : AiProofResult = {
+			passed: true,
+			carbonSavedG: carbon,
+			comment: pick(PROOF_COMMENTS),
+			detail: '视觉核验：图像场景与「' + taskTitle + '」匹配度 96%，凭证要素完整'
+		}
+		cb(r)
+	}, 1400)
+}
+
+/** AI 树木安全巡检医生：识别虫害 / 高空坠叶风险，生成后勤工单 */
+export function aiAnalyzeHazard(treeName : string, species : string, cb : (r : AiHazardResult) => void) {
+	setTimeout(() => {
+		let level = '高危'
+		let analysis = '识别到「' + treeName + '」顶部枯萎叶片已脱离叶鞘，处于悬垂状态，存在高空坠物砸伤风险。'
+		let advice = '建议后勤绿化队在 24 小时内完成枯叶清除，并在树下 3m 范围设置临时警戒带。'
+		if (species.indexOf('榕') >= 0) {
+			level = '中危'
+			analysis = '识别到树干基部有白蚁泥线与蛀蚀痕迹，暂未见结构失稳，但需持续监测。'
+			advice = '建议投放白蚁诱杀饵剂，两周后回访复查树干强度。'
+		} else if (species.indexOf('凤凰木') >= 0) {
+			level = '中危'
+			analysis = '台风过后存在断枝悬挂，断口未完全脱离，遇风可能二次坠落。'
+			advice = '建议修剪断枝并清理树下残枝，台风季前完成一次全面排查。'
+		}
+		const r : AiHazardResult = {
+			level: level,
+			ticket: 'SYSU-' + code4(),
+			analysis: analysis,
+			advice: advice,
+			reward: 100
+		}
+		cb(r)
+	}, 1600)
+}
+
+/** AI 日程碳管家：根据今日任务给出减碳建议 */
+export function aiAdvice(doneCount : number, totalCount : number, cb : (text : string) => void) {
+	setTimeout(() => {
+		let s = ''
+		if (doneCount >= totalCount) {
+			s = '今天的任务链全部核验通过，预计再走 800 步就能多减 40g，去操场绕一圈吧。'
+		} else {
+			s = '你还有 ' + (totalCount - doneCount).toFixed(0) + ' 个任务没打卡。按你今天的日程，晚餐光盘 + 回宿舍关灯一小时，还能再减约 120g，够你的树长 20 点成长值。'
+		}
+		cb(s)
+	}, 900)
+}
+
+/** AI 树灵对话：每棵树按树种/位置拥有独立性格 */
+export function aiTreeSpirit(question : string, cb : (reply : string) => void) {
+	setTimeout(() => {
+		let reply = ''
+		if (question.indexOf('台风') >= 0) {
+			reply = '台风来之前记得帮我拍张照，我头顶那片老叶早就想下去了。'
+		} else if (question.indexOf('早八') >= 0 || question.indexOf('累') >= 0) {
+			reply = '早八路过我这儿记得抬头看看，我三十八年没请过假。'
+		} else if (question.indexOf('期末') >= 0) {
+			reply = '期末周？我一年四季站着不动，你这点考试算什么，去图书馆吧。'
+		} else {
+			reply = pick(SPIRIT_REPLIES)
+		}
+		cb(reply)
+	}, 1000)
+}

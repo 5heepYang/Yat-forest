@@ -1,0 +1,706 @@
+<template>
+	<view class="page">
+		<nav-bar title="森友地图" :subtitle="'南校园 · ' + store.trees.length.toFixed(0) + ' 棵树在册'">
+			<view class="icon-btn" @click="onAddTree">
+				<image class="icon-18" src="/static/ui/plus.png"></image>
+			</view>
+		</nav-bar>
+
+		<view class="map-wrap">
+			<view class="map-bg"></view>
+			<view class="blob blob-1"></view>
+			<view class="blob blob-2"></view>
+			<view class="blob blob-3"></view>
+			<view class="road road-1"></view>
+			<view class="road road-2"></view>
+			<view class="lake"></view>
+			<view class="bld bld-1"></view>
+			<view class="bld bld-2"></view>
+			<view class="bld bld-3"></view>
+			<view class="dot dot-1"></view>
+			<view class="dot dot-2"></view>
+			<view class="dot dot-3"></view>
+
+			<view v-for="t in visibleTrees" :key="t.treeId" class="pin" :style="pinStyle(t)" @click="selectTree(t)">
+				<view class="pin-head" :class="pinClass(t)">
+					<text v-if="t.status == 'hazard'" class="pin-bang">!</text>
+					<image v-else :src="pinIcon(t)" class="pin-ico"></image>
+				</view>
+				<view class="pin-tail" :class="pinTailClass(t)"></view>
+			</view>
+
+			<view class="float-top">
+				<view class="search-row">
+					<view class="search-pill" @click="onSearch">
+						<image class="ic-search" src="/static/ui/search.png"></image>
+						<text class="search-ph">搜树种 / 认养人 / 楼栋</text>
+					</view>
+					<view class="filter-btn" @click="onSearch">
+						<image class="ic-sliders" src="/static/ui/sliders.png"></image>
+					</view>
+				</view>
+				<view class="chip-row">
+					<view v-for="f in filters" :key="f.key" :class="filter == f.key ? 'chip chip-on' : 'chip'"
+						@click="setFilter(f.key)">
+						<view v-if="filter != f.key && f.key == 'mine'" class="chip-dot"></view>
+						<view v-if="filter != f.key && f.key == 'free'" class="chip-ring"></view>
+						<text :class="filter == f.key ? 'chip-t chip-t-on' : 'chip-t'">{{ f.label }}</text>
+					</view>
+				</view>
+			</view>
+
+			<view class="hint-pill">
+				<text class="hint-t">附近 {{ unownedCount() }} 棵可认养</text>
+			</view>
+
+			<view class="tree-card" v-if="showCard">
+				<view class="tc-row">
+					<view class="tc-thumb">
+						<image class="tc-img" src="/static/illus/palm.png"></image>
+					</view>
+					<view class="tc-info">
+						<text class="tc-name">{{ selected.name }}</text>
+						<text class="tc-meta">{{ selected.species }} · 树龄 {{ selected.age }} · 距你 {{ selected.distance.toFixed(0) }} m</text>
+						<view class="tc-tag-row">
+							<view class="tc-tag" :class="tagBg">
+								<text class="tc-tag-t" :class="tagColor">{{ tagText }}</text>
+							</view>
+						</view>
+					</view>
+				</view>
+				<view class="tc-btn" :class="btnBg" @click="onCardAction">
+					<text class="tc-btn-t" :class="btnColor">{{ btnText }}</text>
+				</view>
+			</view>
+		</view>
+
+		<app-tabbar active="map"></app-tabbar>
+	</view>
+</template>
+
+<script setup>
+	import NavBar from '@/components/nav-bar.uvue'
+	import AppTabbar from '@/components/app-tabbar.uvue'
+	import { Tree } from '@/common/model.uts'
+	import { emptyTree } from '@/common/mock.uts'
+	import { store, adoptTree, unownedCount } from '@/common/store.uts'
+	import { ADOPT_COST } from '@/common/theme.uts'
+	import { toast } from '@/common/util.uts'
+
+	type FilterOpt = {
+		key : string,
+		label : string
+	}
+
+	const filters : Array<FilterOpt> = [
+		{ key: 'all', label: '全部' },
+		{ key: 'mine', label: '我认养的' },
+		{ key: 'owned', label: '已认养' },
+		{ key: 'free', label: '待认养' }
+	]
+
+	const filter = ref<string>('all')
+	const showCard = ref<boolean>(false)
+	const selected = ref<Tree>(emptyTree())
+
+	const visibleTrees = computed(() : Array<Tree> => {
+		const out : Array<Tree> = []
+		let i = 0
+		while (i < store.trees.length) {
+			const t = store.trees[i]
+			if (filter.value == 'all') {
+				out.push(t)
+			} else if (filter.value == 'mine') {
+				if (t.ownerId == store.user.userId) {
+					out.push(t)
+				}
+			} else if (filter.value == 'owned') {
+				if (t.ownerId != '') {
+					out.push(t)
+				}
+			} else {
+				if (t.ownerId == '') {
+					out.push(t)
+				}
+			}
+			i++
+		}
+		return out
+	})
+
+	const tagText = computed(() : string => {
+		const t = selected.value
+		if (t.status == 'hazard') {
+			return '隐患预警 · 待后勤处理'
+		}
+		if (t.ownerId == '') {
+			return '待认养 · 可立即认养'
+		}
+		if (t.ownerId == store.user.userId) {
+			return '我认养的 · 可去养护'
+		}
+		return '已认养 · ' + t.ownerName
+	})
+
+	const tagBg = computed(() : string => {
+		return selected.value.status == 'hazard' ? 'tag-warn' : 'tag-cream'
+	})
+
+	const tagColor = computed(() : string => {
+		return selected.value.status == 'hazard' ? 'tc-tag-t-warn' : 'tc-tag-t-cream'
+	})
+
+	const btnText = computed(() : string => {
+		const t = selected.value
+		if (t.ownerId == store.user.userId) {
+			return '已认养 · 去给它浇水'
+		}
+		if (t.status == 'hazard') {
+			return '隐患处理中 · 暂不可认养'
+		}
+		return '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养'
+	})
+
+	const btnBg = computed(() : string => {
+		const t = selected.value
+		if (t.ownerId == store.user.userId) {
+			return 'btn-soft'
+		}
+		return t.status == 'hazard' ? 'btn-mute' : 'btn-main'
+	})
+
+	const btnColor = computed(() : string => {
+		return selected.value.ownerId == store.user.userId ? 'tc-btn-t-deep' : 'tc-btn-t-white'
+	})
+
+	function pinStyle(t : Tree) : string {
+		return 'left:' + t.posX.toFixed(0) + '%;top:' + t.posY.toFixed(0) + '%'
+	}
+
+	function pinClass(t : Tree) : string {
+		if (t.status == 'hazard') {
+			return 'pin-head-warn'
+		}
+		return t.ownerId == store.user.userId ? 'pin-head-mine' : 'pin-head-plain'
+	}
+
+	function pinTailClass(t : Tree) : string {
+		if (t.status == 'hazard') {
+			return 'pin-tail-warn'
+		}
+		return t.ownerId == store.user.userId ? 'pin-tail-mine' : 'pin-tail-plain'
+	}
+
+	function pinIcon(t : Tree) : string {
+		if (t.ownerId == store.user.userId) {
+			return '/static/illus/tree-white.png'
+		}
+		if (t.ownerId != '') {
+			return '/static/illus/tree-deep.png'
+		}
+		return '/static/illus/tree-sage.png'
+	}
+
+	function setFilter(k : string) {
+		filter.value = k
+	}
+
+	function selectTree(t : Tree) {
+		selected.value = t
+		showCard.value = true
+	}
+
+	function onCardAction() {
+		const t = selected.value
+		if (t.ownerId == store.user.userId) {
+			uni.reLaunch({
+				url: '/pages/tree/tree'
+			})
+			return
+		}
+		const err = adoptTree(t.treeId)
+		if (err != '') {
+			toast(err)
+			return
+		}
+		showCard.value = false
+		toast('认养成功！去「林地」给它浇水吧')
+	}
+
+	function onAddTree() {
+		const n = store.trees.length + 1
+		const tree : Tree = {
+			treeId: 't_' + (100 + n).toFixed(0),
+			name: '新上报点位 · 待鉴定 ' + n.toFixed(0),
+			species: '待识别',
+			posX: 20 + Math.random() * 55,
+			posY: 26 + Math.random() * 34,
+			ownerId: '', ownerName: '', level: 0, growthScore: 0,
+			status: 'normal', hazardText: '', age: '未知', distance: 520
+		}
+		store.trees.push(tree)
+		toast('已新增待认养点位，队员 A 采集实拍后可直接替换')
+	}
+
+	function onSearch() {
+		toast('1.0 骨架：搜索框已就位，队员 A 可在此接入树名检索')
+	}
+</script>
+
+<style>
+	.page {
+		flex: 1;
+		background-color: #FFFCF6;
+		font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	}
+
+	.icon-btn {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background-color: #FFFFFF;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0px 2px 6px rgba(46, 107, 79, 0.08);
+	}
+
+	.icon-18 {
+		width: 17px;
+		height: 17px;
+	}
+
+	.map-wrap {
+		flex: 1;
+		position: relative;
+	}
+
+	.map-bg {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #E7F0D8;
+	}
+
+	.blob {
+		position: absolute;
+		background-color: #E2EED5;
+		border-radius: 60px;
+	}
+
+	.blob-1 {
+		left: 8%;
+		top: 26%;
+		width: 54%;
+		height: 15%;
+	}
+
+	.blob-2 {
+		right: -8%;
+		top: 44%;
+		width: 46%;
+		height: 13%;
+		background-color: #DEEBD2;
+	}
+
+	.blob-3 {
+		left: 4%;
+		top: 64%;
+		width: 62%;
+		height: 16%;
+		background-color: #E4F0D9;
+	}
+
+	.road {
+		position: absolute;
+		background-color: #FFFFFF;
+		border-radius: 9px;
+	}
+
+	.road-1 {
+		left: -6%;
+		top: 40%;
+		width: 112%;
+		height: 16px;
+		transform: rotate(-3deg);
+	}
+
+	.road-2 {
+		left: 46%;
+		top: 52%;
+		width: 60%;
+		height: 14px;
+		transform: rotate(-42deg);
+	}
+
+	.lake {
+		position: absolute;
+		right: 6%;
+		bottom: 14%;
+		width: 96px;
+		height: 88px;
+		border-radius: 48px;
+		background-color: #CBE3DE;
+	}
+
+	.bld {
+		position: absolute;
+		background-color: #F1EBDC;
+		border-radius: 6px;
+	}
+
+	.bld-1 {
+		left: 12%;
+		top: 12%;
+		width: 52px;
+		height: 34px;
+	}
+
+	.bld-2 {
+		left: 58%;
+		top: 10%;
+		width: 46px;
+		height: 30px;
+	}
+
+	.bld-3 {
+		left: 30%;
+		top: 70%;
+		width: 44px;
+		height: 26px;
+	}
+
+	.dot {
+		position: absolute;
+		width: 10px;
+		height: 10px;
+		border-radius: 5px;
+		background-color: #CFE3BC;
+	}
+
+	.dot-1 {
+		left: 24%;
+		top: 34%;
+	}
+
+	.dot-2 {
+		left: 72%;
+		top: 30%;
+	}
+
+	.dot-3 {
+		left: 18%;
+		top: 56%;
+	}
+
+	.float-top {
+		position: absolute;
+		left: 16px;
+		right: 16px;
+		top: 8px;
+	}
+
+	.search-row {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.search-pill {
+		flex: 1;
+		height: 44px;
+		background-color: #FFFFFF;
+		border-radius: 22px;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 16px;
+		box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.06);
+	}
+
+	.ic-search {
+		width: 15px;
+		height: 15px;
+		margin-right: 9px;
+	}
+
+	.search-ph {
+		font-size: 12px;
+		color: #B4BCAF;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.filter-btn {
+		width: 44px;
+		height: 44px;
+		border-radius: 22px;
+		background-color: #FFFFFF;
+		align-items: center;
+		justify-content: center;
+		margin-left: 10px;
+		box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.06);
+	}
+
+	.ic-sliders {
+		width: 16px;
+		height: 16px;
+	}
+
+	.chip-row {
+		flex-direction: row;
+		margin-top: 14px;
+	}
+
+	.chip {
+		height: 28px;
+		border-radius: 14px;
+		background-color: #FFFFFF;
+		flex-direction: row;
+		align-items: center;
+		padding-left: 12px;
+		padding-right: 12px;
+		margin-right: 8px;
+	}
+
+	.chip-on {
+		background-color: #4E8A6B;
+	}
+
+	.chip-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 3px;
+		background-color: #6BB98A;
+		margin-right: 6px;
+	}
+
+	.chip-ring {
+		width: 8px;
+		height: 8px;
+		border-radius: 4px;
+		border-width: 1.5px;
+		border-style: solid;
+		border-color: #A9C7B1;
+		margin-right: 6px;
+	}
+
+	.chip-t {
+		font-size: 11px;
+		color: #5C6B60;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.chip-t-on {
+		color: #FFFFFF;
+		font-weight: bold;
+	}
+
+	.hint-pill {
+		position: absolute;
+		right: 22px;
+		top: 192px;
+		height: 28px;
+		border-radius: 14px;
+		background-color: #FFFFFF;
+		padding-left: 12px;
+		padding-right: 12px;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.08);
+	}
+
+	.hint-t {
+		font-size: 10px;
+		color: #5C6B60;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.pin {
+		position: absolute;
+		width: 30px;
+		height: 38px;
+		margin-left: -15px;
+		margin-top: -34px;
+		align-items: center;
+	}
+
+	.pin-head {
+		width: 30px;
+		height: 30px;
+		border-radius: 15px;
+		align-items: center;
+		justify-content: center;
+		border-width: 2px;
+		border-style: solid;
+		border-color: #FFFFFF;
+	}
+
+	.pin-head-mine {
+		background-color: #4E8A6B;
+	}
+
+	.pin-head-plain {
+		background-color: #FFFFFF;
+		border-color: #C6D9C8;
+	}
+
+	.pin-head-warn {
+		background-color: #E07A5F;
+	}
+
+	.pin-tail {
+		width: 11px;
+		height: 11px;
+		margin-top: -7px;
+		transform: rotate(45deg);
+	}
+
+	.pin-tail-mine {
+		background-color: #4E8A6B;
+	}
+
+	.pin-tail-plain {
+		background-color: #FFFFFF;
+		border-width: 1px;
+		border-style: solid;
+		border-color: #C6D9C8;
+	}
+
+	.pin-tail-warn {
+		background-color: #E07A5F;
+	}
+
+	.pin-ico {
+		width: 15px;
+		height: 15px;
+	}
+
+	.pin-bang {
+		font-size: 15px;
+		font-weight: bold;
+		color: #FFFFFF;
+		font-family: HYSansBold;
+	}
+
+	.tree-card {
+		position: absolute;
+		left: 14px;
+		right: 14px;
+		bottom: 14px;
+		background-color: #FFFFFF;
+		border-radius: 24px;
+		padding: 14px;
+		box-shadow: 0px 6px 20px rgba(46, 107, 79, 0.12);
+	}
+
+	.tc-row {
+		flex-direction: row;
+	}
+
+	.tc-thumb {
+		width: 64px;
+		height: 64px;
+		border-radius: 16px;
+		background-color: #F4F9EE;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.tc-img {
+		width: 54px;
+		height: 54px;
+	}
+
+	.tc-info {
+		flex: 1;
+		margin-left: 12px;
+		justify-content: center;
+	}
+
+	.tc-name {
+		font-size: 14px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.tc-meta {
+		font-size: 10px;
+		color: #9AA394;
+		margin-top: 5px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.tc-tag-row {
+		flex-direction: row;
+		margin-top: 7px;
+	}
+
+	.tc-tag {
+		height: 19px;
+		border-radius: 10px;
+		padding-left: 8px;
+		padding-right: 8px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.tag-cream {
+		background-color: #FBF0D9;
+	}
+
+	.tag-warn {
+		background-color: #FBEDEA;
+	}
+
+	.tc-tag-t {
+		font-size: 9px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.tc-tag-t-cream {
+		color: #8A6A3B;
+	}
+
+	.tc-tag-t-warn {
+		color: #B4553F;
+	}
+
+	.tc-btn {
+		height: 50px;
+		border-radius: 25px;
+		align-items: center;
+		justify-content: center;
+		margin-top: 13px;
+	}
+
+	.btn-main {
+		background-color: #4E8A6B;
+	}
+
+	.btn-soft {
+		background-color: #EAF4E6;
+	}
+
+	.btn-mute {
+		background-color: #C3CFC2;
+	}
+
+	.tc-btn-t {
+		font-size: 15px;
+		font-weight: bold;
+		font-family: HYSansBold;
+	}
+
+	.tc-btn-t-white {
+		color: #FFFFFF;
+	}
+
+	.tc-btn-t-deep {
+		color: #2E6B4F;
+	}
+</style>

@@ -1,0 +1,59 @@
+/** 通用格式化工具 */
+
+/** 数值转整数文本（避免出现 34.0% 这类诡异输出） */
+export function istr(n : number) : string {
+	return n.toFixed(0)
+}
+
+export function pct(n : number) : string {
+	return n.toFixed(0) + '%'
+}
+
+export function pxs(n : number) : string {
+	return n.toFixed(0) + 'px'
+}
+
+/** 千分位，如 1280 -> 1,280 */
+export function fmt(n : number) : string {
+	const s = n.toFixed(0)
+	let out = ''
+	let cnt = 0
+	let i = s.length - 1
+	while (i >= 0) {
+		out = s.substring(i, i + 1) + out
+		cnt++
+		if (cnt % 3 == 0 && i > 0) {
+			out = ',' + out
+		}
+		i--
+	}
+	return out
+}
+
+/** 例：11月2日 · 周一 */
+export function todayText() : string {
+	const d = new Date()
+	const names : Array<string> = ['日', '一', '二', '三', '四', '五', '六']
+	const idx = d.getDay()
+	return (d.getMonth() + 1).toFixed(0) + '月' + d.getDate().toFixed(0) + '日 · 周' + names[idx]
+}
+
+/** 例：2026-11-02 15:20 */
+export function stamp() : string {
+	const d = new Date()
+	const m = (d.getMonth() + 1).toFixed(0)
+	const day = d.getDate().toFixed(0)
+	const hh = d.getHours().toFixed(0)
+	const mm = d.getMinutes().toFixed(0)
+	const h2 = hh.length < 2 ? '0' + hh : hh
+	const m2 = mm.length < 2 ? '0' + mm : mm
+	return d.getFullYear().toFixed(0) + '-' + m + '-' + day + ' ' + h2 + ':' + m2
+}
+
+export function toast(msg : string) {
+	uni.showToast({
+		title: msg,
+		icon: 'none',
+		duration: 1800
+	})
+}

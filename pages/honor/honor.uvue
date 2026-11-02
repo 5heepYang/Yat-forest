@@ -1,0 +1,697 @@
+<template>
+	<view class="page">
+		<scroll-view class="body" direction="vertical">
+		<view class="hero">
+			<view class="status-pad"></view>
+			<text class="hero-sub">南校园 · 护林第 {{ store.user.days.toFixed(0) }} 天</text>
+			<text class="hero-name">{{ store.user.nickname }}</text>
+			<view class="hero-row">
+				<view class="avatar-box">
+					<image class="avatar-img" :src="store.user.avatar"></image>
+				</view>
+				<view class="hero-info">
+					<text class="hero-line1">Lv.{{ treeLevel }} 护林人 · 椰林排雷兵</text>
+					<text class="hero-line2">已点亮 {{ unlockedCount }} / {{ store.badges.length }} 枚勋章</text>
+				</view>
+			</view>
+		</view>
+
+			<view class="stats">
+				<view class="stat-cell">
+					<text class="stat-num">{{ fmt(store.user.availablePoints) }}</text>
+					<text class="stat-lb">可用碳积分</text>
+				</view>
+				<view class="stat-cell">
+					<text class="stat-num">{{ fmt(store.user.totalGrowthScore) }}</text>
+					<text class="stat-lb">累计成长值</text>
+				</view>
+				<view class="stat-cell">
+					<view class="stat-num-row">
+						<text class="stat-num">{{ adoptedCount }}</text>
+						<text class="stat-unit">棵</text>
+					</view>
+					<text class="stat-lb">我的树</text>
+				</view>
+			</view>
+
+			<view class="sec-row">
+				<text class="sec-title">勋章墙 · 已点亮 {{ unlockedCount }} / {{ store.badges.length }}</text>
+			</view>
+
+			<view class="badge-row">
+				<view v-for="b in topBadges" :key="b.badgeId" class="badge-cell">
+					<view :class="b.unlocked ? badgeBg(b) : 'badge-circle badge-off'">
+						<image class="badge-ico" :src="b.icon"></image>
+					</view>
+					<text :class="b.unlocked ? 'badge-name badge-name-on' : 'badge-name'">{{ b.name }}</text>
+				</view>
+			</view>
+
+			<view class="sec-row">
+				<text class="sec-title">森林补给站 · 用积分换周边</text>
+			</view>
+
+			<view class="mytree-card" @click="goTree">
+				<view class="mt-thumb">
+					<image class="mt-img" src="/static/illus/palm.png"></image>
+				</view>
+				<view class="mt-info">
+					<text class="mt-name">我的树 · {{ treeName }}</text>
+					<text class="mt-sub">Lv.{{ treeLevel }} · 成长值 {{ treeGrowth }} / 1000</text>
+				</view>
+				<view class="go-pill">
+					<text class="go-pill-t">去看看</text>
+				</view>
+			</view>
+
+			<view class="list-card">
+				<view class="list-row">
+					<text class="list-k">我的认养</text>
+					<text class="list-v">{{ adoptText }}</text>
+				</view>
+				<view class="list-row">
+					<text class="list-k">兑换记录</text>
+					<text class="list-v">{{ recordText }}</text>
+				</view>
+			</view>
+
+			<view class="goods-row">
+				<view v-for="g in topGoods" :key="g.itemId" class="goods-card" @click="openExchange(g)">
+					<view :class="imgBoxClass(g.itemId)">
+						<image class="goods-img" :src="g.image"></image>
+					</view>
+					<text class="goods-name">{{ g.name }}</text>
+					<text class="goods-cost">{{ g.costPoints.toFixed(0) }} 积分</text>
+				</view>
+			</view>
+
+			<view class="bottom-pad"></view>
+		</scroll-view>
+
+		<app-tabbar active="me"></app-tabbar>
+
+		<view class="mask" v-if="sheetMode != ''">
+			<view class="mask-hit" @click="closeSheet"></view>
+			<view class="sheet">
+				<view v-if="sheetMode == 'confirm'">
+					<text class="sheet-title">{{ currentGoods.name }}</text>
+					<text class="sheet-sub">{{ currentGoods.desc }}</text>
+					<view class="hint-box">
+						<text class="hint-t">将消耗 {{ currentGoods.costPoints.toFixed(0) }} 积分，兑换后生成专属凭证码，到校园绿化服务点出示即可领取。</text>
+					</view>
+					<view class="sheet-btn sheet-btn-main" @click="doExchange">
+						<text class="sheet-btn-t sheet-btn-t-white">确认兑换</text>
+					</view>
+				</view>
+
+				<view v-if="sheetMode == 'ok'">
+					<view class="ok-head">
+						<text class="ok-title">兑换成功</text>
+						<text class="ok-sub">{{ currentGoods.name }}</text>
+					</view>
+					<view class="code-box">
+						<text class="code-lb">兑换凭证码</text>
+						<text class="code-t">{{ codeText }}</text>
+					</view>
+					<view class="sheet-btn sheet-btn-soft" @click="closeSheet">
+						<text class="sheet-btn-t sheet-btn-t-deep">收好了</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	import AppTabbar from '@/components/app-tabbar.uvue'
+	import { Souvenir, Badge } from '@/common/model.uts'
+	import { store, myTree, exchange, ExchangeResult } from '@/common/store.uts'
+	import { fmt, toast } from '@/common/util.uts'
+
+	const sheetMode = ref<string>('')
+	const codeText = ref<string>('')
+
+	function emptyGoods() : Souvenir {
+		const g : Souvenir = {
+			itemId: '', name: '', costPoints: 0, stock: 0, image: '', desc: ''
+		}
+		return g
+	}
+
+	const currentGoods = ref<Souvenir>(emptyGoods())
+
+	const adoptedCount = computed(() : number => {
+		let c = 0
+		let i = 0
+		while (i < store.trees.length) {
+			if (store.trees[i].ownerId == store.user.userId) {
+				c++
+			}
+			i++
+		}
+		return c
+	})
+
+	const unlockedCount = computed(() : number => {
+		let c = 0
+		let i = 0
+		while (i < store.badges.length) {
+			if (store.badges[i].unlocked) {
+				c++
+			}
+			i++
+		}
+		return c
+	})
+
+	const topBadges = computed(() : Array<Badge> => {
+		const out : Array<Badge> = []
+		let i = 0
+		while (i < store.badges.length && i < 4) {
+			out.push(store.badges[i])
+			i++
+		}
+		return out
+	})
+
+	const topGoods = computed(() : Array<Souvenir> => {
+		const out : Array<Souvenir> = []
+		let i = 0
+		while (i < store.goods.length && i < 2) {
+			out.push(store.goods[i])
+			i++
+		}
+		return out
+	})
+
+	const treeName = computed(() : string => myTree().name)
+	const treeGrowth = computed(() : string => myTree().growthScore.toFixed(0))
+	const treeLevel = computed(() : string => myTree().level.toFixed(0))
+
+	const adoptText = computed(() : string => {
+		const t = myTree()
+		if (t.treeId == '') {
+			return '暂无'
+		}
+		return t.species + ' · 08 号'
+	})
+
+	const recordText = computed(() : string => {
+		if (store.records.length == 0) {
+			return '暂无'
+		}
+		return store.records.length.toFixed(0) + ' 次 · 帆布袋'
+	})
+
+	function badgeBg(b : Badge) : string {
+		if (b.badgeId == 'b_01') {
+			return 'badge-circle badge-gold'
+		}
+		if (b.badgeId == 'b_02') {
+			return 'badge-circle badge-pink'
+		}
+		return 'badge-circle badge-green'
+	}
+
+	function imgBoxClass(itemId : string) : string {
+		return itemId == 's_301' ? 'goods-box goods-box-green' : 'goods-box goods-box-cream'
+	}
+
+	function openExchange(g : Souvenir) {
+		currentGoods.value = g
+		sheetMode.value = 'confirm'
+	}
+
+	function doExchange() {
+		const r : ExchangeResult = exchange(currentGoods.value.itemId)
+		if (!r.ok) {
+			toast(r.msg)
+			return
+		}
+		codeText.value = r.code
+		sheetMode.value = 'ok'
+	}
+
+	function closeSheet() {
+		sheetMode.value = ''
+	}
+
+	function goTree() {
+		uni.reLaunch({
+			url: '/pages/tree/tree'
+		})
+	}
+</script>
+
+<style>
+	.page {
+		flex: 1;
+		background-color: #FFFCF6;
+		font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	}
+
+	.hero {
+		background-color: #EAF4E6;
+		padding-left: 20px;
+		padding-right: 20px;
+		padding-bottom: 18px;
+		border-bottom-left-radius: 24px;
+		border-bottom-right-radius: 24px;
+	}
+
+	.status-pad {
+		height: var(--status-bar-height);
+	}
+
+	.hero-sub {
+		font-size: 10px;
+		color: #7E8C82;
+		margin-top: 12px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.hero-name {
+		font-size: 22px;
+		font-weight: bold;
+		color: #2E6B4F;
+		margin-top: 6px;
+		font-family: HYSansBold;
+	}
+
+	.hero-row {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 14px;
+	}
+
+	.avatar-box {
+		width: 58px;
+		height: 58px;
+		border-radius: 29px;
+		background-color: #FFF6E4;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar-img {
+		width: 50px;
+		height: 50px;
+		border-radius: 25px;
+	}
+
+	.hero-info {
+		flex: 1;
+		margin-left: 12px;
+		flex-direction: column;
+	}
+
+	.hero-line1 {
+		font-size: 11px;
+		font-weight: bold;
+		color: #3D5A48;
+		font-family: HYSansBold;
+	}
+
+	.hero-line2 {
+		font-size: 10px;
+		color: #7E8C82;
+		margin-top: 5px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.body {
+		flex: 1;
+	}
+
+	.stats {
+		flex-direction: row;
+		padding-top: 18px;
+		padding-bottom: 14px;
+		margin: 0 20px 0 20px;
+	}
+
+	.stat-cell {
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.stat-num {
+		font-size: 24px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.stat-num-row {
+		flex-direction: row;
+		align-items: flex-end;
+	}
+
+	.stat-unit {
+		font-size: 11px;
+		font-weight: normal;
+		color: #5C6B60;
+		margin-left: 2px;
+		margin-bottom: 3px;
+		font-family: HYSans;
+	}
+
+	.stat-lb {
+		font-size: 9px;
+		color: #9AA394;
+		margin-top: 5px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.sec-row {
+		margin: 10px 20px 10px 20px;
+	}
+
+	.sec-title {
+		font-size: 12px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.badge-row {
+		flex-direction: row;
+		margin: 0 20px 0 20px;
+	}
+
+	.badge-cell {
+		width: 25%;
+		align-items: center;
+	}
+
+	.badge-circle {
+		width: 48px;
+		height: 48px;
+		border-radius: 24px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.badge-gold {
+		background-color: #FFF6E4;
+	}
+
+	.badge-pink {
+		background-color: #FBEDEA;
+	}
+
+	.badge-green {
+		background-color: #EAF4E6;
+	}
+
+	.badge-off {
+		background-color: #F2F4EF;
+	}
+
+	.badge-ico {
+		width: 24px;
+		height: 24px;
+	}
+
+	.badge-name {
+		font-size: 9px;
+		color: #B4BCAF;
+		margin-top: 7px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.badge-name-on {
+		color: #5C6B60;
+	}
+
+	.mytree-card {
+		flex-direction: row;
+		align-items: center;
+		background-color: #FFFFFF;
+		border-radius: 18px;
+		margin: 0 16px 0 16px;
+		padding: 12px;
+		box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	}
+
+	.mt-thumb {
+		width: 52px;
+		height: 52px;
+		border-radius: 14px;
+		background-color: #F1F8EA;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.mt-img {
+		width: 44px;
+		height: 44px;
+	}
+
+	.mt-info {
+		flex: 1;
+		margin-left: 11px;
+		flex-direction: column;
+	}
+
+	.mt-name {
+		font-size: 12px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.mt-sub {
+		font-size: 9px;
+		color: #9AA394;
+		margin-top: 4px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.go-pill {
+		height: 26px;
+		border-radius: 13px;
+		background-color: #EAF4E6;
+		padding-left: 13px;
+		padding-right: 13px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.go-pill-t {
+		font-size: 10px;
+		font-weight: bold;
+		color: #4E8A6B;
+		font-family: HYSansBold;
+	}
+
+	.list-card {
+		background-color: #F6FAF2;
+		border-radius: 18px;
+		margin: 10px 16px 0 16px;
+		padding-left: 14px;
+		padding-right: 14px;
+	}
+
+	.list-row {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		padding-top: 13px;
+		padding-bottom: 13px;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: #EAF1E4;
+	}
+
+	.list-k {
+		font-size: 11px;
+		color: #3D5A48;
+		font-family: HYSans;
+	}
+
+	.list-v {
+		font-size: 10px;
+		color: #9AA394;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.goods-row {
+		flex-direction: row;
+		justify-content: space-between;
+		margin: 12px 16px 0 16px;
+	}
+
+	.goods-card {
+		width: 48%;
+		background-color: #FFFFFF;
+		border-radius: 18px;
+		padding: 10px;
+		box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	}
+
+	.goods-box {
+		height: 88px;
+		border-radius: 13px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.goods-box-green {
+		background-color: #E4F0D9;
+	}
+
+	.goods-box-cream {
+		background-color: #FBEFD2;
+	}
+
+	.goods-img {
+		width: 70px;
+		height: 70px;
+	}
+
+	.goods-name {
+		font-size: 12px;
+		font-weight: bold;
+		color: #22302A;
+		margin-top: 9px;
+		font-family: HYSansBold;
+	}
+
+	.goods-cost {
+		font-size: 10px;
+		color: #9AA394;
+		margin-top: 4px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.bottom-pad {
+		height: 20px;
+	}
+
+	.mask {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(30, 40, 33, 0.32);
+		justify-content: flex-end;
+	}
+
+	.mask-hit {
+		flex: 1;
+	}
+
+	.sheet {
+		background-color: #FFFFFF;
+		border-radius: 26px;
+		padding: 20px 18px 24px 18px;
+	}
+
+	.sheet-title {
+		font-size: 17px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.sheet-sub {
+		font-size: 11px;
+		color: #9AA394;
+		margin-top: 6px;
+		font-family: HYSans;
+	}
+
+	.hint-box {
+		background-color: #F6FAF2;
+		border-radius: 14px;
+		padding: 12px;
+		margin-top: 14px;
+	}
+
+	.hint-t {
+		font-size: 12px;
+		color: #5C6B60;
+		line-height: 19px;
+		font-family: HYSans;
+	}
+
+	.sheet-btn {
+		height: 48px;
+		border-radius: 24px;
+		align-items: center;
+		justify-content: center;
+		margin-top: 12px;
+	}
+
+	.sheet-btn-main {
+		background-color: #4E8A6B;
+	}
+
+	.sheet-btn-soft {
+		background-color: #EAF4E6;
+	}
+
+	.sheet-btn-t {
+		font-size: 14px;
+		font-weight: bold;
+		font-family: HYSansBold;
+	}
+
+	.sheet-btn-t-white {
+		color: #FFFFFF;
+	}
+
+	.sheet-btn-t-deep {
+		color: #2E6B4F;
+	}
+
+	.ok-head {
+		align-items: center;
+		padding-top: 6px;
+	}
+
+	.ok-title {
+		font-size: 16px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.ok-sub {
+		font-size: 11px;
+		color: #9AA394;
+		margin-top: 5px;
+		font-family: HYSans;
+	}
+
+	.code-box {
+		background-color: #F6FAF2;
+		border-radius: 16px;
+		padding: 14px;
+		margin-top: 14px;
+		align-items: center;
+	}
+
+	.code-lb {
+		font-size: 10px;
+		color: #9AA394;
+		font-family: HYSans;
+	}
+
+	.code-t {
+		font-size: 20px;
+		font-weight: bold;
+		color: #2E6B4F;
+		margin-top: 6px;
+		font-family: HYSansBold;
+	}
+</style>

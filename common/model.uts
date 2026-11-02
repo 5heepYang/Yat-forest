@@ -1,0 +1,100 @@
+/**
+ * 全局数据类型定义（对齐《团队开发手册》第 3 章数据模型）
+ * 字段命名与手册 JSON 一一对应，方便后续接真实后端时直接换实现。
+ */
+
+/** 用户 */
+export type User = {
+	userId : string,
+	nickname : string,
+	avatar : string,
+	availablePoints : number, // 可用碳积分（钱包）
+	totalGrowthScore : number, // 累计碳能量（只增不减，用于 PK 战力）
+	badgeCount : number,
+	days : number // 护林天数
+}
+
+/** 校园树木 */
+export type Tree = {
+	treeId : string,
+	name : string,
+	species : string,
+	posX : number, // 地图相对坐标 0-100
+	posY : number,
+	ownerId : string, // 空串表示待认养
+	ownerName : string,
+	level : number,
+	growthScore : number,
+	status : string, // normal | hazard
+	hazardText : string,
+	age : string, // 树龄，如 "38 年"
+	distance : number // 距我（米）
+}
+
+/** 日程减碳任务 */
+export type CarbonTask = {
+	taskId : string,
+	slot : string, // 时间段
+	title : string,
+	desc : string,
+	basePoints : number,
+	done : boolean,
+	carbonSavedG : number,
+	aiComment : string
+}
+
+/** 树木记录：growth=生长实拍 / hazard=隐患上报 */
+export type TreeLog = {
+	logId : string,
+	treeId : string,
+	kind : string,
+	imageUrl : string,
+	description : string,
+	aiAnalysis : string,
+	rewardPoints : number,
+	createdAt : string
+}
+
+/** 纪念品 */
+export type Souvenir = {
+	itemId : string,
+	name : string,
+	costPoints : number,
+	stock : number,
+	image : string,
+	desc : string
+}
+
+/** 勋章 */
+export type Badge = {
+	badgeId : string,
+	name : string,
+	icon : string,
+	desc : string,
+	unlocked : boolean
+}
+
+/** 排行榜条目 */
+export type RankItem = {
+	name : string,
+	score : number,
+	treeName : string,
+	me : boolean
+}
+
+/** AI 凭证核验结果 */
+export type AiProofResult = {
+	passed : boolean,
+	carbonSavedG : number,
+	comment : string,
+	detail : string
+}
+
+/** AI 隐患巡检结果 */
+export type AiHazardResult = {
+	level : string, // 高危 / 中危 / 正常
+	ticket : string,
+	analysis : string,
+	advice : string,
+	reward : number
+}

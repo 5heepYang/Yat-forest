@@ -1,0 +1,285 @@
+/**
+ * 全局状态（唯一数据源）
+ * 页面里直接读 store.xxx，所有写操作都通过本文件的函数，保证数值口径统一。
+ * 真实后端接入时，把这些函数内部换成 uni.request 即可，页面无需改动。
+ */
+import { Tree, CarbonTask, TreeLog, Souvenir, Badge, User, RankItem, AiHazardResult } from './model.uts'
+import { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars, mockRanks } from './mock.uts'
+import { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN, HAZARD_REWARD } from './theme.uts'
+import { stamp } from './util.uts'
+
+export type AppState = {
+	user : User,
+	trees : Array<Tree>,
+	tasks : Array<CarbonTask>,
+	logs : Array<TreeLog>,
+	goods : Array<Souvenir>,
+	badges : Array<Badge>,
+	ranks : Array<RankItem>,
+	weekBars : Array<number>,
+	adoptedTreeId : string,
+	carbonGoal : number,
+	records : Array<string>
+}
+
+export type ExchangeResult = {
+	ok : boolean,
+	code : string,
+	msg : string
+}
+
+function seedLogs() : Array<TreeLog> {
+	const arr : Array<TreeLog> = [
+		{
+			logId: 'log_501', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage1.png',
+			description: '第一次线下实拍：刚认养时的春芽', aiAnalysis: '', rewardPoints: 0, createdAt: '08-01'
+		},
+		{
+			logId: 'log_502', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage2.png',
+			description: '三个月后，新叶抽了 6 片', aiAnalysis: '', rewardPoints: 0, createdAt: '09-20'
+		},
+		{
+			logId: 'log_503', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage3.png',
+			description: '今天无风，我的叶子有点痒', aiAnalysis: '', rewardPoints: 0, createdAt: '11-02'
+		}
+	]
+	return arr
+}
+
+export const store = reactive({
+	user: mockUser(),
+	trees: mockTrees(),
+	tasks: mockTasks(),
+	logs: seedLogs(),
+	goods: mockGoods(),
+	badges: mockBadges(),
+	ranks: mockRanks(),
+	weekBars: mockWeekBars(),
+	adoptedTreeId: 't_101',
+	carbonGoal: 100,
+	records: [
+		'中大古树帆布袋 · SYSU-483920',
+		'中大古树帆布袋 · SYSU-771203'
+	] as Array<string>
+} as AppState)
+
+/** 按 id 找树 */
+export function treeById(id : string) : Tree | null {
+	let i = 0
+	while (i < store.trees.length) {
+		if (store.trees[i].treeId == id) {
+			return store.trees[i]
+		}
+		i++
+	}
+	return null
+}
+
+/** 我认养的那棵树（1.0 每人一棵，简化交互） */
+export function myTree() : Tree {
+	const t = treeById(store.adoptedTreeId)
+	if (t == null) {
+		const empty : Tree = {
+			treeId: '', name: '还没有认养的树', species: '', posX: 0, posY: 0,
+			ownerId: '', ownerName: '', level: 0, growthScore: 0,
+			status: 'normal', hazardText: '', age: '', distance: 0
+		}
+		return empty
+	}
+	return t
+}
+
+export function todayCarbon() : number {
+	let sum = 0
+	let i = 0
+	while (i < store.tasks.length) {
+		const t = store.tasks[i]
+		if (t.done) {
+			sum = sum + t.carbonSavedG
+		}
+		i++
+	}
+	return sum
+}
+
+/** 今日已得碳积分 */
+export function todayPoints() : number {
+	let sum = 0
+	let i = 0
+	while (i < store.tasks.length) {
+		const t = store.tasks[i]
+		if (t.done) {
+			sum = sum + t.basePoints
+		}
+		i++
+	}
+	return sum
+}
+
+export function doneCount() : number {
+	let c = 0
+	let i = 0
+	while (i < store.tasks.length) {
+		if (store.tasks[i].done) {
+			c++
+		}
+		i++
+	}
+	return c
+}
+
+export function progressPct() : number {
+	const p = todayPoints() / store.carbonGoal * 100
+	return p > 100 ? 100 : p
+}
+
+export function unownedCount() : number {
+	let c = 0
+	let i = 0
+	while (i < store.trees.length) {
+		if (store.trees[i].ownerId == '') {
+			c++
+		}
+		i++
+	}
+	return c
+}
+
+/** 认养：成功返回空串，失败返回提示语 */
+export function adoptTree(id : string) : string {
+	const t = treeById(id)
+	if (t == null) {
+		return '这棵树不存在'
+	}
+	if (t.ownerId != '') {
+		return '这棵树已经有认养人了'
+	}
+	if (t.status == 'hazard') {
+		return '该树正在隐患处理中，暂不可认养'
+	}
+	if (store.user.availablePoints < ADOPT_COST) {
+		return '积分不足，去低碳日程做任务攒一点吧'
+	}
+	store.user.availablePoints = store.user.availablePoints - ADOPT_COST
+	t.ownerId = store.user.userId
+	t.ownerName = store.user.nickname
+	t.level = 1
+	t.growthScore = 30
+	store.adoptedTreeId = id
+	store.user.totalGrowthScore = store.user.totalGrowthScore + 30
+	return ''
+}
+
+export function water() : string {
+	if (store.user.availablePoints < WATER_COST) {
+		return '积分不足，去低碳日程攒一点吧'
+	}
+	const t = myTree()
+	if (t.treeId == '') {
+		return '先认养一棵树吧'
+	}
+	store.user.availablePoints = store.user.availablePoints - WATER_COST
+	t.growthScore = t.growthScore + WATER_GAIN
+	store.user.totalGrowthScore = store.user.totalGrowthScore + WATER_GAIN
+	if (t.growthScore >= 1000 && t.level < 4) {
+		t.level = 4
+	}
+	return ''
+}
+
+export function fertilize() : string {
+	if (store.user.availablePoints < FERT_COST) {
+		return '积分不足，去低碳日程攒一点吧'
+	}
+	const t = myTree()
+	if (t.treeId == '') {
+		return '先认养一棵树吧'
+	}
+	store.user.availablePoints = store.user.availablePoints - FERT_COST
+	t.growthScore = t.growthScore + FERT_GAIN
+	store.user.totalGrowthScore = store.user.totalGrowthScore + FERT_GAIN
+	if (t.growthScore >= 1000 && t.level < 4) {
+		t.level = 4
+	}
+	return ''
+}
+
+export function completeTask(taskId : string, carbon : number, comment : string) : string {
+	let i = 0
+	while (i < store.tasks.length) {
+		const t = store.tasks[i]
+		if (t.taskId == taskId) {
+			if (t.done) {
+				return '这个任务已经核验过了'
+			}
+			t.done = true
+			t.carbonSavedG = carbon
+			t.aiComment = comment
+			store.user.availablePoints = store.user.availablePoints + t.basePoints
+			store.user.totalGrowthScore = store.user.totalGrowthScore + t.basePoints
+			return ''
+		}
+		i++
+	}
+	return '任务不存在'
+}
+
+export function addGrowthLog(image : string, desc : string) {
+	const t = myTree()
+	const log : TreeLog = {
+		logId: 'log_' + (store.logs.length + 501).toFixed(0),
+		treeId: t.treeId,
+		kind: 'growth',
+		imageUrl: image,
+		description: desc,
+		aiAnalysis: '',
+		rewardPoints: 0,
+		createdAt: stamp().substring(5, 16)
+	}
+	store.logs.push(log)
+	store.user.availablePoints = store.user.availablePoints + 20
+	store.user.totalGrowthScore = store.user.totalGrowthScore + 10
+}
+
+export function reportHazard(r : AiHazardResult, desc : string) : string {
+	const t = myTree()
+	if (t.treeId == '') {
+		return '先认养一棵树，再来上报隐患'
+	}
+	const log : TreeLog = {
+		logId: 'log_' + (store.logs.length + 601).toFixed(0),
+		treeId: t.treeId,
+		kind: 'hazard',
+		imageUrl: '/static/illus/palm.png',
+		description: desc,
+		aiAnalysis: '【' + r.level + '预警】' + r.analysis,
+		rewardPoints: r.reward,
+		createdAt: stamp()
+	}
+	store.logs.push(log)
+	store.user.availablePoints = store.user.availablePoints + r.reward
+	store.user.totalGrowthScore = store.user.totalGrowthScore + r.reward
+	return ''
+}
+
+export function exchange(itemId : string) : ExchangeResult {
+	let i = 0
+	while (i < store.goods.length) {
+		const g = store.goods[i]
+		if (g.itemId == itemId) {
+			if (g.stock <= 0) {
+				return { ok: false, code: '', msg: '这件纪念品已经兑完了' } as ExchangeResult
+			}
+			if (store.user.availablePoints < g.costPoints) {
+				return { ok: false, code: '', msg: '积分不足，再做几个任务吧' } as ExchangeResult
+			}
+			store.user.availablePoints = store.user.availablePoints - g.costPoints
+			g.stock = g.stock - 1
+			const code = 'SYSU-' + Math.floor(100000 + Math.random() * 899999).toFixed(0)
+			store.records.push(g.name + ' · ' + code)
+			return { ok: true, code: code, msg: '' } as ExchangeResult
+		}
+		i++
+	}
+	return { ok: false, code: '', msg: '商品不存在' } as ExchangeResult
+}

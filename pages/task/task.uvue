@@ -1,0 +1,647 @@
+<template>
+	<view class="page">
+		<nav-bar title="低碳日程" :subtitle="dateLine">
+			<view class="icon-btn" @click="onCalendar">
+				<image class="icon-18" src="/static/ui/calendar.png"></image>
+			</view>
+		</nav-bar>
+
+		<scroll-view class="body" direction="vertical">
+			<view class="energy-card">
+				<text class="e-label">今日碳能量</text>
+				<view class="e-row">
+					<view class="e-left">
+						<text class="e-num">{{ todayPoints().toFixed(0) }}</text>
+						<text class="e-unit">分</text>
+					</view>
+					<view class="e-right">
+						<text class="e-acc">{{ fmt(store.user.totalGrowthScore) }} g</text>
+						<text class="e-acc-lb">累计少排 CO₂e</text>
+					</view>
+				</view>
+				<view class="e-bar">
+					<view class="e-bar-in" :style="barStyle"></view>
+				</view>
+				<text class="e-hint">今日目标 {{ store.carbonGoal.toFixed(0) }} 分 · 已完成 {{ progressPct().toFixed(0) }}%</text>
+			</view>
+
+			<text class="sec-label">{{ sectionLabel }}</text>
+
+			<view class="task-card">
+				<view v-for="t in store.tasks" :key="t.taskId" class="task-row" @click="openTask(t)">
+					<text class="task-time">{{ t.slot }}</text>
+					<view class="task-main">
+						<text :class="t.done ? 'task-title task-title-done' : 'task-title'">{{ t.title }}</text>
+						<text class="task-desc">{{ t.desc }}</text>
+					</view>
+					<text :class="t.done ? 'task-pt task-pt-done' : 'task-pt'">+{{ t.basePoints.toFixed(0) }}</text>
+				</view>
+			</view>
+
+			<view class="week-head">
+				<text class="sec-title">本周碳账本</text>
+				<text class="week-streak">连续 5 天</text>
+			</view>
+
+			<view class="bars">
+				<view v-for="(v, i) in store.weekBars" :key="i" class="bar-col">
+					<view :class="barClass(i)" :style="barHeight(v)"></view>
+				</view>
+			</view>
+
+			<view class="ai-btn" @click="askAi">
+				<text class="ai-t">✦  问 AI 管家：今天还能再省多少？</text>
+			</view>
+
+			<view class="bottom-pad"></view>
+		</scroll-view>
+
+		<app-tabbar active="task"></app-tabbar>
+
+		<view class="mask" v-if="sheetMode != ''">
+			<view class="mask-hit" @click="closeSheet"></view>
+			<view class="sheet">
+				<view v-if="sheetMode == 'task'">
+					<text class="sheet-title">{{ current.title }}</text>
+					<text class="sheet-sub">{{ current.slot }} · {{ current.desc }}</text>
+					<view class="hint-box">
+						<text class="hint-t">上传凭证照片（乘车码截图 / 空盘 / 骑行记录），AI 会自动核验真实性与减碳量。</text>
+					</view>
+					<view class="sheet-btn sheet-btn-main" @click="useSample">
+						<text class="sheet-btn-t sheet-btn-t-white">使用示例凭证（模拟核验）</text>
+					</view>
+					<view class="sheet-btn sheet-btn-soft" @click="pickPhoto">
+						<text class="sheet-btn-t sheet-btn-t-deep">从相册选一张照片</text>
+					</view>
+				</view>
+
+				<view v-if="sheetMode == 'loading'" class="loading-box">
+					<text class="loading-t">AI 多模态核验中{{ dots }}</text>
+					<text class="loading-s">正在识别凭证场景并核算碳排放</text>
+				</view>
+
+				<view v-if="sheetMode == 'result'">
+					<view class="result-head">
+						<view class="result-badge">
+							<text class="result-badge-t">核验通过</text>
+						</view>
+						<text class="result-carbon">{{ result.carbonSavedG.toFixed(0) }} g</text>
+						<text class="result-carbon-lb">本次减少碳排放</text>
+					</view>
+					<view class="hint-box">
+						<text class="hint-t">{{ result.comment }}</text>
+					</view>
+					<text class="result-detail">{{ result.detail }}</text>
+					<view class="sheet-btn sheet-btn-main" @click="claim">
+						<text class="sheet-btn-t sheet-btn-t-white">领取 {{ current.basePoints.toFixed(0) }} 积分</text>
+					</view>
+				</view>
+
+				<view v-if="sheetMode == 'advice'">
+					<text class="sheet-title">AI 日程碳管家</text>
+					<text class="sheet-sub">基于你今天的日程与任务完成情况</text>
+					<view class="hint-box">
+						<text class="hint-t">{{ advice }}</text>
+					</view>
+					<view class="sheet-btn sheet-btn-soft" @click="closeSheet">
+						<text class="sheet-btn-t sheet-btn-t-deep">知道了</text>
+					</view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	import NavBar from '@/components/nav-bar.uvue'
+	import AppTabbar from '@/components/app-tabbar.uvue'
+	import { CarbonTask, AiProofResult } from '@/common/model.uts'
+	import { store, todayPoints, doneCount, progressPct, completeTask } from '@/common/store.uts'
+	import { aiVerifyProof, aiAdvice } from '@/common/ai.uts'
+	import { fmt, todayText, toast } from '@/common/util.uts'
+
+	function emptyTask() : CarbonTask {
+		const t : CarbonTask = {
+			taskId: '', slot: '', title: '', desc: '', basePoints: 0,
+			done: false, carbonSavedG: 0, aiComment: ''
+		}
+		return t
+	}
+
+	const dateLine = todayText()
+	const sheetMode = ref<string>('')
+	const current = ref<CarbonTask>(emptyTask())
+	const advice = ref<string>('')
+	const dots = ref<string>('')
+	let dotTimer : number = 0
+
+	const result = ref<AiProofResult>({
+		passed: false, carbonSavedG: 0, comment: '', detail: ''
+	} as AiProofResult)
+
+	const sectionLabel = computed(() : string => {
+		if (store.tasks.length == 0) {
+			return '今日日程'
+		}
+		return '上午 · ' + store.tasks[0].slot + ' - 10:00'
+	})
+
+	const barStyle = computed(() : string => {
+		return 'width:' + progressPct().toFixed(0) + '%'
+	})
+
+	function weekMax() : number {
+		let m = 1
+		let i = 0
+		while (i < store.weekBars.length) {
+			if (store.weekBars[i] > m) {
+				m = store.weekBars[i]
+			}
+			i++
+		}
+		return m
+	}
+
+	function barHeight(v : number) : string {
+		const h = v / weekMax() * 66
+		return 'height:' + h.toFixed(0) + 'px'
+	}
+
+	function barClass(i : number) : string {
+		if (i == 6) {
+			return 'wbar wbar-on'
+		}
+		if (i == 5 || i == 3) {
+			return 'wbar wbar-mid'
+		}
+		return 'wbar'
+	}
+
+	function startDots() {
+		dots.value = ''
+		dotTimer = setInterval(() => {
+			dots.value = dots.value.length >= 3 ? '' : dots.value + '.'
+		}, 300)
+	}
+
+	function stopDots() {
+		if (dotTimer != 0) {
+			clearInterval(dotTimer)
+			dotTimer = 0
+		}
+	}
+
+	function closeSheet() {
+		stopDots()
+		sheetMode.value = ''
+	}
+
+	function openTask(t : CarbonTask) {
+		if (t.done) {
+			toast('这个任务已核验通过，减少排放 ' + t.carbonSavedG.toFixed(0) + ' g')
+			return
+		}
+		current.value = t
+		sheetMode.value = 'task'
+	}
+
+	function startVerify() {
+		sheetMode.value = 'loading'
+		startDots()
+		aiVerifyProof(current.value.title, current.value.basePoints, (r : AiProofResult) => {
+			stopDots()
+			result.value = r
+			sheetMode.value = 'result'
+		})
+	}
+
+	function useSample() {
+		startVerify()
+	}
+
+	function pickPhoto() {
+		uni.chooseImage({
+			count: 1,
+			success: (res) => {
+				console.log('凭证图片：', res.tempFilePaths)
+				startVerify()
+			}
+		})
+	}
+
+	function claim() {
+		const err = completeTask(current.value.taskId, result.value.carbonSavedG, result.value.comment)
+		if (err != '') {
+			toast(err)
+		} else {
+			toast('+' + current.value.basePoints.toFixed(0) + ' 积分已到账')
+		}
+		sheetMode.value = ''
+	}
+
+	function askAi() {
+		sheetMode.value = 'advice'
+		advice.value = 'AI 正在翻你的日程表…'
+		aiAdvice(doneCount(), store.tasks.length, (text : string) => {
+			advice.value = text
+		})
+	}
+
+	function onCalendar() {
+		toast('1.0 骨架：日程协同入口，队员 B 可在此接入课表导入')
+	}
+</script>
+
+<style>
+	.page {
+		flex: 1;
+		background-color: #FFFCF6;
+		font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	}
+
+	.body {
+		flex: 1;
+	}
+
+	.icon-btn {
+		width: 36px;
+		height: 36px;
+		border-radius: 18px;
+		background-color: #EAF4E6;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.icon-18 {
+		width: 17px;
+		height: 17px;
+	}
+
+	.energy-card {
+		background-color: #FFFFFF;
+		border-radius: 22px;
+		padding: 16px;
+		margin: 6px 16px 0 16px;
+		box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	}
+
+	.e-label {
+		font-size: 11px;
+		color: #9AA394;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.e-row {
+		flex-direction: row;
+		align-items: flex-end;
+		justify-content: space-between;
+		margin-top: 2px;
+	}
+
+	.e-left {
+		flex-direction: row;
+		align-items: flex-end;
+	}
+
+	.e-num {
+		font-size: 42px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.e-unit {
+		font-size: 11px;
+		color: #9AA394;
+		margin-left: 5px;
+		margin-bottom: 9px;
+		font-family: HYSans;
+	}
+
+	.e-right {
+		flex-direction: column;
+		align-items: flex-end;
+		padding-bottom: 6px;
+	}
+
+	.e-acc {
+		font-size: 15px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.e-acc-lb {
+		font-size: 10px;
+		color: #9AA394;
+		margin-top: 3px;
+		font-family: HYSans;
+	}
+
+	.e-bar {
+		height: 10px;
+		background-color: #EDF3E7;
+		border-radius: 5px;
+		margin-top: 12px;
+	}
+
+	.e-bar-in {
+		height: 10px;
+		background-color: #6BB98A;
+		border-radius: 5px;
+	}
+
+	.e-hint {
+		font-size: 10px;
+		color: #B4BCAF;
+		margin-top: 8px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.sec-label {
+		font-size: 11px;
+		color: #9AA394;
+		margin: 18px 22px 8px 22px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.task-card {
+		background-color: #FFFFFF;
+		border-radius: 22px;
+		margin: 0 16px 0 16px;
+		padding: 4px 16px 4px 16px;
+		box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	}
+
+	.task-row {
+		flex-direction: row;
+		align-items: flex-start;
+		padding-top: 13px;
+		padding-bottom: 13px;
+		border-bottom-width: 1px;
+		border-bottom-style: solid;
+		border-bottom-color: #F2F5EE;
+	}
+
+	.task-time {
+		width: 44px;
+		font-size: 10px;
+		color: #B4BCAF;
+		padding-top: 3px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.task-main {
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.task-title {
+		font-size: 13px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.task-title-done {
+		color: #8D9A8F;
+	}
+
+	.task-desc {
+		font-size: 10px;
+		color: #A6B0A2;
+		margin-top: 4px;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.task-pt {
+		width: 42px;
+		font-size: 13px;
+		font-weight: bold;
+		color: #4E8A6B;
+		text-align: right;
+		padding-top: 2px;
+		font-family: HYSansBold;
+	}
+
+	.task-pt-done {
+		color: #B4BCAF;
+	}
+
+	.week-head {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		margin: 18px 22px 6px 22px;
+	}
+
+	.sec-title {
+		font-size: 13px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.week-streak {
+		font-size: 10px;
+		color: #9AA394;
+		letter-spacing: 0.4px;
+		font-family: HYSans;
+	}
+
+	.bars {
+		flex-direction: row;
+		align-items: flex-end;
+		justify-content: space-between;
+		margin: 0 20px 0 20px;
+		height: 70px;
+	}
+
+	.bar-col {
+		flex: 1;
+		align-items: center;
+		justify-content: flex-end;
+	}
+
+	.wbar {
+		width: 24px;
+		border-radius: 8px;
+		background-color: #DCEAD6;
+	}
+
+	.wbar-mid {
+		background-color: #9AC7A6;
+	}
+
+	.wbar-on {
+		background-color: #5AA877;
+	}
+
+	.ai-btn {
+		height: 52px;
+		border-radius: 26px;
+		background-color: #4E8A6B;
+		align-items: center;
+		justify-content: center;
+		margin: 20px 16px 0 16px;
+		box-shadow: 0px 6px 16px rgba(78, 138, 107, 0.28);
+	}
+
+	.ai-t {
+		font-size: 13px;
+		font-weight: bold;
+		color: #FFFFFF;
+		font-family: HYSansBold;
+	}
+
+	.bottom-pad {
+		height: 20px;
+	}
+
+	.mask {
+		position: absolute;
+		left: 0;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(30, 40, 33, 0.32);
+		justify-content: flex-end;
+	}
+
+	.mask-hit {
+		flex: 1;
+	}
+
+	.sheet {
+		background-color: #FFFFFF;
+		border-radius: 26px;
+		padding: 20px 18px 24px 18px;
+	}
+
+	.sheet-title {
+		font-size: 17px;
+		font-weight: bold;
+		color: #22302A;
+		font-family: HYSansBold;
+	}
+
+	.sheet-sub {
+		font-size: 11px;
+		color: #9AA394;
+		margin-top: 6px;
+		font-family: HYSans;
+	}
+
+	.hint-box {
+		background-color: #F6FAF2;
+		border-radius: 14px;
+		padding: 12px;
+		margin-top: 14px;
+	}
+
+	.hint-t {
+		font-size: 12px;
+		color: #5C6B60;
+		line-height: 19px;
+		font-family: HYSans;
+	}
+
+	.sheet-btn {
+		height: 48px;
+		border-radius: 24px;
+		align-items: center;
+		justify-content: center;
+		margin-top: 12px;
+	}
+
+	.sheet-btn-main {
+		background-color: #4E8A6B;
+	}
+
+	.sheet-btn-soft {
+		background-color: #EAF4E6;
+	}
+
+	.sheet-btn-t {
+		font-size: 14px;
+		font-weight: bold;
+		font-family: HYSansBold;
+	}
+
+	.sheet-btn-t-white {
+		color: #FFFFFF;
+	}
+
+	.sheet-btn-t-deep {
+		color: #2E6B4F;
+	}
+
+	.loading-box {
+		align-items: center;
+		padding: 30px 0 24px 0;
+	}
+
+	.loading-t {
+		font-size: 15px;
+		font-weight: bold;
+		color: #2E6B4F;
+		font-family: HYSansBold;
+	}
+
+	.loading-s {
+		font-size: 11px;
+		color: #9AA394;
+		margin-top: 8px;
+		font-family: HYSans;
+	}
+
+	.result-head {
+		align-items: center;
+		padding-top: 8px;
+	}
+
+	.result-badge {
+		height: 26px;
+		border-radius: 13px;
+		background-color: #EAF4E6;
+		padding-left: 12px;
+		padding-right: 12px;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.result-badge-t {
+		font-size: 11px;
+		font-weight: bold;
+		color: #4E8A6B;
+		font-family: HYSansBold;
+	}
+
+	.result-carbon {
+		font-size: 34px;
+		font-weight: bold;
+		color: #2E6B4F;
+		margin-top: 12px;
+		font-family: HYSansBold;
+	}
+
+	.result-carbon-lb {
+		font-size: 10px;
+		color: #9AA394;
+		margin-top: 2px;
+		font-family: HYSans;
+	}
+
+	.result-detail {
+		font-size: 10px;
+		color: #B4BCAF;
+		margin-top: 10px;
+		line-height: 16px;
+		font-family: HYSans;
+	}
+</style>

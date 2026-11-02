@@ -1,0 +1,118 @@
+<template>
+	<view class="tabbar-wrap">
+		<view class="tabbar">
+			<view v-for="t in tabs" :key="t.key" class="tb-cell" @click="go(t)">
+				<view :class="t.key == active ? 'tb-pill tb-pill-on' : 'tb-pill'">
+					<image class="tb-ico" :src="t.key == active ? t.iconOn : t.icon"></image>
+					<text :class="t.key == active ? 'tb-t tb-t-on' : 'tb-t'">{{ t.label }}</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script setup>
+	type TabItem = {
+		key : string,
+		label : string,
+		icon : string,
+		iconOn : string,
+		path : string
+	}
+
+	const props = defineProps({
+		active: {
+			type: String,
+			default: ''
+		}
+	})
+
+	const tabs : Array<TabItem> = [
+		{
+			key: 'map', label: '地图',
+			icon: '/static/tabbar/map.png', iconOn: '/static/tabbar/map-on.png',
+			path: '/pages/map/map'
+		},
+		{
+			key: 'task', label: '日程',
+			icon: '/static/tabbar/task.png', iconOn: '/static/tabbar/task-on.png',
+			path: '/pages/task/task'
+		},
+		{
+			key: 'tree', label: '林地',
+			icon: '/static/tabbar/tree.png', iconOn: '/static/tabbar/tree-on.png',
+			path: '/pages/tree/tree'
+		},
+		{
+			key: 'me', label: '我的',
+			icon: '/static/tabbar/me.png', iconOn: '/static/tabbar/me-on.png',
+			path: '/pages/honor/honor'
+		}
+	]
+
+	function go(t : TabItem) {
+		if (t.key == props.active) {
+			return
+		}
+		uni.reLaunch({
+			url: t.path
+		})
+	}
+</script>
+
+<style>
+	.tabbar-wrap {
+		background-color: transparent;
+		padding-left: 12px;
+		padding-right: 12px;
+		padding-top: 6px;
+		padding-bottom: 10px;
+	}
+
+	.tabbar {
+		font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+		height: 62px;
+		background-color: #FFFFFF;
+		border-radius: 31px;
+		flex-direction: row;
+		align-items: center;
+		box-shadow: 0px 6px 24px rgba(46, 107, 79, 0.12);
+	}
+
+	.tb-cell {
+		flex: 1;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.tb-pill {
+		height: 50px;
+		padding-left: 13px;
+		padding-right: 13px;
+		border-radius: 25px;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.tb-pill-on {
+		background-color: #EAF4E6;
+	}
+
+	.tb-ico {
+		width: 20px;
+		height: 20px;
+	}
+
+	.tb-t {
+		font-size: 9px;
+		color: #9AA394;
+		margin-top: 4px;
+		font-family: HYSans;
+	}
+
+	.tb-t-on {
+		color: #2E6B4F;
+		font-weight: bold;
+	}
+</style>

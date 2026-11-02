@@ -1,0 +1,36 @@
+/** 设计 token（取自视觉稿 v5 实际像素取色） */
+
+export const C_BG : string = '#FFFCF6' // 页面暖白底
+export const C_CARD : string = '#FFFFFF'
+export const C_DEEP : string = '#2E6B4F' // 深绿：标题/主文字
+export const C_GREEN : string = '#4E8A6B' // 主绿：按钮/选中
+export const C_GREEN_MID : string = '#6BB98A' // 进度条填充
+export const C_SOFT : string = '#EAF4E6' // 浅绿面/胶囊底
+export const C_SOFT2 : string = '#F3F9EF' // 更浅绿卡面
+export const C_MAP : string = '#E7F0D8' // 地图底
+export const C_MAP_DEEP : string = '#CFE3BC' // 草坪
+export const C_LAKE : string = '#CBE3DE'
+export const C_CREAM : string = '#F1EBDC' // 建筑/土黄
+export const C_MUTED : string = '#9AA394' // 次要文字
+export const C_MUTED2 : string = '#B4BCAF' // 三级文字
+export const C_TEXT : string = '#22302A'
+
+export const C_TAG_BG : string = '#FBF0D9'
+export const C_TAG_TX : string = '#8A6A3B'
+
+export const C_WARN_BG : string = '#FFF6F2'
+export const C_WARN : string = '#E07A5F'
+export const C_WARN_TX : string = '#B4553F'
+
+export const C_GOLD_BG : string = '#FFF6E4'
+export const C_GOLD : string = '#E0A93F'
+export const C_PINK_BG : string = '#FBEDEA'
+export const C_PINK : string = '#DE8B84'
+
+/** 数值 */
+export const ADOPT_COST : number = 300
+export const WATER_COST : number = 10
+export const WATER_GAIN : number = 20
+export const FERT_COST : number = 20
+export const FERT_GAIN : number = 50
+export const HAZARD_REWARD : number = 100
