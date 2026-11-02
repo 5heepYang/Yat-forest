@@ -107,7 +107,9 @@ Page({
     this.setData({ sel: decorateSelected(emptyTree()) })
   },
 
-  onShow() {
+  async onShow() {
+    // 等数据层拉完（测试号读本地、正式环境读云端），再渲染，避免先闪一下内置假数据
+    await store.ready()
     this.refresh()
   },
 

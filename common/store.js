@@ -1,18 +1,26 @@
 /**
  * 全局状态（唯一数据源）
  *
- * 原版用 uvue 的 reactive 做响应式；小程序没有这个机制，改成「普通对象 + 页面手动 sync」：
- *   - 页面 onShow / 每次写操作之后调用 refresh()，从 state 重新生成 data
- *   - 所有写操作仍然收敛在本文件，数值口径不变
+ * 架构：内存状态 + 自动持久化（离线优先）
  *
- * 真实后端接入时，把这些函数内部换成 wx.request 即可，页面无需改动。
+ *   - 页面照旧同步读 state、同步调写函数，界面立即响应，不需要 await
+ *   - 每次写操作之后自动落库（测试号 -> Storage，正式环境 -> 云数据库）
+ *   - 启动时 db.pull() 拉一次远端数据覆盖内存，页面用 await store.ready() 等它到位
+ *
+ * 这样做的原因：小程序没有 reactive，硬改成全异步会让四个页面的交互都要加 loading，
+ * 演示时反而卡顿。同步改内存 + 后台落库，体验最好，也最不容易写错。
  */
-const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars, mockRanks } = require('./mock')
+const { mockUser, mockTrees, mockTasks, mockGoods } = require('./mock')
 const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
 const { stamp } = require('./util')
+const db = require('./db')
 
-function seedLogs() {
-  return [
+/** 全局唯一状态。直接改这里的字段，改完调 persist()。 */
+const state = {
+  user: mockUser(),
+  trees: mockTrees(),
+  tasks: mockTasks(),
+  logs: [
     {
       logId: 'log_501', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage1.png',
       description: '第一次线下实拍：刚认养时的春芽', aiAnalysis: '', rewardPoints: 0, createdAt: '08-01'
@@ -25,19 +33,8 @@ function seedLogs() {
       logId: 'log_503', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage3.png',
       description: '今天无风，我的叶子有点痒', aiAnalysis: '', rewardPoints: 0, createdAt: '11-02'
     }
-  ]
-}
-
-/** 全局唯一状态。直接改这里的字段，然后在页面里 sync()。 */
-const state = {
-  user: mockUser(),
-  trees: mockTrees(),
-  tasks: mockTasks(),
-  logs: seedLogs(),
+  ],
   goods: mockGoods(),
-  badges: mockBadges(),
-  ranks: mockRanks(),
-  weekBars: mockWeekBars(),
   adoptedTreeId: 't_101',
   carbonGoal: 100,
   records: [
@@ -46,7 +43,53 @@ const state = {
   ]
 }
 
-/** 按 id 找树 */
+let hydrated = false
+let resolveReady = null
+const readyPromise = new Promise(function (resolve) {
+  resolveReady = resolve
+})
+
+/** 启动即拉一次远端数据。拉完把内存状态覆盖掉，页面会通过 ready() 感知。 */
+function bootstrap() {
+  db.pull()
+    .then(function (data) {
+      if (data) {
+        Object.assign(state, data)
+        // 认养的那棵树可能变了，兜一下
+        if (!state.adoptedTreeId) {
+          state.adoptedTreeId = 't_101'
+        }
+      }
+    })
+    .catch(function (e) {
+      console.warn('[store] 初始化拉取失败，使用内置数据', e)
+    })
+    .then(function () {
+      hydrated = true
+      resolveReady(state)
+    })
+}
+
+/** 页面在 onShow 里 await 它，保证读到的不是内置假数据 */
+function ready() {
+  return readyPromise
+}
+
+/** 落库。不阻塞界面，失败了本地也已经存住。 */
+function persist() {
+  if (!hydrated) {
+    // 还没拉到远端数据就写，会把种子数据覆盖到云端，必须拦住
+    return
+  }
+  db.save(state)
+}
+
+bootstrap()
+
+/* ------------------------------------------------------------------ */
+/* 读                                                                  */
+/* ------------------------------------------------------------------ */
+
 function treeById(id) {
   let i = 0
   while (i < state.trees.length) {
@@ -84,7 +127,6 @@ function todayCarbon() {
   return sum
 }
 
-/** 今日已得碳积分 */
 function todayPoints() {
   let sum = 0
   let i = 0
@@ -127,6 +169,23 @@ function unownedCount() {
   return c
 }
 
+/** 我认养了几棵树 */
+function myTreeCount() {
+  let c = 0
+  let i = 0
+  while (i < state.trees.length) {
+    if (state.trees[i].ownerId === state.user.userId) {
+      c++
+    }
+    i++
+  }
+  return c
+}
+
+/* ------------------------------------------------------------------ */
+/* 写（每个函数末尾都要 persist()）                                     */
+/* ------------------------------------------------------------------ */
+
 /** 认养：成功返回空串，失败返回提示语 */
 function adoptTree(id) {
   const t = treeById(id)
@@ -139,6 +198,9 @@ function adoptTree(id) {
   if (t.status === 'hazard') {
     return '该树正在隐患处理中，暂不可认养'
   }
+  if (t.status === 'pending') {
+    return '这棵树还在人工审核中，通过后就能认养了'
+  }
   if (state.user.availablePoints < ADOPT_COST) {
     return '积分不足，去低碳日程做任务攒一点吧'
   }
@@ -149,6 +211,7 @@ function adoptTree(id) {
   t.growthScore = 30
   state.adoptedTreeId = id
   state.user.totalGrowthScore = state.user.totalGrowthScore + 30
+  persist()
   return ''
 }
 
@@ -166,6 +229,7 @@ function water() {
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
+  persist()
   return ''
 }
 
@@ -183,6 +247,7 @@ function fertilize() {
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
+  persist()
   return ''
 }
 
@@ -199,6 +264,7 @@ function completeTask(taskId, carbon, comment) {
       t.aiComment = comment
       state.user.availablePoints = state.user.availablePoints + t.basePoints
       state.user.totalGrowthScore = state.user.totalGrowthScore + t.basePoints
+      persist()
       return ''
     }
     i++
@@ -209,7 +275,7 @@ function completeTask(taskId, carbon, comment) {
 function addGrowthLog(image, desc) {
   const t = myTree()
   const log = {
-    logId: 'log_' + (state.logs.length + 501).toFixed(0),
+    logId: db.newId('log'),
     treeId: t.treeId,
     kind: 'growth',
     imageUrl: image,
@@ -221,18 +287,20 @@ function addGrowthLog(image, desc) {
   state.logs.push(log)
   state.user.availablePoints = state.user.availablePoints + 20
   state.user.totalGrowthScore = state.user.totalGrowthScore + 10
+  persist()
+  return log
 }
 
-function reportHazard(r, desc) {
+function reportHazard(r, desc, image) {
   const t = myTree()
   if (t.treeId === '') {
     return '先认养一棵树，再来上报隐患'
   }
   const log = {
-    logId: 'log_' + (state.logs.length + 601).toFixed(0),
+    logId: db.newId('log'),
     treeId: t.treeId,
     kind: 'hazard',
-    imageUrl: '/static/illus/palm.png',
+    imageUrl: image || '/static/illus/palm.png',
     description: desc,
     aiAnalysis: '【' + r.level + '预警】' + r.analysis,
     rewardPoints: r.reward,
@@ -241,6 +309,7 @@ function reportHazard(r, desc) {
   state.logs.push(log)
   state.user.availablePoints = state.user.availablePoints + r.reward
   state.user.totalGrowthScore = state.user.totalGrowthScore + r.reward
+  persist()
   return ''
 }
 
@@ -252,13 +321,15 @@ function exchange(itemId) {
       if (g.stock <= 0) {
         return { ok: false, code: '', msg: '这件纪念品已经兑完了' }
       }
-      if (state.user.availablePoints < g.costPoints) {
-        return { ok: false, code: '', msg: '积分不足，再做几个任务吧' }
+      // 补给站用护林币结算，碳积分不参与
+      if ((state.user.coins || 0) < g.costCurrency) {
+        return { ok: false, code: '', msg: '护林币不够，去林地浇水做任务攒一点吧' }
       }
-      state.user.availablePoints = state.user.availablePoints - g.costPoints
+      state.user.coins = (state.user.coins || 0) - g.costCurrency
       g.stock = g.stock - 1
       const code = 'SYSU-' + Math.floor(100000 + Math.random() * 899999).toFixed(0)
       state.records.push(g.name + ' · ' + code)
+      persist()
       return { ok: true, code: code, msg: '' }
     }
     i++
@@ -266,10 +337,52 @@ function exchange(itemId) {
   return { ok: false, code: '', msg: '商品不存在' }
 }
 
+/* ------------------------------------------------------------------ */
+/* 给地图页 / 新增功能预留的通用写入口                                   */
+/* ------------------------------------------------------------------ */
+
+/** 新增一棵树（走审核流程：pending -> approved 才会在地图上显示点位） */
+function addTree(tree) {
+  state.trees.push(tree)
+  persist()
+  return tree
+}
+
+/** 更新任意一棵树的字段 */
+function updateTree(treeId, patch) {
+  const t = treeById(treeId)
+  if (!t) return false
+  Object.keys(patch).forEach(function (k) {
+    t[k] = patch[k]
+  })
+  persist()
+  return true
+}
+
+/** 新增一条日程 */
+function addTask(task) {
+  state.tasks.push(task)
+  persist()
+  return task
+}
+
+/** 直接改用户字段（加货币、改名等） */
+function updateUser(patch) {
+  Object.keys(patch).forEach(function (k) {
+    state.user[k] = patch[k]
+  })
+  persist()
+}
+
 module.exports = {
   state,
+  ready,
+  persist,
+
   treeById, myTree,
-  todayCarbon, todayPoints, doneCount, progressPct, unownedCount,
+  todayCarbon, todayPoints, doneCount, progressPct, unownedCount, myTreeCount,
+
   adoptTree, water, fertilize, completeTask,
-  addGrowthLog, reportHazard, exchange
+  addGrowthLog, reportHazard, exchange,
+  addTree, updateTree, addTask, updateUser
 }

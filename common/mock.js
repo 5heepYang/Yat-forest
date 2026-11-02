@@ -1,14 +1,20 @@
 /**
  * 1.0 内置 Mock 数据包
- * 队员 A 采集到真实树木照片后，只需把 static/illus 下的图替换即可，字段结构不用改。
+ *
+ * 字段结构 = 云端集合的 schema，改造后端时不用重新设计。
+ * 队员 A 采集到真实树木照片和经纬度后，直接改这里的 lat/lng/image 即可。
  */
+const { posToLatLng } = require('./geo')
+
+const DEFAULT_TREE_IMG = '/static/illus/palm.png'
 
 function mockUser() {
   return {
     userId: 'u_001',
     nickname: '中大护林员小李',
     avatar: '/static/illus/avatar.png',
-    availablePoints: 520,
+    availablePoints: 520,     // 碳积分（日程页赚）
+    coins: 120,               // 护林币（林地页赚，个人页花）
     totalGrowthScore: 1850,
     badgeCount: 3,
     days: 108
@@ -17,13 +23,15 @@ function mockUser() {
 
 function emptyTree() {
   return {
-    treeId: '', name: '', species: '', posX: 0, posY: 0,
+    treeId: '', name: '', species: '', posX: 0, posY: 0, lat: 0, lng: 0,
     ownerId: '', ownerName: '', level: 0, growthScore: 0,
-    status: 'normal', hazardText: '', age: '', distance: 0
+    status: 'normal', hazardText: '', age: '', distance: 0,
+    reviewStatus: 'approved', image: DEFAULT_TREE_IMG, createdBy: ''
   }
 }
 
-function mockTrees() {
+/** 原始树数据（只写业务字段，坐标和审核状态由 withGeo 统一补齐） */
+function rawTrees() {
   return [
     {
       treeId: 't_101', name: '逸仙大道08号 · 大王椰', species: '大王椰子',
@@ -103,27 +111,56 @@ function mockTrees() {
   ]
 }
 
+/** 补上经纬度、审核状态、照片、创建人 */
+function mockTrees() {
+  return rawTrees().map(function (t) {
+    const g = posToLatLng(t.posX, t.posY)
+    return Object.assign({}, t, {
+      lat: g.lat,
+      lng: g.lng,
+      reviewStatus: 'approved',
+      image: DEFAULT_TREE_IMG,
+      createdBy: 'u_001'
+    })
+  })
+}
+
+function today() {
+  const d = new Date()
+  const m = ('0' + (d.getMonth() + 1)).slice(-2)
+  const day = ('0' + d.getDate()).slice(-2)
+  return d.getFullYear() + '-' + m + '-' + day
+}
+
 function mockTasks() {
   return [
     {
-      taskId: 'task_201', slot: '08:00', title: '搭公交/步行去教学楼',
+      taskId: 'task_201', userId: 'u_001', date: today(),
+      slot: '08:00', title: '搭公交/步行去教学楼',
       desc: '校巴乘车码 · 少排 140 g CO₂e', basePoints: 50, done: true, carbonSavedG: 140,
-      aiComment: '识别到乘车凭证！少排 140 g CO₂e，你的小树又长高了一截~'
+      aiComment: '识别到乘车凭证！少排 140 g CO₂e，你的小树又长高了一截~',
+      proofImage: '', reviewStatus: 'approved'
     },
     {
-      taskId: 'task_202', slot: '12:00', title: '食堂光盘行动',
+      taskId: 'task_202', userId: 'u_001', date: today(),
+      slot: '12:00', title: '食堂光盘行动',
       desc: '拍一张空盘子', basePoints: 30, done: false,
-      carbonSavedG: 0, aiComment: ''
+      carbonSavedG: 0, aiComment: '',
+      proofImage: '', reviewStatus: ''
     },
     {
-      taskId: 'task_203', slot: '15:00', title: '骑共享单车回宿舍',
+      taskId: 'task_203', userId: 'u_001', date: today(),
+      slot: '15:00', title: '骑共享单车回宿舍',
       desc: '骑行记录截图', basePoints: 40, done: false,
-      carbonSavedG: 0, aiComment: ''
+      carbonSavedG: 0, aiComment: '',
+      proofImage: '', reviewStatus: ''
     },
     {
-      taskId: 'task_204', slot: '19:00', title: '双面打印 / 无纸化笔记',
+      taskId: 'task_204', userId: 'u_001', date: today(),
+      slot: '19:00', title: '双面打印 / 无纸化笔记',
       desc: '笔记截图', basePoints: 20, done: false,
-      carbonSavedG: 0, aiComment: ''
+      carbonSavedG: 0, aiComment: '',
+      proofImage: '', reviewStatus: ''
     }
   ]
 }
@@ -131,15 +168,15 @@ function mockTasks() {
 function mockGoods() {
   return [
     {
-      itemId: 's_301', name: '中大古树帆布袋', costPoints: 300, stock: 25,
+      itemId: 's_301', name: '中大古树帆布袋', costCurrency: 120, stock: 25,
       image: '/static/illus/bag.png', desc: '古树年轮印花 · 限量 25 份'
     },
     {
-      itemId: 's_302', name: '校巴搪瓷杯', costPoints: 220, stock: 12,
+      itemId: 's_302', name: '校巴搪瓷杯', costCurrency: 80, stock: 12,
       image: '/static/illus/cup.png', desc: '森系插画 · 附树种科普卡'
     },
     {
-      itemId: 's_303', name: '实木树牌挂名权', costPoints: 800, stock: 5,
+      itemId: 's_303', name: '实木树牌挂名权', costCurrency: 300, stock: 5,
       image: '/static/illus/stage3.png', desc: '把名字挂在你认养的树上'
     }
   ]
@@ -178,16 +215,18 @@ function mockWeekBars() {
   return [320, 480, 260, 540, 300, 180, 240]
 }
 
+/** 排行榜：按树的成长值排，改自原 PK 擂台 */
 function mockRanks() {
   return [
-    { name: '陈校友', score: 920, treeName: '怀士堂前 · 老榕树', me: false },
-    { name: '中大护林员小李（我）', score: 680, treeName: '逸仙大道08号 · 大王椰', me: true },
-    { name: '阿樟', score: 700, treeName: '中山楼后 · 香樟', me: false },
-    { name: '榕榕', score: 410, treeName: '北门草坪 · 木棉', me: false }
+    { rankId: 'r_1', userId: 'u_018', name: '陈校友', score: 920, treeName: '怀士堂前 · 老榕树', me: false },
+    { rankId: 'r_2', userId: 'u_001', name: '中大护林员小李（我）', score: 680, treeName: '逸仙大道08号 · 大王椰', me: true },
+    { rankId: 'r_3', userId: 'u_031', name: '阿樟', score: 700, treeName: '中山楼后 · 香樟', me: false },
+    { rankId: 'r_4', userId: 'u_022', name: '榕榕', score: 410, treeName: '北门草坪 · 木棉', me: false }
   ]
 }
 
 module.exports = {
   mockUser, emptyTree, mockTrees, mockTasks,
-  mockGoods, mockBadges, mockWeekBars, mockRanks
+  mockGoods, mockBadges, mockWeekBars, mockRanks,
+  today, DEFAULT_TREE_IMG
 }

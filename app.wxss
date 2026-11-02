@@ -17,3 +17,85 @@ page {
   display: flex;
   flex-direction: row;
 }
+
+/* ------------------------------------------------------------------ */
+/* 底部弹层通用件（配合 components/sheet 使用，页面里直接写 class 即可） */
+/* ------------------------------------------------------------------ */
+
+.hint-box {
+  display: flex;
+  flex-direction: column;
+  background-color: #F6FAF2;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 14px;
+}
+
+.hint-t {
+  font-size: 12px;
+  color: #5C6B60;
+  line-height: 19px;
+  font-family: HYSans;
+}
+
+.sheet-btn {
+  display: flex;
+  flex-direction: column;
+  height: 48px;
+  border-radius: 24px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.sheet-btn-main {
+  background-color: #4E8A6B;
+}
+
+.sheet-btn-soft {
+  background-color: #EAF4E6;
+}
+
+.sheet-btn-mute {
+  background-color: #C3CFC2;
+}
+
+.sheet-btn-t {
+  font-size: 14px;
+  font-weight: bold;
+  font-family: HYSansBold;
+}
+
+.sheet-btn-t-white {
+  color: #FFFFFF;
+}
+
+.sheet-btn-t-deep {
+  color: #2E6B4F;
+}
+
+/* 表单行：新增树木 / 新增日程这类弹窗里用 */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  margin-top: 14px;
+}
+
+.form-label {
+  font-size: 11px;
+  color: #9AA394;
+  font-family: HYSans;
+  letter-spacing: 0.4px;
+}
+
+.form-input {
+  height: 44px;
+  background-color: #F6FAF2;
+  border-radius: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-top: 7px;
+  font-size: 13px;
+  color: #22302A;
+  font-family: HYSans;
+}

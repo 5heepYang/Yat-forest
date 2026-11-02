@@ -1,7 +1,7 @@
 node_modules/
 
 # 原始字体（15.7MB，体积太大不进仓库；重跑字体子集时从原 uni-app 工程的 static/fonts 拷贝）
-assets-src/fonts/*.ttf
+assets-src/
 
 # 系统与编辑器文件
 .DS_Store

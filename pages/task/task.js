@@ -61,7 +61,8 @@ Page({
     })
   },
 
-  onShow() {
+  async onShow() {
+    await store.ready()
     this.refresh()
   },
 

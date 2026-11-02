@@ -42,7 +42,8 @@ Page({
     this.setData({ statusBarHeight: g.statusBarHeight || 20 })
   },
 
-  onShow() {
+  async onShow() {
+    await store.ready()
     this.refresh()
   },
 
@@ -79,7 +80,7 @@ Page({
         itemId: g.itemId,
         name: g.name,
         image: g.image,
-        costText: g.costPoints.toFixed(0),
+        costText: g.costCurrency.toFixed(0),
         desc: g.desc,
         boxCls: goodsBoxClass(g.itemId)
       }
@@ -134,7 +135,7 @@ Page({
         itemId: g.itemId,
         name: g.name,
         desc: g.desc,
-        costText: g.costPoints.toFixed(0)
+        costText: g.costCurrency.toFixed(0)
       },
       sheetMode: 'confirm'
     })

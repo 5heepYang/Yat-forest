@@ -48,7 +48,8 @@ git clone https://gitee.com/chen-zirui112/elite-cup.git
 | `pages/*/index.uvue` | `pages/*/*.wxml` + `.wxss` + `.js` + `.json` |
 | `components/nav-bar.uvue` | `components/nav-bar/` |
 | `components/app-tabbar.uvue` | `components/app-tabbar/` |
-| `common/*.uts` | `common/*.js` |
+| —（新增） | `components/sheet/` 统一底部弹层 |
+| `common/*.uts` | `common/*.js`，另加 `db.js`（数据层）、`geo.js`（坐标工具） |
 | `static/` | `static/`（原样复用） |
 
 逻辑层函数名、字段名、数值口径**完全保留**，方便对照原代码：
@@ -136,7 +137,23 @@ python tools/build-fonts.py
 
 ---
 
-## 六、给队友的分工入口
+## 六、数据层与协作约定
+
+数据全部走 `common/db.js` + `common/store.js`，**页面不碰数据库**：
+
+| 环境 | 底层实现 | 效果 |
+| --- | --- | --- |
+| 测试号 | `wx.setStorageSync` | 数据存在各自开发者工具里，重启不丢，增删改查全可用 |
+| 正式 AppID + 云开发 | `wx.cloud.database()` | 数据进云端，多人共享 |
+
+- 队友**不需要**开通云开发、不需要配环境 ID。用测试号写的代码，合并到正式环境会自动走云端，一行都不用改
+- 上传图片统一调 `db.uploadImage()`，不要自己写存储逻辑
+- 弹窗统一用 `components/sheet`，`.sheet-btn` / `.hint-box` 这些样式在 `app.wxss` 里，别再各写一套
+- 坐标换算用 `common/geo.js`，不要手写经纬度
+
+> 完整字段定义、接口清单、四人分工边界、每个功能该改哪个文件，全部写在 **[`docs/CONTRACT.md`](docs/CONTRACT.md)**，开工前先读一遍。
+
+## 七、给队友的分工入口
 
 | 模块 | 页面文件 | 对应原分工 |
 | --- | --- | --- |
@@ -154,7 +171,7 @@ python tools/build-fonts.py
 
 ---
 
-## 七、与原版的已知差异
+## 八、与原版的已知差异
 
 - **没有跨端能力**：原 uni-app x 工程可编译 Android / iOS / 鸿蒙 / Web，这份只能在微信里跑
 - **小程序端本来就是 VDOM 渲染**（基础库架构决定的），原版蒸汽模式的原生渲染性能在这里不存在

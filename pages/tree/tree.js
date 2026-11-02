@@ -40,7 +40,8 @@ Page({
     this.dotTimer = 0
   },
 
-  onShow() {
+  async onShow() {
+    await store.ready()
     this.refresh()
   },
 

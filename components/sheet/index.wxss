@@ -1,0 +1,41 @@
+.mask {
+	display: flex;
+	flex-direction: column;
+	position: fixed;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(30, 40, 33, 0.32);
+	justify-content: flex-end;
+	z-index: 100;
+}
+
+.sheet {
+	display: flex;
+	flex-direction: column;
+	background-color: #FFFFFF;
+	border-radius: 26px;
+	padding: 20px 18px 24px 18px;
+	max-height: 82vh;
+	overflow-y: auto;
+}
+
+.sheet-head {
+	display: flex;
+	flex-direction: column;
+}
+
+.sheet-title {
+	font-size: 17px;
+	font-weight: bold;
+	color: #22302A;
+	font-family: HYSansBold;
+}
+
+.sheet-sub {
+	font-size: 11px;
+	color: #9AA394;
+	margin-top: 6px;
+	font-family: HYSans;
+}
