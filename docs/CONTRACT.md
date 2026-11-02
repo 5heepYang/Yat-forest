@@ -269,7 +269,17 @@ onWater() {
 }
 ```
 
-> 比赛项目为了简单直接放开读写。正式产品要用 `doc._openid == auth.openid` 限制。
+### 权限分级：开发态 vs 上线态
+
+开发期全队共用全开权限，省得队友被权限报错卡住。**上线/演示前**按集合分级收紧（个人数据锁到本人，公共数据保持可写）：
+
+| 集合 | 上线态规则 | 原因 |
+| --- | --- | --- |
+| `users` `tasks` `tree_logs` `records` | `{"read": "doc._openid == auth.openid", "write": "doc._openid == auth.openid"}` | 个人数据，只许本人读写 |
+| `trees` `goods` | `{"read": "auth != null", "write": true}` | 公共林地/库存，所有人都要能认养、扣库存。**锁成"只写自己的"会让别人认养不了树** |
+
+> 应用层隔离（`db.js` 的 `PERSONAL` 表 + `where({_openid: '{openid}'})`）始终生效，权限规则只是数据库层的第二道锁。
+
 
 5. 云存储权限同样设置。**不需要写云函数**，前端直连数据库。
 
