@@ -10,3 +10,11 @@ Thumbs.db
 
 # 微信开发者工具的本地私人配置（各人环境不同，不共享）
 project.private.config.json
+
+# 参考文档（需求方的原始手册导出，不进仓库）
+MinerU_markdown_*.md
+
+# 用户的原图（压缩版在 static/illus/ 才是进包的）
+/640.jpg
+/640 (2).jpg
+/23423423.jpg

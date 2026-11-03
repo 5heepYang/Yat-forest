@@ -159,6 +159,21 @@
 	border-radius: 5px;
 }
 
+.coin-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 14px;
+}
+
+.coin-hint {
+	font-size: 10px;
+	color: #9AA394;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
 .act-row {
 	display: flex;
 	flex-direction: row;

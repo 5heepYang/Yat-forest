@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/login/login",
     "pages/map/map",
     "pages/task/task",
     "pages/tree/tree",

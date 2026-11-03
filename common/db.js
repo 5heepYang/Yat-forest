@@ -103,7 +103,9 @@ function seedState() {
     records: [
       '中大古树帆布袋 · SYSU-483920',
       '中大古树帆布袋 · SYSU-771203'
-    ]
+    ],
+    adoptedTreeId: 't_101',
+    carbonGoal: 100
   }
 }
 
@@ -244,11 +246,11 @@ function pullCloud() {
     if (!trees.length) jobs.push(['trees', seed.trees])
     if (!goods.length) jobs.push(['goods', seed.goods])
 
-    // —— 个人数据：查不到"我的"文档 = 第一次来，注册即登录（无感知）——
+    // —— 个人数据：查不到"我的"文档 = 第一次来，静默注册（openid 自动建档）——
     let me = users[0]
     if (!me) {
       // 第一个用户沿用种子身份 u_001（种子树 t_101 的 ownerId 就是它），
-      // 之后的用户发新 id
+      // 之后每个新 openid 发新 id、开干净新号
       me = isFirstUser ? Object.assign({}, mockUser()) : newUser()
       me.adoptedTreeId = isFirstUser ? 't_101' : ''
       jobs.push(['users', [me]])
@@ -446,6 +448,31 @@ function newId(prefix) {
   return prefix + '_' + Date.now() + Math.floor(Math.random() * 1000)
 }
 
+/**
+ * 跨用户查档案：地图页进别人主页用。
+ * users 是个人集合，云端按 userId 查（需要集合 read 权限放开，见 CONTRACT 权限分级表）。
+ * 查不到（本地模式 / TA 没注册过 / 权限没放开）一律返回 null，
+ * 页面拿 null 自己用全局 trees 上的冗余字段拼一份兜底档案。
+ */
+function fetchUserDoc(userId) {
+  init()
+  if (mode !== MODE_CLOUD || !userId) {
+    return Promise.resolve(null)
+  }
+  return cloudDb.collection('users')
+    .where({ userId: userId })
+    .limit(1)
+    .get()
+    .then(function (res) {
+      const d = res.data && res.data[0]
+      return d ? copyDoc(d) : null
+    })
+    .catch(function (e) {
+      console.warn('[db] 跨用户档案查询失败（检查 users 集合 read 权限）', e)
+      return null
+    })
+}
+
 module.exports = {
   MODE_LOCAL,
   MODE_CLOUD,
@@ -455,6 +482,7 @@ module.exports = {
   pull,
   save,
   uploadImage,
+  fetchUserDoc,
   seedState,
   newId,
   stamp

@@ -11,7 +11,7 @@
  * 演示时反而卡顿。同步改内存 + 后台落库，体验最好，也最不容易写错。
  */
 const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars } = require('./mock')
-const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
+const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN, COIN_WATER, COIN_FERT } = require('./theme')
 const { stamp } = require('./util')
 const db = require('./db')
 
@@ -62,6 +62,7 @@ function bootstrap() {
         if (typeof state.adoptedTreeId !== 'string') {
           state.adoptedTreeId = ''
         }
+        syncGoods()
       }
     })
     .catch(function (e) {
@@ -71,6 +72,21 @@ function bootstrap() {
       hydrated = true
       resolveReady(state)
     })
+}
+
+/**
+ * 商品版本同步：缓存/云端里的 goods 还是旧版（换过图或名字）时整组替换。
+ * 判断依据是商品上的 goodsV 版本号（mock.js 里改商品时 +1），
+ * 这样兑换扣的库存不受影响——只有版本对不上才刷新。
+ */
+function syncGoods() {
+  const fresh = mockGoods()
+  const cur = state.goods && state.goods[0]
+  if (cur && cur.goodsV === fresh[0].goodsV) {
+    return
+  }
+  state.goods = fresh
+  persist(['goods'])
 }
 
 /** 页面在 onShow 里 await 它，保证读到的不是内置假数据 */
@@ -194,6 +210,52 @@ function myTreeCount() {
   return c
 }
 
+/**
+ * 勋章点亮状态（数据驱动，mockBadges 里的 unlocked 字段已废弃，只当定义表用）。
+ * 每次展示前算一遍；顺带把 badgeCount 同步进内存（不单独落库，
+ * 下次任何写操作带 users 一起存）。
+ */
+function badgeState() {
+  let carbon = 0
+  let i = 0
+  while (i < state.tasks.length) {
+    if (state.tasks[i].done) {
+      carbon = carbon + (state.tasks[i].carbonSavedG || 0)
+    }
+    i++
+  }
+  let hazardCount = 0
+  i = 0
+  while (i < state.logs.length) {
+    if (state.logs[i].kind === 'hazard') {
+      hazardCount++
+    }
+    i++
+  }
+
+  const rules = {
+    b_01: carbon >= 1000,                        // 低碳先锋：累计减碳 1000g
+    b_02: hazardCount >= 1,                      // 椰林排雷兵：上报 1 次隐患
+    b_03: myTreeCount() >= 1,                    // 首棵认养人：认养第一棵树
+    b_04: (state.user.days || 0) >= 100,         // 百日护林员：护林 100 天
+    b_05: false,                                 // 光盘达人：暂无数据源，保持未解锁
+    b_06: false                                  // 早八守护者：暂无数据源，保持未解锁
+  }
+
+  const list = state.badges.map(function (b) {
+    return Object.assign({}, b, { unlocked: !!rules[b.badgeId] })
+  })
+
+  let n = 0
+  i = 0
+  while (i < list.length) {
+    if (list[i].unlocked) n++
+    i++
+  }
+  state.user.badgeCount = n
+  return list
+}
+
 /* ------------------------------------------------------------------ */
 /* 写（每个函数末尾都要 persist([...])，标明本次动到的集合）           */
 /* ------------------------------------------------------------------ */
@@ -238,6 +300,8 @@ function water() {
   state.user.availablePoints = state.user.availablePoints - WATER_COST
   t.growthScore = t.growthScore + WATER_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + WATER_GAIN
+  // 养护附带发护林币（林地页赚，个人页补给站花）
+  state.user.coins = (state.user.coins || 0) + COIN_WATER
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
@@ -256,6 +320,7 @@ function fertilize() {
   state.user.availablePoints = state.user.availablePoints - FERT_COST
   t.growthScore = t.growthScore + FERT_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + FERT_GAIN
+  state.user.coins = (state.user.coins || 0) + COIN_FERT
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
@@ -386,6 +451,38 @@ function updateUser(patch) {
   persist(['users'])
 }
 
+/**
+ * 本地模式首次登录用：把内置演示数据重置成干净新号。
+ * （云端不需要：每个 openid 自动建档隔离，新用户本来就是干净的；
+ *   本地 Storage 里存的是演示账号 u_001，不清就"登录就有树"。）
+ * 保留：520 碳积分 + 120 护林币新手礼（够认养一棵树再兑换一件，演示不冷场）。
+ */
+function resetForNewUser() {
+  let i = 0
+  while (i < state.trees.length) {
+    const t = state.trees[i]
+    if (t.ownerId === state.user.userId) {
+      // 我名下的树释放回待认养（成长值等级一并归零，世界恢复初始）
+      t.ownerId = ''
+      t.ownerName = ''
+      t.level = 0
+      t.growthScore = 0
+    }
+    i++
+  }
+  state.user.totalGrowthScore = 0
+  state.user.badgeCount = 0
+  state.user.days = 1
+  // 随机护林员编号开号，头像用默认；改名换头像在个人页（昵称可点 + 资料弹层）
+  state.user.nickname = '护林员' + Math.floor(1000 + Math.random() * 9000)
+  state.user.avatar = '/static/illus/avatar.png'
+  state.adoptedTreeId = ''
+  state.tasks = mockTasks()
+  state.logs = []
+  state.records = []
+  persist() // 一次性重置，全量落库
+}
+
 module.exports = {
   state,
   ready,
@@ -393,8 +490,10 @@ module.exports = {
 
   treeById, myTree,
   todayCarbon, todayPoints, doneCount, progressPct, unownedCount, myTreeCount,
+  badgeState,
 
   adoptTree, water, fertilize, completeTask,
   addGrowthLog, reportHazard, exchange,
-  addTree, updateTree, addTask, updateUser
+  addTree, updateTree, addTask, updateUser,
+  resetForNewUser
 }

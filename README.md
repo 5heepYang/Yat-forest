@@ -147,7 +147,7 @@ python tools/build-fonts.py
 | 正式 AppID + 云开发 | `wx.cloud.database()` | 数据进云端，多人共享，按 `_openid` 隔离 |
 
 - 队友**不需要**开通云开发、不需要配环境 ID。用测试号写的代码，合并到正式环境会自动走云端，一行都不用改
-- **登录与数据隔离**：不需要登录页。正式环境下每人有自己的积分/日程/兑换记录（首次进入静默注册），树木和商品库存全局共享。用户在个人页点昵称可改名
+- **登录与数据隔离**：登录页 `pages/login` 微信一键进入，身份由微信 openid 静默承担——不同微信自动不同账号（积分/日程/兑换记录完全隔离，服务器端强制），同一微信换设备数据跟着走。测试号下为本机单账号（首次登录自动重置成干净新号）。退出登录入口在个人页底部，改名换头像在个人页资料弹层
 - 上传图片统一调 `db.uploadImage()`，不要自己写存储逻辑
 - 弹窗统一用 `components/sheet`，`.sheet-btn` / `.hint-box` 这些样式在 `app.wxss` 里，别再各写一套
 - 坐标换算用 `common/geo.js`，不要手写经纬度
@@ -165,9 +165,9 @@ python tools/build-fonts.py
    { "read": true, "write": true }
    ```
 
-3. 开发者工具里编译预览，随便点一次「浇水」
+3. 开发者工具里编译预览，一键登录后随便点一次「浇水」
 4. 打开调试器 Console，应看到 `[db] 云端模式`，且没有红色报错
-5. 回云开发控制台看 `trees` 集合，那条树的 `growthScore` 应该 +20，`users` 的 `availablePoints` -10
+5. 回云开发控制台看 `trees` 集合，那条树的 `growthScore` 应该 +20，`users` 的 `availablePoints` -10、`coins` +2
 
 第 5 步成立，说明整条链路（页面 → store → db → 云数据库）通了。之后队友合并进来的代码会自动走同一条链路，不用再配任何东西。
 
@@ -183,7 +183,7 @@ python tools/build-fonts.py
 | 低碳日程与 AI 核验 | `pages/task/` | 队员 B |
 | 我的林地 | `pages/tree/` | 队员 C |
 | 我的 / 补给站 | `pages/honor/` | 队员 D |
-| 公共层 | `common/`、`components/` | 队长，改动需先同步 |
+| 公共层 | `common/`、`components/`、`pages/login/` | 队长，改动需先同步 |
 
 改页面时的注意顺序：
 

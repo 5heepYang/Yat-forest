@@ -1,6 +1,7 @@
 const store = require('../../common/store')
 const { aiAnalyzeHazard } = require('../../common/ai')
 const { toast } = require('../../common/util')
+const { WATER_GAIN, FERT_GAIN, COIN_WATER, COIN_FERT } = require('../../common/theme')
 
 const RIVAL_SCORE = 720
 const STAGES = ['幼芽', '新叶', '枝繁']
@@ -21,6 +22,7 @@ function widthOf(score) {
 Page({
   data: {
     navSubtitle: '',
+    coins: '0',
     tree: { name: '', species: '', age: '', level: '0', growthScore: '0' },
     weatherLine: '今天风大，我的叶子有点痒～',
     nextNeed: '',
@@ -51,6 +53,7 @@ Page({
 
   refresh() {
     const t = store.myTree()
+    const st = store.state
     const rest = 1000 - t.growthScore
     const gap = t.growthScore - RIVAL_SCORE
 
@@ -70,6 +73,7 @@ Page({
 
     this.setData({
       navSubtitle: '在养 1 棵 · 成长值 ' + t.growthScore.toFixed(0),
+      coins: (st.user.coins || 0).toFixed(0),
       tree: {
         name: t.name,
         species: t.species,
@@ -116,7 +120,7 @@ Page({
       toast(err)
       return
     }
-    toast('浇水成功，成长值 +20')
+    toast('浇水成功，成长值 +' + WATER_GAIN + '，护林币 +' + COIN_WATER)
     this.refresh()
   },
 
@@ -126,7 +130,7 @@ Page({
       toast(err)
       return
     }
-    toast('施肥成功，成长值 +50')
+    toast('施肥成功，成长值 +' + FERT_GAIN + '，护林币 +' + COIN_FERT)
     this.refresh()
   },
 

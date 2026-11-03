@@ -69,6 +69,11 @@ function decorateSelected(t) {
     btnText = '隐患处理中 · 暂不可认养'
     btnBg = 'btn-mute'
     btnColor = 'tc-btn-t-white'
+  } else if (t.ownerId !== '') {
+    // 别人认养的树：不能认养（原来这里会错落到"消耗积分认养"，点了必报错），改成进认养人主页
+    btnText = '查看认养人主页'
+    btnBg = 'btn-soft'
+    btnColor = 'tc-btn-t-deep'
   } else {
     btnText = '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养'
     btnBg = 'btn-main'
@@ -163,6 +168,12 @@ Page({
 
     if (sel.ownerId === store.state.user.userId) {
       wx.reLaunch({ url: '/pages/tree/tree' })
+      return
+    }
+
+    // 别人认养的树 → 访客模式进 TA 的个人主页
+    if (sel.ownerId !== '') {
+      wx.navigateTo({ url: '/pages/honor/honor?userId=' + sel.ownerId })
       return
     }
 
