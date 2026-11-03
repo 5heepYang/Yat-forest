@@ -1,6 +1,6 @@
 <view class="page">
 	<nav-bar title="低碳日程" subtitle="{{dateLine}}">
-		<view class="icon-btn" bindtap="onCalendar">
+		<view class="icon-btn" bindtap="openAdd">
 			<image class="icon-18" src="/static/ui/calendar.png"></image>
 		</view>
 	</nav-bar>
@@ -14,7 +14,7 @@
 					<text class="e-unit">分</text>
 				</view>
 				<view class="e-right">
-					<text class="e-acc">{{totalGrowth}} g</text>
+					<text class="e-acc">{{totalCarbonG}} g</text>
 					<text class="e-acc-lb">累计少排 CO₂e</text>
 				</view>
 			</view>
@@ -24,28 +24,33 @@
 			<text class="e-hint">今日目标 {{carbonGoal}} 分 · 已完成 {{progressPct}}%</text>
 		</view>
 
-		<text class="sec-label">{{sectionLabel}}</text>
-
-		<view class="task-card">
-			<view
-				class="task-row"
-				wx:for="{{tasks}}"
-				wx:key="taskId"
-				data-id="{{item.taskId}}"
-				bindtap="openTask"
-			>
-				<text class="task-time">{{item.slot}}</text>
-				<view class="task-main">
-					<text class="{{item.done ? 'task-title task-title-done' : 'task-title'}}">{{item.title}}</text>
-					<text class="task-desc">{{item.desc}}</text>
+		<view class="task-card" wx:if="{{groups.length > 0}}">
+			<block wx:for="{{groups}}" wx:key="label" wx:for-item="group">
+				<text class="group-label">{{group.label}}</text>
+				<view
+					class="task-row"
+					wx:for="{{group.tasks}}"
+					wx:key="taskId"
+					data-id="{{item.taskId}}"
+					bindtap="openTask"
+				>
+					<text class="task-time">{{item.slot}}</text>
+					<view class="task-main">
+						<text class="{{item.done ? 'task-title task-title-done' : 'task-title'}}">{{item.title}}</text>
+						<text class="task-desc">{{item.desc}}</text>
+					</view>
+					<text class="{{item.done ? 'task-pt task-pt-done' : 'task-pt'}}">{{item.done || item.basePoints > 0 ? '+' + item.basePoints : '…'}}</text>
 				</view>
-				<text class="{{item.done ? 'task-pt task-pt-done' : 'task-pt'}}">+{{item.basePoints}}</text>
-			</view>
+			</block>
+		</view>
+
+		<view class="task-card" wx:else>
+			<text class="empty-t">今天还没有日程，点右上角添加一条</text>
 		</view>
 
 		<view class="week-head">
 			<text class="sec-title">本周碳账本</text>
-			<text class="week-streak">连续 5 天</text>
+			<text class="week-streak">{{streakText}}</text>
 		</view>
 
 		<view class="bars">
@@ -66,17 +71,45 @@
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
 		<view class="sheet">
+			<view wx:if="{{sheetMode == 'add'}}">
+				<text class="sheet-title">添加今日日程</text>
+				<text class="sheet-sub">写下要做的事，AI 帮你规划低碳做法</text>
+				<view class="sheet-field">
+					<text class="field-lb">要做的事</text>
+					<input class="field-input" value="{{addTitle}}" maxlength="30" placeholder="如：去教学楼上课" bindinput="onAddTitle"></input>
+				</view>
+				<view class="sheet-field">
+					<text class="field-lb">时间</text>
+					<picker class="field-picker" mode="time" value="{{addSlot}}" bindchange="onAddSlot">
+						<view class="picker-val">{{addSlot}}</view>
+					</picker>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="confirmAdd">
+					<text class="sheet-btn-t sheet-btn-t-white">创建，等 AI 分析</text>
+				</view>
+			</view>
+
 			<view wx:if="{{sheetMode == 'task'}}">
 				<text class="sheet-title">{{current.title}}</text>
 				<text class="sheet-sub">{{current.slot}} · {{current.desc}}</text>
 				<view class="hint-box">
 					<text class="hint-t">上传凭证照片（乘车码截图 / 空盘 / 骑行记录），AI 会自动核验真实性与减碳量。</text>
 				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="useSample">
-					<text class="sheet-btn-t sheet-btn-t-white">使用示例凭证（模拟核验）</text>
+				<image wx:if="{{proofThumb != ''}}" class="proof-thumb" src="{{proofThumb}}" mode="aspectFill"></image>
+				<view class="proof-row">
+					<view class="sheet-btn sheet-btn-soft proof-btn" bindtap="pickPhoto" data-src="camera">
+						<text class="sheet-btn-t sheet-btn-t-deep">拍照</text>
+					</view>
+					<view class="sheet-btn sheet-btn-soft proof-btn" bindtap="pickPhoto" data-src="album">
+						<text class="sheet-btn-t sheet-btn-t-deep">相册选图</text>
+					</view>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="pickPhoto">
-					<text class="sheet-btn-t sheet-btn-t-deep">从相册选一张照片</text>
+				<view class="sheet-field">
+					<text class="field-lb">文字凭证</text>
+					<input class="field-input" value="{{proofText}}" maxlength="50" placeholder="如：今天骑行 3.2 公里" bindinput="onProofText" bindblur="onProofBlur"></input>
+				</view>
+				<view class="sheet-btn sheet-btn-main" bindtap="startVerify">
+					<text class="sheet-btn-t sheet-btn-t-white">提交核验</text>
 				</view>
 			</view>
 

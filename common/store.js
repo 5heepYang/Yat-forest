@@ -10,7 +10,7 @@
  * 这样做的原因：小程序没有 reactive，硬改成全异步会让四个页面的交互都要加 loading，
  * 演示时反而卡顿。同步改内存 + 后台落库，体验最好，也最不容易写错。
  */
-const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars } = require('./mock')
+const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars, today } = require('./mock')
 const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
 const { stamp } = require('./util')
 const db = require('./db')
@@ -127,6 +127,35 @@ function myTree() {
 }
 
 function todayCarbon() {
+  const td = today()
+  let sum = 0
+  let i = 0
+  while (i < state.tasks.length) {
+    const t = state.tasks[i]
+    if (t.done && t.date === td) {
+      sum = sum + t.carbonSavedG
+    }
+    i++
+  }
+  return sum
+}
+
+function todayPoints() {
+  const td = today()
+  let sum = 0
+  let i = 0
+  while (i < state.tasks.length) {
+    const t = state.tasks[i]
+    if (t.done && t.date === td) {
+      sum = sum + t.basePoints
+    }
+    i++
+  }
+  return sum
+}
+
+/** 累计减碳量：全部已完成任务的减碳克数之和（含历史天） */
+function totalCarbon() {
   let sum = 0
   let i = 0
   while (i < state.tasks.length) {
@@ -139,24 +168,27 @@ function todayCarbon() {
   return sum
 }
 
-function todayPoints() {
-  let sum = 0
-  let i = 0
-  while (i < state.tasks.length) {
-    const t = state.tasks[i]
-    if (t.done) {
-      sum = sum + t.basePoints
-    }
-    i++
-  }
-  return sum
-}
-
 function doneCount() {
+  const td = today()
   let c = 0
   let i = 0
   while (i < state.tasks.length) {
-    if (state.tasks[i].done) {
+    const t = state.tasks[i]
+    if (t.done && t.date === td) {
+      c++
+    }
+    i++
+  }
+  return c
+}
+
+/** 今日任务总数（AI 管家口径用） */
+function todayTaskCount() {
+  const td = today()
+  let c = 0
+  let i = 0
+  while (i < state.tasks.length) {
+    if (state.tasks[i].date === td) {
       c++
     }
     i++
@@ -263,7 +295,7 @@ function fertilize() {
   return ''
 }
 
-function completeTask(taskId, carbon, comment) {
+function completeTask(taskId, carbon, comment, extra) {
   let i = 0
   while (i < state.tasks.length) {
     const t = state.tasks[i]
@@ -274,6 +306,15 @@ function completeTask(taskId, carbon, comment) {
       t.done = true
       t.carbonSavedG = carbon
       t.aiComment = comment
+      t.reviewStatus = 'approved'
+      if (extra) {
+        if (extra.proofImage) {
+          t.proofImage = extra.proofImage
+        }
+        if (extra.proofText) {
+          t.proofText = extra.proofText
+        }
+      }
       state.user.availablePoints = state.user.availablePoints + t.basePoints
       state.user.totalGrowthScore = state.user.totalGrowthScore + t.basePoints
       persist(['tasks', 'users'])
@@ -378,6 +419,23 @@ function addTask(task) {
   return task
 }
 
+/** 按 key 合并更新一条日程的字段 */
+function updateTask(taskId, patch) {
+  let i = 0
+  while (i < state.tasks.length) {
+    const t = state.tasks[i]
+    if (t.taskId === taskId) {
+      Object.keys(patch).forEach(function (k) {
+        t[k] = patch[k]
+      })
+      persist(['tasks'])
+      return true
+    }
+    i++
+  }
+  return false
+}
+
 /** 直接改用户字段（加货币、改名等） */
 function updateUser(patch) {
   Object.keys(patch).forEach(function (k) {
@@ -392,9 +450,9 @@ module.exports = {
   persist,
 
   treeById, myTree,
-  todayCarbon, todayPoints, doneCount, progressPct, unownedCount, myTreeCount,
+  todayCarbon, todayPoints, totalCarbon, doneCount, todayTaskCount, progressPct, unownedCount, myTreeCount,
 
   adoptTree, water, fertilize, completeTask,
   addGrowthLog, reportHazard, exchange,
-  addTree, updateTree, addTask, updateUser
+  addTree, updateTree, addTask, updateTask, updateUser
 }
