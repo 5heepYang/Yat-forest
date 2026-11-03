@@ -2,7 +2,7 @@ const { emptyTree } = require('../../common/mock')
 const store = require('../../common/store')
 const { isAdmin } = store
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
-const { aiAnalyzeHazard } = require('../../common/ai')
+const { aiAnalyzeHazard, aiReviewTree } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
 const { toast } = require('../../common/util')
 const db = require('../../common/db')
@@ -177,22 +177,27 @@ Page({
   },
 
   async onShow() {
-    // 等数据层拉完（测试号读本地、正式环境读云端），再渲染，避免先闪一下内置假数据
+    // 1) 先出内容：store 有本地缓存时 ready() 毫秒返回，marker 立刻渲染出来
     this.trees = await getTrees()
     this.loaded = true
-
-    // 定位：拿到真实位置就用它算"距你 xx m"，拿不到就回退校园中心
-    await this.locate(true)
     this.refresh()
+    this.revealMap()
 
-    // 数据就绪后再给地图留一点瓦片加载时间，然后揭开暖白遮罩；
-    // 只在首次进入时盖一次，切 Tab 回来地图已就绪，不再闪
-    if (!this.data.mapReady) {
-      if (this._mapReadyTimer) clearTimeout(this._mapReadyTimer)
-      this._mapReadyTimer = setTimeout(() => {
-        this.setData({ mapReady: true })
-      }, 400)
-    }
+    // 2) 定位和云端同步并行跑，谁先回来谁刷新，不再串行等两轮网络
+    this.locate(true).then(() => this.refresh())
+    store.synced().then(() => {
+      this.trees = store.state.trees
+      this.refresh()
+    })
+  },
+
+  /** 揭开暖白遮罩：数据到位就揭，不再固定等 400ms（只在首次进入盖一次） */
+  revealMap() {
+    if (this.data.mapReady) return
+    if (this._mapReadyTimer) clearTimeout(this._mapReadyTimer)
+    this._mapReadyTimer = setTimeout(() => {
+      this.setData({ mapReady: true })
+    }, 60)
   },
 
   refresh() {
@@ -542,30 +547,50 @@ Page({
   },
 
   /** 打开新增树木弹窗，位置取打开时的地图中心（取不到则用默认校园中心） */
+  /**
+   * 新增树木：位置默认取「用户当前位置」，而不是地图中心。
+   * 你站在哪棵树旁边就加哪棵，不用先把地图拖到位。
+   * 拿不到定位时才退回地图中心。
+   */
   onAddTree() {
+    const round = (o) => ({
+      latitude: Number(o.latitude.toFixed(6)),
+      longitude: Number(o.longitude.toFixed(6))
+    })
     const open = (loc) => {
       this.selectedTreeId = ''
       this.setData({
         showUpload: true,
         uploadLoc: loc,
-        uploadDraft: null,   // 新开一次，草稿从头来
+        uploadDraft: null,
         pickMode: false,
         showCard: false
       })
       this.refresh()
     }
-    const fallback = {
-      latitude: this.data.center.latitude,
-      longitude: this.data.center.longitude
+
+    // 已经有定位结果，直接用
+    if (this.userLoc && this.userLoc.real) {
+      open(round(this.userLoc))
+      return
     }
-    wx.createMapContext('campusMap').getCenterLocation({
-      success: (res) => {
-        open({
-          latitude: Number(res.latitude.toFixed(6)),
-          longitude: Number(res.longitude.toFixed(6))
-        })
-      },
-      fail: () => open(fallback)
+
+    // 还没定位过：现取一次
+    wx.showLoading({ title: '定位中', mask: true })
+    getCurrentLocation().then((loc) => {
+      wx.hideLoading()
+      if (loc.real) {
+        this.userLoc = loc
+        this.applyDistances()
+        open(round(loc))
+        return
+      }
+      // 定位不可用：退回地图中心，并告诉用户位置可能不准
+      toast('拿不到定位，已用地图中心作为位置')
+      wx.createMapContext('campusMap').getCenterLocation({
+        success: (res) => open(round(res)),
+        fail: () => open(round(this.data.center))
+      })
     })
   },
 
@@ -607,7 +632,14 @@ Page({
   },
 
   /** 表单校验通过后入库：新树默认待认养（status normal + ownerId 空），立刻上图 */
-  onUploadSubmit(e) {
+  /**
+   * 提交新增树木：照片上云 → AI 审核 → 通过直接上地图，不通过转人工复核。
+   *
+   * 两个关键点：
+   *   1. 照片必须传到云存储（原来存的是本机临时路径，别人看不到、重启就失效）
+   *   2. 视觉模型取不到 cloud:// 地址，要换成临时 https 链接才能识图
+   */
+  async onUploadSubmit(e) {
     const f = e.detail
     const loc = this.data.uploadLoc || {
       latitude: this.data.center.latitude,
@@ -615,8 +647,36 @@ Page({
     }
     const pos = latLngToPos(loc.latitude, loc.longitude)
 
-    // 演示提交失败场景时取消注释（约 5% 概率失败）；默认全部成功
-    // if (Math.random() < 0.05) { toast('提交失败，请稍后再试'); return }
+    // 1) 照片上云
+    let image = f.image
+    wx.showLoading({ title: '上传照片', mask: true })
+    try {
+      image = await db.uploadImage(f.image)
+    } catch (err) {
+      console.warn('[map] 照片上传失败，退回本地路径', err)
+    }
+
+    // 2) 换公网可读链接给视觉模型
+    let visionUrl = image
+    if (String(image).indexOf('cloud://') === 0) {
+      visionUrl = await this.tempUrlOf(image)
+    }
+    wx.hideLoading()
+
+    // 3) AI 审核
+    wx.showLoading({ title: 'AI 审核中', mask: true })
+    const verdict = await new Promise((resolve) => {
+      aiReviewTree({
+        name: f.name,
+        species: f.species,
+        age: f.age,
+        description: f.description,
+        imageUrl: visionUrl
+      }, resolve)
+    })
+    wx.hideLoading()
+
+    const approved = verdict.passed !== false
 
     store.addTree({
       treeId: db.newId('t'),
@@ -627,18 +687,49 @@ Page({
       lat: loc.latitude,
       lng: loc.longitude,
       ownerId: '', ownerName: '', level: 0, growthScore: 0,
-      status: store.isAdmin() ? 'normal' : 'pending', hazardText: '', age: f.age || '未知',
+      status: approved ? 'normal' : 'pending',
+      hazardText: '',
+      age: f.age || '未知',
       distance: distanceMeters((this.userLoc || CAMPUS).latitude, (this.userLoc || CAMPUS).longitude, loc.latitude, loc.longitude),
-      reviewStatus: store.isAdmin() ? 'approved' : 'pending',
-      image: f.image,
+      reviewStatus: approved ? 'approved' : 'pending',
+      reviewNote: verdict.reason || '',
+      image: image,
       description: f.description,
       createdBy: store.state.user.userId
     })
 
-    const needReview = !store.isAdmin()
     this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
     this.refresh()
-    toast(needReview ? '已提交，管理员审核通过后会出现在地图上' : '新增成功')
+
+    if (approved) {
+      toast('AI 审核通过，已上地图')
+    } else {
+      wx.showModal({
+        title: 'AI 审核未通过',
+        content: (verdict.reason || '照片或信息与树木不符') + '\n\n已转人工复核，管理员通过后仍会出现在地图上。',
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#4E8A6B'
+      })
+    }
+  },
+
+  /** cloud:// fileID -> 临时 https 链接（视觉模型只能读公网地址） */
+  tempUrlOf(fileID) {
+    return new Promise((resolve) => {
+      if (!wx.cloud || !wx.cloud.getTempFileURL) {
+        resolve('')
+        return
+      }
+      wx.cloud.getTempFileURL({
+        fileList: [fileID],
+        success: (res) => {
+          const f = res.fileList && res.fileList[0]
+          resolve(f && f.tempFileURL ? f.tempFileURL : '')
+        },
+        fail: () => resolve('')
+      })
+    })
   },
 
   /** 空状态里点"清除筛选和搜索"：回到全部 + 清空关键词 */

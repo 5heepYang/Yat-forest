@@ -535,6 +535,14 @@ function newId(prefix) {
   return prefix + '_' + Date.now() + Math.floor(Math.random() * 1000)
 }
 
+/**
+ * 偷看本地缓存（只读 Storage，不触发任何网络请求）。
+ * 给 store 做"先渲染缓存、再后台刷新"用，页面秒开靠它。
+ */
+function peekLocal() {
+  return loadLocal()
+}
+
 module.exports = {
   MODE_LOCAL,
   MODE_CLOUD,
@@ -543,6 +551,7 @@ module.exports = {
   isTestAccount,
   pull,
   save,
+  peekLocal,
   uploadImage,
   seedState,
   newId,

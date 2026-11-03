@@ -49,34 +49,67 @@ const state = {
 
 let hydrated = false
 let resolveReady = null
+let resolveSynced = null
 const readyPromise = new Promise(function (resolve) {
   resolveReady = resolve
 })
+/** 云端同步完成（比 ready 晚）。页面想"先秒开再自动更新"就 await 它。 */
+const syncedPromise = new Promise(function (resolve) {
+  resolveSynced = resolve
+})
 
-/** 启动即拉一次远端数据。拉完把内存状态覆盖掉，页面会通过 ready() 感知。 */
+function applyState(data) {
+  if (!data) return
+  Object.assign(state, data)
+  // 云端会返回明确的字符串（新用户是 ''），这里只兜"字段不存在"
+  if (typeof state.adoptedTreeId !== 'string') {
+    state.adoptedTreeId = ''
+  }
+}
+
+/**
+ * 启动流程（stale-while-revalidate）：
+ *   1. 有本地缓存 -> 立刻灌进内存并 resolve ready()，页面毫秒级出内容
+ *   2. 同时后台拉云端 -> 拿到后覆盖内存、resolve synced()，页面自行再刷一次
+ * 没有缓存时行为和以前一致（等云端）。
+ *
+ * 这样地图页第二次进入不再白等 6 个集合的网络往返，而首屏数据仍是上次的真实数据。
+ */
 function bootstrap() {
+  const cached = db.peekLocal()
+  if (cached) {
+    applyState(cached)
+    hydrated = true
+    resolveReady(state)
+  }
+
   db.pull()
     .then(function (data) {
-      if (data) {
-        Object.assign(state, data)
-        // 云端会返回明确的字符串（新用户是 ''），这里只兜"字段不存在"
-        if (typeof state.adoptedTreeId !== 'string') {
-          state.adoptedTreeId = ''
-        }
-      }
+      applyState(data)
     })
     .catch(function (e) {
       console.warn('[store] 初始化拉取失败，使用内置数据', e)
     })
     .then(function () {
-      hydrated = true
-      resolveReady(state)
+      if (!hydrated) {
+        hydrated = true
+        resolveReady(state)
+      }
+      resolveSynced(state)
     })
 }
 
 /** 页面在 onShow 里 await 它，保证读到的不是内置假数据 */
 function ready() {
   return readyPromise
+}
+
+/**
+ * 云端同步完成。
+ * 页面可以 `store.ready()` 先渲染，再 `store.synced().then(refresh)` 自动追平。
+ */
+function synced() {
+  return syncedPromise
 }
 
 /**
@@ -541,6 +574,7 @@ function updateUser(patch) {
 module.exports = {
   state,
   ready,
+  synced,
   persist,
 
   treeById, myTree, myTrees, selectTree, careTarget,

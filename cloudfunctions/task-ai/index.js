@@ -138,6 +138,53 @@ async function handlePlan(event) {
   }
 }
 
+/** action=review：新增树木的 AI 审核（有图走视觉模型，没图走文本模型） */
+async function handleReview(event) {
+  const name = String(event.name || '').trim()
+  const species = String(event.species || '').trim()
+  const age = String(event.age || '').trim()
+  const description = String(event.description || '').trim()
+  const imageUrl = String(event.imageUrl || '').trim()
+
+  if (name === '' || species === '') {
+    return { fallback: true, reason: '名称或树种为空' }
+  }
+
+  const requirement =
+    '你在审核一条校园树木新增申请，判断它是否可信。' +
+    '名称：' + name + '；树种：' + species + '；树龄：' + (age || '未填') + '；' +
+    '描述：' + (description || '无') + '。' +
+    (imageUrl !== '' ? '请重点核对照片里是否真的是一棵树/植物，是否与名称、树种相符。' : '没有照片，请只按文字合理性判断。') +
+    '只输出 JSON，格式 {"passed":true或false,"reason":"不超过30字的原因","detail":"判断依据不超过40字"}。'
+
+  let content
+  if (imageUrl !== '') {
+    content = await callModel(VISION_MODEL, [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: requirement },
+          { type: 'image_url', image_url: { url: imageUrl } }
+        ]
+      }
+    ])
+  } else {
+    content = await callModel(TEXT_MODEL, [
+      { role: 'system', content: '你是校园绿化管理员，负责审核树木新增申请。' },
+      { role: 'user', content: requirement }
+    ])
+  }
+
+  const r = extractJson(content)
+  // 只认明确布尔值，缺字段按"未通过"处理，避免脏数据直接上地图
+  const passed = r.passed === true || r.passed === 'true'
+  return {
+    passed: passed,
+    reason: String(r.reason || (passed ? '审核通过' : '照片或信息不符')).slice(0, 40),
+    detail: String(r.detail || '').slice(0, 60)
+  }
+}
+
 /** action=verify：凭证核验（有图走视觉模型，只有文字走文本模型） */
 async function handleVerify(event) {
   const title = String(event.title || '').trim()
@@ -199,6 +246,9 @@ exports.main = async function (event) {
     }
     if (event.action === 'verify') {
       return await handleVerify(event)
+    }
+    if (event.action === 'review') {
+      return await handleReview(event)
     }
     console.warn('[task-ai] fallback：未知 action', String(event.action))
     return { fallback: true, reason: '未知 action: ' + String(event.action) }

@@ -192,6 +192,47 @@ function localPlan(title, cb) {
   }, 900)
 }
 
+/**
+ * AI 审核新增树木：判断照片是不是真实的树、名称与树种是否合理。
+ * 云端优先（Qwen-VL 识图），失败回退本地规则（有照片 + 必填项完整即通过）。
+ * 回调统一拿到 { passed, reason, detail }，页面不用关心走的哪条路。
+ */
+function aiReviewTree(info, cb) {
+  const payload = {
+    action: 'review',
+    name: info.name || '',
+    species: info.species || '',
+    age: info.age || '',
+    description: info.description || '',
+    imageUrl: info.imageUrl || ''
+  }
+
+  if (cloudReady()) {
+    callTaskAi(payload, function (r) {
+      if (r && typeof r.passed === 'boolean') {
+        cb({ passed: r.passed, reason: r.reason || '', detail: r.detail || '' })
+        return
+      }
+      cb(localReviewTree(info))
+    }, function (reason) {
+      console.warn('[ai] review 云端降级：', reason)
+      cb(localReviewTree(info))
+    })
+    return
+  }
+  cb(localReviewTree(info))
+}
+
+/** 本地兜底：不做图像判断，只校验必填项（测试号 / 云端不可用时用） */
+function localReviewTree(info) {
+  const ok = !!info.imageUrl && !!info.name && !!info.species
+  return {
+    passed: ok,
+    reason: ok ? '信息完整，本地规则直接通过' : '缺少照片或树种信息',
+    detail: '本地规则审核'
+  }
+}
+
 /** AI 树木安全巡检医生：识别虫害 / 高空坠叶风险，生成后勤工单 */
 function aiAnalyzeHazard(treeName, species, cb) {
   setTimeout(function () {
@@ -247,4 +288,4 @@ function aiTreeSpirit(question, cb) {
   }, 1000)
 }
 
-module.exports = { aiVerifyProof, aiPlanTask, aiAnalyzeHazard, aiAdvice, aiTreeSpirit }
+module.exports = { aiVerifyProof, aiPlanTask, aiReviewTree, aiAnalyzeHazard, aiAdvice, aiTreeSpirit }
