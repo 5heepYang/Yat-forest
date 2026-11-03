@@ -109,10 +109,26 @@ async function getAccessToken() {
   return tokenCache.token
 }
 
+/**
+ * 云调用用驼峰（templateId / miniprogramState），微信 HTTP 接口要求下划线
+ * （template_id / miniprogram_state）。之前直接把驼峰 payload 发给 HTTP 接口，
+ * 微信收不到 template_id，才会出现"ID 明明正确却报 invalid template_id"。
+ */
+function toHttpPayload(payload) {
+  return {
+    touser: payload.touser,
+    template_id: payload.templateId,
+    page: payload.page,
+    miniprogram_state: payload.miniprogramState || 'formal',
+    lang: 'zh_CN',
+    data: payload.data
+  }
+}
+
 async function sendByHttp(payload) {
   const token = await getAccessToken()
   const url = 'https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=' + token
-  const r = await httpsJson('POST', url, payload)
+  const r = await httpsJson('POST', url, toHttpPayload(payload))
   if (r.errcode && r.errcode !== 0) {
     const e = new Error(r.errmsg || 'errcode ' + r.errcode)
     e.errCode = r.errcode
