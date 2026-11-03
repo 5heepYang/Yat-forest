@@ -125,7 +125,28 @@ async function sendByHttp(payload) {
 /* 主流程                                                              */
 /* ------------------------------------------------------------------ */
 
-exports.main = async function () {
+/** 仓库里期望的模板 ID，诊断时用来比对 */
+const EXPECTED_TEMPLATE_ID = 'rK51LC7yeND1qD9Pqy69EB1ZpLC5NH021ELBVZooF_I'
+
+exports.main = async function (event) {
+  // 诊断入口：{"action":"debug"} 会把环境变量里的真实内容吐出来，
+  // 用来排查"值里多了空格""ID 少了一个字符""Secret 没配"这类看不见的问题
+  if (event && event.action === 'debug') {
+    const codes = []
+    for (let i = 0; i < TEMPLATE_ID.length; i++) codes.push(TEMPLATE_ID.charCodeAt(i))
+    return {
+      templateId: TEMPLATE_ID,
+      templateIdLen: TEMPLATE_ID.length,
+      templateIdCodes: codes,
+      templateIdHasBlank: /\s/.test(TEMPLATE_ID),
+      templateMatchesRepo: TEMPLATE_ID === EXPECTED_TEMPLATE_ID,
+      remindTemplateConfigured: !!TEMPLATE_ID,
+      appid: WX_APPID,
+      appidOk: WX_APPID === 'wx986e1936b714fb78',
+      secretLen: WX_SECRET.length
+    }
+  }
+
   if (!TEMPLATE_ID) {
     console.warn('[notify] 未配置 REMIND_TEMPLATE_ID，跳过推送')
     return { skipped: 'REMIND_TEMPLATE_ID 未配置' }
