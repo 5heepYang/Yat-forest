@@ -1,0 +1,24 @@
+<view class="search-row">
+	<view class="search-pill">
+		<image class="ic-search" src="/static/ui/search.png"></image>
+		<input
+			class="search-input"
+			value="{{keyword}}"
+			placeholder="搜树名 / 树种"
+			placeholder-class="search-ph"
+			confirm-type="search"
+			bindinput="onInput"
+		/>
+	</view>
+</view>
+<view class="chip-row">
+	<view
+		wx:for="{{filters}}"
+		wx:key="key"
+		class="{{active == item.key ? 'chip chip-on' : 'chip'}}"
+		data-key="{{item.key}}"
+		bindtap="onFilterTap"
+	>
+		<text class="{{active == item.key ? 'chip-t chip-t-on' : 'chip-t'}}">{{item.label}}</text>
+	</view>
+</view>

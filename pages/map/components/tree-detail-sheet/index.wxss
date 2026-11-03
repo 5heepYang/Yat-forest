@@ -1,0 +1,230 @@
+/* 遮罩：盖住地图区域，点击关闭；淡入淡出 */
+.tc-mask {
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(34, 48, 42, 0.35);
+	z-index: 15;
+	opacity: 0;
+	transition: opacity 0.24s ease;
+}
+
+.tc-mask-on {
+	opacity: 1;
+}
+
+/* 详情卡片：悬浮在地图底部，锚定到 .map-wrap；上滑 + 淡入 */
+.tree-card {
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	bottom: 14px;
+	background-color: #FFFFFF;
+	border-radius: 24px;
+	padding: 14px;
+	box-shadow: 0px 6px 20px rgba(46, 107, 79, 0.12);
+	z-index: 20;
+	opacity: 0;
+	transform: translateY(48px);
+	transition: transform 0.26s cubic-bezier(0.22, 0.9, 0.35, 1), opacity 0.26s ease;
+}
+
+.tc-on {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+.tc-close {
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	right: 10px;
+	top: 10px;
+	width: 26px;
+	height: 26px;
+	border-radius: 13px;
+	background-color: #F3F9EF;
+	align-items: center;
+	justify-content: center;
+	z-index: 21;
+}
+
+.tc-close-t {
+	font-size: 16px;
+	line-height: 16px;
+	color: #9AA394;
+}
+
+.tc-row {
+	display: flex;
+	flex-direction: row;
+}
+
+.tc-thumb {
+	display: flex;
+	flex-direction: column;
+	width: 64px;
+	height: 64px;
+	border-radius: 16px;
+	background-color: #F4F9EE;
+	align-items: center;
+	justify-content: center;
+}
+
+.tc-img {
+	width: 54px;
+	height: 54px;
+}
+
+.tc-info {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	margin-left: 12px;
+	justify-content: center;
+}
+
+.tc-name {
+	font-size: 14px;
+	font-weight: bold;
+	color: #22302A;
+	font-family: HYSansBold;
+}
+
+.tc-meta {
+	font-size: 10px;
+	color: #9AA394;
+	margin-top: 5px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.tc-tag-row {
+	display: flex;
+	flex-direction: row;
+	margin-top: 7px;
+}
+
+.tc-tag {
+	display: flex;
+	flex-direction: row;
+	height: 19px;
+	border-radius: 10px;
+	padding-left: 8px;
+	padding-right: 8px;
+	align-items: center;
+	justify-content: center;
+}
+
+.tag-cream {
+	background-color: #FBF0D9;
+}
+
+.tag-warn {
+	background-color: #FBEDEA;
+}
+
+.tc-tag-t {
+	font-size: 9px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.tc-tag-t-cream {
+	color: #8A6A3B;
+}
+
+.tc-tag-t-warn {
+	color: #B4553F;
+}
+
+/* 认养人 / 成长值 / 等级 三栏信息 */
+.tc-stats {
+	display: flex;
+	flex-direction: row;
+	margin-top: 14px;
+	background-color: #F6FAF2;
+	border-radius: 14px;
+	padding: 10px 0;
+}
+
+.tc-stat {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	align-items: center;
+}
+
+.tc-stat-label {
+	font-size: 10px;
+	color: #9AA394;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.tc-stat-value {
+	font-size: 12px;
+	color: #22302A;
+	margin-top: 4px;
+	font-family: HYSansBold;
+}
+
+/* 描述 / 隐患说明 */
+.tc-desc {
+	display: flex;
+	flex-direction: column;
+	margin-top: 10px;
+	padding: 0 2px;
+}
+
+.tc-desc-t {
+	font-size: 11px;
+	color: #5C6B60;
+	line-height: 17px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.tc-desc-warn .tc-desc-t {
+	color: #B4553F;
+}
+
+.tc-btn {
+	display: flex;
+	flex-direction: column;
+	height: 50px;
+	border-radius: 25px;
+	align-items: center;
+	justify-content: center;
+	margin-top: 13px;
+}
+
+.btn-main {
+	background-color: #4E8A6B;
+}
+
+.btn-soft {
+	background-color: #EAF4E6;
+}
+
+.btn-mute {
+	background-color: #C3CFC2;
+}
+
+.tc-btn-t {
+	font-size: 15px;
+	font-weight: bold;
+	font-family: HYSansBold;
+}
+
+.tc-btn-t-white {
+	color: #FFFFFF;
+}
+
+.tc-btn-t-deep {
+	color: #2E6B4F;
+}

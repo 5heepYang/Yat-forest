@@ -14,5 +14,11 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于计算你与树木的距离、一键回到当前位置"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"]
 }

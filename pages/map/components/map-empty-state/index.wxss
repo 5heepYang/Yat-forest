@@ -1,0 +1,70 @@
+/* 空状态：地图中央的白色小卡片，不遮挡可拖动的地图底图；入场淡入 + 轻微上移 */
+.es-card {
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	left: 50%;
+	top: 42%;
+	width: 220px;
+	margin-left: -110px;
+	background-color: rgba(255, 255, 255, 0.94);
+	border-radius: 18px;
+	padding: 18px 16px;
+	align-items: center;
+	box-shadow: 0px 4px 16px rgba(46, 107, 79, 0.12);
+	z-index: 12;
+	animation: es-in 0.28s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+}
+
+@keyframes es-in {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.es-ic {
+	width: 26px;
+	height: 26px;
+}
+
+.es-t {
+	font-size: 14px;
+	font-weight: bold;
+	color: #22302A;
+	margin-top: 8px;
+	font-family: HYSansBold;
+}
+
+.es-sub {
+	font-size: 11px;
+	color: #9AA394;
+	margin-top: 6px;
+	letter-spacing: 0.4px;
+	font-family: HYSans;
+}
+
+.es-btn {
+	display: flex;
+	flex-direction: column;
+	height: 34px;
+	border-radius: 17px;
+	background-color: #4E8A6B;
+	align-items: center;
+	justify-content: center;
+	padding-left: 16px;
+	padding-right: 16px;
+	margin-top: 12px;
+}
+
+.es-btn-t {
+	font-size: 12px;
+	color: #FFFFFF;
+	font-weight: bold;
+	letter-spacing: 0.4px;
+	font-family: HYSansBold;
+}

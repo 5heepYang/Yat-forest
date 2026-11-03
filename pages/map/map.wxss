@@ -1,3 +1,11 @@
+/*
+ * 森友地图页样式
+ *
+ * 配色统一用视觉稿 v5 色板（色值常量见 common/theme.js）：
+ *   主绿 #4E8A6B / 深绿 #2E6B4F / 浅绿面 #EAF4E6 / 页面暖白底 #FFFCF6
+ *   警示橙红 #E07A5F / 警示文字 #B4553F / 次要文字 #9AA394
+ * 顶部筛选、详情卡片的样式在各自组件 wxss 里，这里只保留页面骨架和悬浮定位。
+ */
 .page {
 	display: flex;
 	flex-direction: column;
@@ -7,21 +15,58 @@
 	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
-.icon-btn {
+/* 回到当前位置：白色圆钮，悬在"新增树木"长条上方 */
+.loc-btn {
 	display: flex;
 	flex-direction: column;
-	width: 36px;
-	height: 36px;
-	border-radius: 18px;
+	position: absolute;
+	right: 14px;
+	bottom: 64px;
+	width: 40px;
+	height: 40px;
+	border-radius: 20px;
 	background-color: #FFFFFF;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0px 2px 6px rgba(46, 107, 79, 0.08);
+	box-shadow: 0px 3px 10px rgba(46, 107, 79, 0.18);
+	z-index: 10;
 }
 
-.icon-18 {
-	width: 17px;
-	height: 17px;
+.loc-ic {
+	width: 20px;
+	height: 20px;
+}
+
+/* 新增树木：地图右下角圆角长条（与筛选 chip 同风格），悬浮在底部栏上方；
+   详情/上传弹窗打开时隐藏，避免和底部卡片重叠 */
+.add-tree-btn {
+	display: flex;
+	flex-direction: row;
+	position: absolute;
+	right: 14px;
+	bottom: 20px;
+	height: 32px;
+	border-radius: 16px;
+	background-color: #4E8A6B;
+	align-items: center;
+	padding-left: 12px;
+	padding-right: 14px;
+	box-shadow: 0px 3px 10px rgba(46, 107, 79, 0.25);
+	z-index: 10;
+}
+
+.add-tree-ic {
+	width: 14px;
+	height: 14px;
+	margin-right: 6px;
+}
+
+.add-tree-t {
+	font-size: 12px;
+	color: #FFFFFF;
+	font-weight: bold;
+	letter-spacing: 0.4px;
+	font-family: HYSansBold;
 }
 
 .map-wrap {
@@ -32,126 +77,40 @@
 	overflow: hidden;
 }
 
-.map-bg {
+/* 原生地图：铺满地图容器，浮层靠同层渲染盖在上面 */
+.map-native {
 	position: absolute;
 	left: 0;
 	top: 0;
 	right: 0;
 	bottom: 0;
+	width: 100%;
+	height: 100%;
 	background-color: #E7F0D8;
 }
 
-.blob {
+/* 地图就绪前的暖白遮罩：盖住地图初始化的白布，避免切页闪白屏 */
+.map-cover {
+	display: flex;
+	flex-direction: column;
 	position: absolute;
-	background-color: #E2EED5;
-	border-radius: 60px;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #FFFCF6;
+	align-items: center;
+	justify-content: center;
+	z-index: 8;
 }
 
-.blob-1 {
-	left: 8%;
-	top: 26%;
-	width: 54%;
-	height: 15%;
+.map-cover-ico {
+	width: 40px;
+	height: 40px;
+	opacity: 0.7;
 }
 
-.blob-2 {
-	right: -8%;
-	top: 44%;
-	width: 46%;
-	height: 13%;
-	background-color: #DEEBD2;
-}
-
-.blob-3 {
-	left: 4%;
-	top: 64%;
-	width: 62%;
-	height: 16%;
-	background-color: #E4F0D9;
-}
-
-.road {
-	position: absolute;
-	background-color: #FFFFFF;
-	border-radius: 9px;
-}
-
-.road-1 {
-	left: -6%;
-	top: 40%;
-	width: 112%;
-	height: 16px;
-	transform: rotate(-3deg);
-}
-
-.road-2 {
-	left: 46%;
-	top: 52%;
-	width: 60%;
-	height: 14px;
-	transform: rotate(-42deg);
-}
-
-.lake {
-	position: absolute;
-	right: 6%;
-	bottom: 14%;
-	width: 96px;
-	height: 88px;
-	border-radius: 48px;
-	background-color: #CBE3DE;
-}
-
-.bld {
-	position: absolute;
-	background-color: #F1EBDC;
-	border-radius: 6px;
-}
-
-.bld-1 {
-	left: 12%;
-	top: 12%;
-	width: 52px;
-	height: 34px;
-}
-
-.bld-2 {
-	left: 58%;
-	top: 10%;
-	width: 46px;
-	height: 30px;
-}
-
-.bld-3 {
-	left: 30%;
-	top: 70%;
-	width: 44px;
-	height: 26px;
-}
-
-.dot {
-	position: absolute;
-	width: 10px;
-	height: 10px;
-	border-radius: 5px;
-	background-color: #CFE3BC;
-}
-
-.dot-1 {
-	left: 24%;
-	top: 34%;
-}
-
-.dot-2 {
-	left: 72%;
-	top: 30%;
-}
-
-.dot-3 {
-	left: 18%;
-	top: 56%;
-}
-
+/* 顶部筛选组件的宿主定位（组件内部样式在组件 wxss 里） */
 .float-top {
 	display: flex;
 	flex-direction: column;
@@ -162,113 +121,12 @@
 	z-index: 10;
 }
 
-.search-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-}
-
-.search-pill {
-	display: flex;
-	flex-direction: row;
-	flex: 1;
-	height: 44px;
-	background-color: #FFFFFF;
-	border-radius: 22px;
-	align-items: center;
-	padding-left: 16px;
-	box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.06);
-}
-
-.ic-search {
-	width: 15px;
-	height: 15px;
-	margin-right: 9px;
-}
-
-.search-ph {
-	font-size: 12px;
-	color: #B4BCAF;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.filter-btn {
-	display: flex;
-	flex-direction: column;
-	width: 44px;
-	height: 44px;
-	border-radius: 22px;
-	background-color: #FFFFFF;
-	align-items: center;
-	justify-content: center;
-	margin-left: 10px;
-	box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.06);
-}
-
-.ic-sliders {
-	width: 16px;
-	height: 16px;
-}
-
-.chip-row {
-	display: flex;
-	flex-direction: row;
-	margin-top: 14px;
-}
-
-.chip {
-	display: flex;
-	flex-direction: row;
-	height: 28px;
-	border-radius: 14px;
-	background-color: #FFFFFF;
-	align-items: center;
-	padding-left: 12px;
-	padding-right: 12px;
-	margin-right: 8px;
-}
-
-.chip-on {
-	background-color: #4E8A6B;
-}
-
-.chip-dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 3px;
-	background-color: #6BB98A;
-	margin-right: 6px;
-}
-
-.chip-ring {
-	width: 8px;
-	height: 8px;
-	border-radius: 4px;
-	border-width: 1.5px;
-	border-style: solid;
-	border-color: #A9C7B1;
-	margin-right: 6px;
-}
-
-.chip-t {
-	font-size: 11px;
-	color: #5C6B60;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.chip-t-on {
-	color: #FFFFFF;
-	font-weight: bold;
-}
-
 .hint-pill {
 	display: flex;
 	flex-direction: column;
 	position: absolute;
-	right: 22px;
-	top: 192px;
+	right: 12px;
+	top: 66px;
 	height: 28px;
 	border-radius: 14px;
 	background-color: #FFFFFF;
@@ -284,209 +142,4 @@
 	color: #5C6B60;
 	letter-spacing: 0.4px;
 	font-family: HYSans;
-}
-
-.pin {
-	display: flex;
-	flex-direction: column;
-	position: absolute;
-	width: 30px;
-	height: 38px;
-	margin-left: -15px;
-	margin-top: -34px;
-	align-items: center;
-}
-
-.pin-head {
-	display: flex;
-	flex-direction: column;
-	width: 30px;
-	height: 30px;
-	border-radius: 15px;
-	align-items: center;
-	justify-content: center;
-	border-width: 2px;
-	border-style: solid;
-	border-color: #FFFFFF;
-}
-
-.pin-head-mine {
-	background-color: #4E8A6B;
-}
-
-.pin-head-plain {
-	background-color: #FFFFFF;
-	border-color: #C6D9C8;
-}
-
-.pin-head-warn {
-	background-color: #E07A5F;
-}
-
-.pin-tail {
-	position: relative;
-	width: 11px;
-	height: 11px;
-	margin-top: -7px;
-	transform: rotate(45deg);
-}
-
-.pin-tail-mine {
-	background-color: #4E8A6B;
-}
-
-.pin-tail-plain {
-	background-color: #FFFFFF;
-	border-width: 1px;
-	border-style: solid;
-	border-color: #C6D9C8;
-}
-
-.pin-tail-warn {
-	background-color: #E07A5F;
-}
-
-.pin-ico {
-	width: 15px;
-	height: 15px;
-}
-
-.pin-bang {
-	font-size: 15px;
-	font-weight: bold;
-	color: #FFFFFF;
-	font-family: HYSansBold;
-}
-
-.tree-card {
-	display: flex;
-	flex-direction: column;
-	position: absolute;
-	left: 14px;
-	right: 14px;
-	bottom: 14px;
-	background-color: #FFFFFF;
-	border-radius: 24px;
-	padding: 14px;
-	box-shadow: 0px 6px 20px rgba(46, 107, 79, 0.12);
-	z-index: 20;
-}
-
-.tc-row {
-	display: flex;
-	flex-direction: row;
-}
-
-.tc-thumb {
-	display: flex;
-	flex-direction: column;
-	width: 64px;
-	height: 64px;
-	border-radius: 16px;
-	background-color: #F4F9EE;
-	align-items: center;
-	justify-content: center;
-}
-
-.tc-img {
-	width: 54px;
-	height: 54px;
-}
-
-.tc-info {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	margin-left: 12px;
-	justify-content: center;
-}
-
-.tc-name {
-	font-size: 14px;
-	font-weight: bold;
-	color: #22302A;
-	font-family: HYSansBold;
-}
-
-.tc-meta {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 5px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.tc-tag-row {
-	display: flex;
-	flex-direction: row;
-	margin-top: 7px;
-}
-
-.tc-tag {
-	display: flex;
-	flex-direction: row;
-	height: 19px;
-	border-radius: 10px;
-	padding-left: 8px;
-	padding-right: 8px;
-	align-items: center;
-	justify-content: center;
-}
-
-.tag-cream {
-	background-color: #FBF0D9;
-}
-
-.tag-warn {
-	background-color: #FBEDEA;
-}
-
-.tc-tag-t {
-	font-size: 9px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.tc-tag-t-cream {
-	color: #8A6A3B;
-}
-
-.tc-tag-t-warn {
-	color: #B4553F;
-}
-
-.tc-btn {
-	display: flex;
-	flex-direction: column;
-	height: 50px;
-	border-radius: 25px;
-	align-items: center;
-	justify-content: center;
-	margin-top: 13px;
-}
-
-.btn-main {
-	background-color: #4E8A6B;
-}
-
-.btn-soft {
-	background-color: #EAF4E6;
-}
-
-.btn-mute {
-	background-color: #C3CFC2;
-}
-
-.tc-btn-t {
-	font-size: 15px;
-	font-weight: bold;
-	font-family: HYSansBold;
-}
-
-.tc-btn-t-white {
-	color: #FFFFFF;
-}
-
-.tc-btn-t-deep {
-	color: #2E6B4F;
 }
