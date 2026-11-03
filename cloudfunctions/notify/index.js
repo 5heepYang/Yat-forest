@@ -31,8 +31,13 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-const TEMPLATE_ID = process.env.REMIND_TEMPLATE_ID || ''
-const WX_APPID = process.env.WX_APPID || ''
+/** 模板 ID 与 AppID 不是敏感信息，内置成默认值，环境变量可覆盖（少配一项少一个坑） */
+const DEFAULT_TEMPLATE_ID = 'rK51LC7yeND1qD9Pqy69EB1ZpLC5NH021ELBVZooF_I'
+const DEFAULT_APPID = 'wx986e1936b714fb78'
+
+const TEMPLATE_ID = process.env.REMIND_TEMPLATE_ID || DEFAULT_TEMPLATE_ID
+const WX_APPID = process.env.WX_APPID || DEFAULT_APPID
+/** AppSecret 是敏感信息，只从环境变量读，绝不写进代码 */
 const WX_SECRET = process.env.WX_SECRET || ''
 
 /** 43101 = 用户没订阅/额度用完，属于正常情况，不算故障 */
