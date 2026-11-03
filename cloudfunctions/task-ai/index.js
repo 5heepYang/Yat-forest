@@ -9,32 +9,39 @@
  * 小程序端 common/ai.js 收到 fallback 后自动回退本地模拟，页面不瘫。
  *
  * 环境变量（云开发控制台 -> 云函数 -> task-ai -> 配置 -> 环境变量）：
- *   ZHIPU_API_KEY  智谱开放平台 API Key（https://open.bigmodel.cn，GLM-4V-Flash 免费）
+ *   DASHSCOPE_API_KEY  阿里云百炼（千问平台）API Key，形如 sk-xxxx
+ *
+ * 模型分工（同一 Key，同一 OpenAI 兼容接口）：
+ *   deepseek-v4.1-flash  文本：日程低碳分析（实测 2.5s 左右，JSON 稳定）
+ *   qwen3-vl-plus        视觉：凭证识图（DeepSeek 无视觉能力，必须用千问 VL）
  */
 const https = require('https')
 
-const API_KEY = process.env.ZHIPU_API_KEY || ''
-const GLM_API_HOST = 'open.bigmodel.cn'
-const GLM_API_PATH = '/api/paas/v4/chat/completions'
-const TEXT_MODEL = 'glm-4-flash'   // 文本：日程低碳分析
-const VISION_MODEL = 'glm-4v-flash' // 视觉：凭证识图
-// 8s：免费档通常 2-5s 返回；留出一次重试的余量，两次总耗时不超云函数 20s 上限
+const API_KEY = process.env.DASHSCOPE_API_KEY || ''
+const AI_HOST = 'dashscope.aliyuncs.com'
+const AI_PATH = '/compatible-mode/v1/chat/completions'
+const TEXT_MODEL = 'deepseek-v4.1-flash' // 文本：日程低碳分析
+const VISION_MODEL = 'qwen3-vl-plus'     // 视觉：凭证识图
+// 8s：实测文本 2.5s / 视觉 1.4s 返回；留出一次重试的余量，两次总耗时不超云函数 20s 上限
 const TIMEOUT_MS = 8000
+// 这两个模型都是推理型：先产出 reasoning_content 再产出 content，
+// 实测思考过程占 100-335 tokens。预算给到 300 会被思考过程吃光、content 返回空串。
+const MAX_TOKENS = 1200
 const CARBON_CAP = 300 // 减碳克数上限：防模型幻觉输出爆表数字
 
-/** 调智谱 OpenAI 兼容接口，返回 choices[0].message.content（单次，不重试） */
-function callGLMOnce(model, messages) {
+/** 调千问平台 OpenAI 兼容接口，返回 choices[0].message.content（单次，不重试） */
+function callModelOnce(model, messages) {
   const body = JSON.stringify({
     model: model,
     messages: messages,
     temperature: 0.4,
-    max_tokens: 300
+    max_tokens: MAX_TOKENS
   })
 
   return new Promise(function (resolve, reject) {
     const req = https.request({
-      hostname: GLM_API_HOST,
-      path: GLM_API_PATH,
+      hostname: AI_HOST,
+      path: AI_PATH,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -48,7 +55,7 @@ function callGLMOnce(model, messages) {
       res.on('end', function () {
         // 显式检查状态码：429/5xx 错误体没有 choices，走重试/拒绝
         if (res.statusCode >= 400) {
-          reject(new Error('GLM HTTP ' + res.statusCode + '（限流或服务异常）: ' + raw.slice(0, 120)))
+          reject(new Error('AI HTTP ' + res.statusCode + '（限流或服务异常）: ' + raw.slice(0, 120)))
           return
         }
         try {
@@ -56,15 +63,15 @@ function callGLMOnce(model, messages) {
           if (data.choices && data.choices[0] && data.choices[0].message) {
             resolve(data.choices[0].message.content || '')
           } else {
-            reject(new Error('GLM 响应异常: ' + raw.slice(0, 200)))
+            reject(new Error('AI 响应异常: ' + raw.slice(0, 200)))
           }
         } catch (e) {
-          reject(new Error('GLM 响应解析失败: ' + raw.slice(0, 200)))
+          reject(new Error('AI 响应解析失败: ' + raw.slice(0, 200)))
         }
       })
     })
     req.on('timeout', function () {
-      req.destroy(new Error('GLM 请求超时 ' + TIMEOUT_MS + 'ms'))
+      req.destroy(new Error('AI 请求超时 ' + TIMEOUT_MS + 'ms'))
     })
     req.on('error', reject)
     req.write(body)
@@ -73,16 +80,16 @@ function callGLMOnce(model, messages) {
 }
 
 /** 429/5xx/超时退避重试一次（间隔 500ms） */
-function callGLM(model, messages, attempt) {
+function callModel(model, messages, attempt) {
   attempt = attempt || 0
-  return callGLMOnce(model, messages).catch(function (e) {
+  return callModelOnce(model, messages).catch(function (e) {
     if (attempt >= 1) {
       throw e
     }
     return new Promise(function (resolve) {
       setTimeout(resolve, 500)
     }).then(function () {
-      return callGLM(model, messages, attempt + 1)
+      return callModel(model, messages, attempt + 1)
     })
   })
 }
@@ -109,7 +116,7 @@ async function handlePlan(event) {
     return { fallback: true, reason: 'title 为空' }
   }
 
-  const content = await callGLM(TEXT_MODEL, [
+  const content = await callModel(TEXT_MODEL, [
     {
       role: 'system',
       content: '你是中山大学校园低碳日程助手。用户给你一件今天要做的事，你给出它的低碳实现方式。' +
@@ -150,7 +157,7 @@ async function handleVerify(event) {
 
   let content
   if (imageUrl !== '') {
-    content = await callGLM(VISION_MODEL, [
+    content = await callModel(VISION_MODEL, [
       {
         role: 'user',
         content: [
@@ -160,7 +167,7 @@ async function handleVerify(event) {
       }
     ])
   } else {
-    content = await callGLM(TEXT_MODEL, [
+    content = await callModel(TEXT_MODEL, [
       { role: 'system', content: '你是校园低碳凭证审核员，判断文字凭证是否合理可信。' },
       { role: 'user', content: requirement }
     ])
@@ -173,15 +180,17 @@ async function handleVerify(event) {
     passed: passed,
     carbonSavedG: Math.max(10, Math.min(CARBON_CAP, Number(r.carbonSavedG) || basePoints * 2)),
     comment: String(r.comment || '凭证核验通过，继续保持！').slice(0, 50),
-    detail: 'GLM 云端核验：' + (imageUrl !== '' ? '图像与行为匹配' : '文字凭证可信') +
+    detail: '云端核验：' + (passed
+      ? (imageUrl !== '' ? '图像与行为匹配' : '文字凭证可信')
+      : '凭证未通过判定') +
       (proofText !== '' ? '，文字凭证「' + proofText + '」已交叉验证' : '')
   }
 }
 
 exports.main = async function (event) {
   if (!API_KEY) {
-    console.warn('[task-ai] fallback：ZHIPU_API_KEY 未配置')
-    return { fallback: true, reason: 'ZHIPU_API_KEY 未配置（云开发控制台环境变量）' }
+    console.warn('[task-ai] fallback：DASHSCOPE_API_KEY 未配置')
+    return { fallback: true, reason: 'DASHSCOPE_API_KEY 未配置（云开发控制台环境变量）' }
   }
 
   try {

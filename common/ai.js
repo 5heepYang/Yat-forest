@@ -26,7 +26,7 @@ function pick(list) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 云调度通道：非测试号且 wx.cloud 可用时走云函数 task-ai（智谱 GLM），  */
+/* 云调度通道：非测试号且 wx.cloud 可用时走云函数 task-ai（千问平台），  */
 /* 任何失败自动回退本地模拟，页面无感。云函数部署见                      */
 /* pages/task/云后端部署指南.md                                        */
 /* ------------------------------------------------------------------ */
@@ -67,7 +67,7 @@ function code4() {
   return n.toFixed(0)
 }
 
-/** AI 多模态凭证核验：云调度优先（GLM-4V 识图），失败回退本地模拟 */
+/** AI 多模态凭证核验：云调度优先（Qwen-VL 识图），失败回退本地模拟 */
 function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
   // 图片可达性守卫：cloud:// 视觉模型取不到；超长 dataURL（base64 约 45KB+）会超 callFunction
   // 入参限制，两者都剥离成空图（有文字凭证时云端仍可走文本核验）
@@ -91,7 +91,7 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
           passed: true,
           carbonSavedG: Number(r.carbonSavedG),
           comment: r.comment || '',
-          detail: '云端核验：' + (r.detail || 'GLM-4V 凭证判定通过')
+          detail: '云端核验：' + (r.detail || '视觉模型凭证判定通过')
         })
       } else {
         localVerify(taskTitle, basePoints, proofText, cb)

@@ -1,7 +1,7 @@
 {
   "name": "task-ai",
   "version": "1.0.0",
-  "description": "低碳日程页 AI 云调度（智谱 GLM，零 npm 依赖）",
+  "description": "低碳日程页 AI 云调度（千问平台：DeepSeek 文本 + Qwen-VL 视觉，零 npm 依赖）",
   "main": "index.js",
   "dependencies": {}
 }
