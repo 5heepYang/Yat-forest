@@ -1,0 +1,8 @@
+<view class="es-card" wx:if="{{show}}">
+	<image class="es-ic" src="/static/ui/search.png"></image>
+	<text class="es-t">没有找到相关树木</text>
+	<text class="es-sub">换个关键词，或清除筛选条件试试</text>
+	<view class="es-btn" bindtap="onReset">
+		<text class="es-btn-t">清除筛选和搜索</text>
+	</view>
+</view>

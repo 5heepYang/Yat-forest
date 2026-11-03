@@ -2,6 +2,10 @@
   "navigationStyle": "custom",
   "usingComponents": {
     "nav-bar": "/components/nav-bar/index",
-    "app-tabbar": "/components/app-tabbar/index"
+    "app-tabbar": "/components/app-tabbar/index",
+    "map-top-filter": "./components/map-top-filter/index",
+    "tree-detail-sheet": "./components/tree-detail-sheet/index",
+    "upload-tree-modal": "./components/upload-tree-modal/index",
+    "map-empty-state": "./components/map-empty-state/index"
   }
 }

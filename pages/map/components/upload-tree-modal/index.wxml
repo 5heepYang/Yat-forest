@@ -1,0 +1,52 @@
+<block wx:if="{{render}}">
+	<view class="um-mask {{anim ? 'um-mask-on' : ''}}" bindtap="onClose"></view>
+
+	<view class="um-card {{anim ? 'um-on' : ''}}">
+		<view class="um-head">
+			<text class="um-title">新增树木</text>
+			<view class="um-close" bindtap="onClose">
+				<text class="um-close-t">×</text>
+			</view>
+		</view>
+
+		<scroll-view class="um-body" scroll-y>
+			<view class="um-field">
+				<text class="um-label">树木名称 <text class="um-req">*</text></text>
+				<input class="um-input" value="{{name}}" placeholder="请填写区域和名称，用·连接，例如：图书馆西侧·樟树" placeholder-class="um-ph" bindinput="onNameInput" />
+			</view>
+
+			<view class="um-field">
+				<text class="um-label">树种 <text class="um-req">*</text></text>
+				<input class="um-input" value="{{species}}" placeholder="例如：大王椰子" placeholder-class="um-ph" bindinput="onSpeciesInput" />
+			</view>
+
+			<view class="um-field">
+				<text class="um-label">现场照片 <text class="um-req">*</text></text>
+				<view class="um-photo" bindtap="onChooseImage">
+					<image wx:if="{{image}}" class="um-photo-img" src="{{image}}" mode="aspectFill"></image>
+					<view wx:else class="um-photo-empty">
+						<image class="um-photo-ic" src="/static/ui/camera.png"></image>
+						<text class="um-photo-t">拍摄 / 选择现场照片</text>
+					</view>
+				</view>
+			</view>
+
+			<view class="um-field">
+				<text class="um-label">位置 <text class="um-req">*</text></text>
+				<view class="um-loc">
+					<text class="um-loc-t">使用当前地图中心</text>
+					<text class="um-loc-coord" wx:if="{{location}}">{{location.latitude}} , {{location.longitude}}</text>
+				</view>
+			</view>
+
+			<view class="um-field">
+				<text class="um-label">描述（选填）</text>
+				<textarea class="um-textarea" value="{{description}}" placeholder="介绍树木位置、状态等" placeholder-class="um-ph" bindinput="onDescInput"></textarea>
+			</view>
+		</scroll-view>
+
+		<view class="um-submit" bindtap="onSubmit">
+			<text class="um-submit-t">提交新增</text>
+		</view>
+	</view>
+</block>

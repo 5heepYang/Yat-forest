@@ -1,0 +1,47 @@
+<block wx:if="{{render && tree}}">
+	<view class="tc-mask {{anim ? 'tc-mask-on' : ''}}" bindtap="onClose"></view>
+
+	<view class="tree-card {{anim ? 'tc-on' : ''}}">
+		<view class="tc-close" bindtap="onClose">
+			<text class="tc-close-t">×</text>
+		</view>
+
+		<view class="tc-row">
+			<view class="tc-thumb">
+				<image class="tc-img" src="{{tree.coverImg}}" mode="aspectFill"></image>
+			</view>
+			<view class="tc-info">
+				<text class="tc-name">{{tree.name}}</text>
+				<text class="tc-meta">{{tree.species}}  树龄：{{tree.age}}  距你 {{tree.distanceText}}</text>
+				<view class="tc-tag-row">
+					<view class="tc-tag {{tree.tagBg}}">
+						<text class="tc-tag-t {{tree.tagColor}}">{{tree.tagText}}</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<view class="tc-stats">
+			<view class="tc-stat">
+				<text class="tc-stat-label">认养人</text>
+				<text class="tc-stat-value">{{tree.ownerText}}</text>
+			</view>
+			<view class="tc-stat">
+				<text class="tc-stat-label">成长值</text>
+				<text class="tc-stat-value">{{tree.growthScore}}</text>
+			</view>
+			<view class="tc-stat">
+				<text class="tc-stat-label">等级</text>
+				<text class="tc-stat-value">{{tree.levelText}}</text>
+			</view>
+		</view>
+
+		<view class="tc-desc {{tree.descClass}}" wx:if="{{tree.desc}}">
+			<text class="tc-desc-t">{{tree.desc}}</text>
+		</view>
+
+		<view class="tc-btn {{tree.btnBg}}" bindtap="onAction">
+			<text class="tc-btn-t {{tree.btnColor}}">{{tree.btnText}}</text>
+		</view>
+	</view>
+</block>
