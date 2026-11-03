@@ -1,6 +1,6 @@
 const { emptyTree } = require('../../common/mock')
 const store = require('../../common/store')
-const { CAMPUS, posToLatLng, latLngToPos, distanceMeters, formatDistance, getCurrentLocation } = require('../../common/geo')
+const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation } = require('../../common/geo')
 const { ADOPT_COST } = require('../../common/theme')
 const { toast } = require('../../common/util')
 const db = require('../../common/db')
@@ -34,10 +34,8 @@ function markerIcon(t, me) {
  */
 function buildMarkers(list, me, selectedId) {
   return list.map(function (t, i) {
-    // 树对象里已存 lat/lng 就直接用，没有才从相对坐标换算
-    const p = (t.lat && t.lng)
-      ? { latitude: t.lat, longitude: t.lng }
-      : posToLatLng(t)
+    // 统一走 treeLatLng：posX/posY 是真源，CAMPUS 校准后全量生效
+    const p = treeLatLng(t)
     const on = t.treeId === selectedId
     return {
       id: i,
@@ -309,16 +307,31 @@ Page({
           })
         }
       })
+      return
     }
+
+    // 其余失败（接口未在后台报备 / 隐私协议未同意 / 无定位信号 / 超时）：
+    // 以前这里什么都不提示，用户会以为"已经定位好了"，实际看到的是校园兜底中心。
+    const why = loc.reason || '设备暂时拿不到位置'
+    console.warn('[map] 定位不可用：', why, loc.errMsg)
+    if (silent) {
+      toast('定位不可用：' + why + '，已显示校园地图')
+      return
+    }
+    wx.showModal({
+      title: '定位不可用',
+      content: why + '。可以先手动浏览校园地图，或检查小程序后台是否已申请「获取当前的地理位置」接口权限。',
+      showCancel: false,
+      confirmText: '知道了',
+      confirmColor: '#4E8A6B'
+    })
   },
 
   /** 用当前定位刷新每棵树的"距你 xx"（无定位时按校园中心算，保证不报错） */
   applyDistances() {
     const loc = this.userLoc || CAMPUS
     this.trees.forEach(function (t) {
-      const p = (t.lat && t.lng)
-        ? { latitude: t.lat, longitude: t.lng }
-        : posToLatLng(t)
+      const p = treeLatLng(t)
       t.distance = distanceMeters(loc.latitude, loc.longitude, p.latitude, p.longitude)
     })
   },
@@ -348,6 +361,8 @@ Page({
     if (!sel) return
 
     if (sel.ownerId === store.state.user.userId) {
+      // 先把自己这棵切成"当前养护树"，再去林地页，避免多树时点哪棵都进同一棵
+      store.selectTree(sel.treeId)
       wx.reLaunch({ url: '/pages/tree/tree' })
       return
     }
