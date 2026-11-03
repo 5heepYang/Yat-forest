@@ -493,3 +493,59 @@
 	margin-top: 6px;
 	font-family: HYSansBold;
 }
+
+/* ---------- 我的树（多棵横滑） ---------- */
+
+.sec-row-between {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.sec-more {
+	font-size: 10px;
+	color: #7A9C86;
+	font-family: HYSans;
+}
+
+.mytree-bar {
+	display: flex;
+	flex-direction: row;
+	white-space: nowrap;
+	margin: 0 16px 0 16px;
+}
+
+.mytree-card2 {
+	display: inline-flex;
+	flex-direction: row;
+	align-items: center;
+	width: 252px;
+	background-color: #FFFFFF;
+	border-radius: 18px;
+	padding: 10px;
+	margin-right: 10px;
+	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	border: 1px solid transparent;
+}
+
+.mytree-card2-on {
+	border-color: #BFDCC8;
+}
+
+.mytree-empty {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	height: 56px;
+	border-radius: 18px;
+	background-color: #F6FAF2;
+	margin: 0 16px 0 16px;
+}
+
+.mytree-empty-t {
+	font-size: 11px;
+	color: #7A9C86;
+	font-family: HYSans;
+}

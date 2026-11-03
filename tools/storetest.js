@@ -1,0 +1,113 @@
+/**
+ * 多树认养回归测试（本地模式，不联网、不碰云端）
+ *
+ * 用法：在小程序根目录执行  node tools/storetest.js
+ * 用 touristappid 把 db 逼进本地 Storage 模式，然后验证：
+ *   1. 能认养第二棵树，第一棵不受影响
+ *   2. adoptedTreeId 变成"当前养护树"，切换只影响当前树
+ *   3. water/fertilize 可指定树，不传时作用于当前树
+ *   4. 指向别人的树会自动退化回自己的树
+ */
+
+const memStorage = {}
+global.wx = {
+  getAccountInfoSync() {
+    // 测试号 -> db 走本地 Storage 模式，全链路不碰 wx.cloud
+    return { miniProgram: { appId: 'touristappid' } }
+  },
+  setStorageSync(k, v) { memStorage[k] = JSON.parse(JSON.stringify(v)) },
+  getStorageSync(k) { return memStorage[k] },
+  getWindowInfo() { return { statusBarHeight: 20 } }
+}
+
+const store = require('../common/store.js')
+const { ADOPT_COST, WATER_GAIN, FERT_GAIN } = require('../common/theme')
+
+let pass = 0
+let failCount = 0
+function check(label, cond, detail) {
+  if (cond) { pass++; console.log('  PASS  ' + label) }
+  else { failCount++; console.log('  FAIL  ' + label + '  ' + (detail || '')) }
+}
+
+function growthOf(treeId) {
+  const t = store.treeById(treeId)
+  return t ? t.growthScore : null
+}
+function ownerOf(treeId) {
+  const t = store.treeById(treeId)
+  return t ? t.ownerId : null
+}
+
+;(async () => {
+  await store.ready()
+
+  console.log('===== S1 初始状态 =====')
+  const me = store.state.user.userId
+  check('默认有 1 棵树', store.myTrees().length === 1, '实际 ' + store.myTrees().length)
+  const first = store.myTrees()[0].treeId
+  check('第一棵是 t_101', first === 't_101', first)
+  check('myTree 指向它', store.myTree().treeId === first)
+
+  console.log('===== S2 认养第二棵 =====')
+  store.updateUser({ availablePoints: 2000 })
+  const before1 = growthOf(first)
+  // 从种子数据里挑两棵真正无主的树（种子里 t_102 已经被 u_018 认养了）
+  const free = store.state.trees.filter(function (x) { return x.ownerId === '' }).map(function (x) { return x.treeId })
+  check('种子里有足够的无主树', free.length >= 2, '只有 ' + free.length + ' 棵')
+  const second = free[0]
+  const err = store.adoptTree(second)
+  check('认养成功', err === '', err)
+  check('现在有 2 棵树', store.myTrees().length === 2, '实际 ' + store.myTrees().length)
+  check('认养后自动聚焦新树', store.myTree().treeId === second, store.myTree().treeId)
+  check('第一棵归属没被抢走', ownerOf(first) === me, ownerOf(first))
+  check('第一棵成长值没被动', growthOf(first) === before1, before1 + ' -> ' + growthOf(first))
+  check('扣了认养费', store.state.user.availablePoints === 2000 - ADOPT_COST, String(store.state.user.availablePoints))
+
+  console.log('===== S3 切换当前树，浇水只作用于当前树 =====')
+  check('切回第一棵', store.selectTree(first) === true)
+  check('myTree 变成第一棵', store.myTree().treeId === first)
+  const g1 = growthOf(first)
+  const g2 = growthOf(second)
+  const errW = store.water()
+  check('浇水成功', errW === '', errW)
+  check('第一棵涨了成长值', growthOf(first) === g1 + WATER_GAIN, g1 + ' -> ' + growthOf(first))
+  check('第二棵没被动', growthOf(second) === g2, g2 + ' -> ' + growthOf(second))
+
+  console.log('===== S4 显式指定树浇水 =====')
+  const g2b = growthOf(second)
+  const g1b = growthOf(first)
+  store.fertilize(second)
+  check('第二棵涨了成长值', growthOf(second) === g2b + FERT_GAIN, g2b + ' -> ' + growthOf(second))
+  check('第一棵没被动', growthOf(first) === g1b)
+  const strangerErr = store.fertilize('t_102')   // 别人认养的树
+  check('给别人认养的树施肥会被拒绝', strangerErr === '这不是你认养的树', strangerErr)
+
+  console.log('===== S5 非法切换与自动退化 =====')
+  check('不能切到无主的树', store.selectTree(free[1]) === false)
+  check('不能切到不存在的树', store.selectTree('t_999') === false)
+  const keep = store.state.adoptedTreeId
+  store.state.adoptedTreeId = free[1]   // 模拟脏数据：指向了无主的树
+  check('脏数据时 myTree 自动退化到自己的树', store.myTree().treeId === first, store.myTree().treeId)
+  store.state.adoptedTreeId = keep
+
+  console.log('===== S6 两棵树的养护进度互不干扰（kit 分桶由页面负责，这里验证数据层）=====')
+  const a = store.treeById(first)
+  const b = store.treeById(second)
+  check('两棵树等级独立', typeof a.level === 'number' && typeof b.level === 'number')
+  check('两棵树成长值不同', a.growthScore !== b.growthScore, a.growthScore + ' vs ' + b.growthScore)
+  check('myTrees 按等级/成长值降序', (function () {
+    const list = store.myTrees()
+    for (let i = 1; i < list.length; i++) {
+      if (list[i - 1].level < list[i].level) return false
+      if (list[i - 1].level === list[i].level && list[i - 1].growthScore < list[i].growthScore) return false
+    }
+    return true
+  })())
+
+  console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
+  process.exit(failCount === 0 ? 0 : 1)
+})().catch(function (e) {
+  console.error('测试异常', e)
+  process.exit(1)
+})

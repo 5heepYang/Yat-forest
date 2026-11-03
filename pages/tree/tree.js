@@ -97,7 +97,8 @@ function daysPassed(ts) {
 
 /* ---------- 模块状态（本地持久化） ---------- */
 
-function defaultKit() {
+/** 单棵树的养护状态：任务进度 / 工单 / 照片 / 当天是否已核验 */
+function newBucket() {
   return {
     tasks: {
       water: { lastDoneAt: '', lastDoneTs: 0 },
@@ -106,21 +107,50 @@ function defaultKit() {
     },
     tickets: [],
     photos: [],
-    streak: { days: 0, lastAt: '', lastTs: 0, milestone: 0 },
     dailyBonusAt: '',
     careAt: ''
   }
 }
 
-function loadKit() {
-  const saved = wx.getStorageSync(KIT_KEY)
-  if (!saved || !saved.tasks) return defaultKit()
-  const base = defaultKit()
-  return Object.assign(base, saved)
+/**
+ * kit 容器：
+ *   trees[treeId] 每棵树一个桶 —— 多树后任务/工单/照片/核验状态互不串味
+ *   streak        用户维度的连续护林天数，不按树分
+ *   legacy        老格式（tasks 直接挂在根上）暂存，等知道当前 treeId 再搬进对应桶
+ */
+function defaultKit() {
+  return { trees: {}, streak: { days: 0, lastAt: '', lastTs: 0, milestone: 0 }, legacy: null }
 }
 
-function saveKit(kit) {
-  wx.setStorageSync(KIT_KEY, kit)
+function loadKit() {
+  const saved = wx.getStorageSync(KIT_KEY) || {}
+  const kt = defaultKit()
+  if (saved.trees) kt.trees = saved.trees
+  if (saved.streak) kt.streak = Object.assign(kt.streak, saved.streak)
+  if (saved.tasks || saved.tickets || saved.photos) {
+    kt.legacy = {
+      tasks: saved.tasks || newBucket().tasks,
+      tickets: saved.tickets || [],
+      photos: saved.photos || [],
+      dailyBonusAt: saved.dailyBonusAt || '',
+      careAt: saved.careAt || ''
+    }
+  }
+  return kt
+}
+
+function saveKit(kt) {
+  wx.setStorageSync(KIT_KEY, kt)
+}
+
+/** 取某棵树的桶；老格式数据会在第一次调用时迁进当前树的桶里，进度不丢 */
+function ensureBucket(kt, treeId) {
+  const key = treeId || '_none'
+  if (!kt.trees[key]) {
+    kt.trees[key] = kt.legacy || newBucket()
+    kt.legacy = null
+  }
+  return kt.trees[key]
 }
 
 function taskDone(kit, kind) {
@@ -140,6 +170,7 @@ function taskDaysLeft(kit, kind) {
 Page({
   data: {
     navSubtitle: '',
+    myTrees: [],
     tree: { name: '', species: '', age: '', level: '0', growthScore: '0' },
     levelTitle: '',
     nextNeed: '',
@@ -184,7 +215,8 @@ Page({
   onLoad() {
     this.dotTimer = 0
     this.gainTimer = 0
-    this.kit = loadKit()
+    this.kt = loadKit()
+    this.kit = null
     this.careComment = ''
   },
 
@@ -204,8 +236,11 @@ Page({
   /* ---------- 视图刷新 ---------- */
 
   refresh() {
-    const kit = this.kit
     const t = store.myTree()
+    this.kit = ensureBucket(this.kt, t.treeId)
+    const kit = this.kit
+    const streak = this.kt.streak
+    const mine = store.myTrees()
     const user = store.state.user
     const today = todayStr()
 
@@ -241,14 +276,14 @@ Page({
     })
 
     // 连续 / 全勤
-    const milestone = kit.streak.milestone
+    const milestone = streak.milestone
     const nextM = milestone < 3 ? 3 : (milestone < 7 ? 7 : (milestone < 14 ? 14 : 0))
     const rewardMap = { 3: STREAK_3, 7: STREAK_7, 14: STREAK_14 }
     let streakHint = '连续奖励已全部解锁'
     if (kit.dailyBonusAt === today) {
       streakHint = '今日全勤 +' + DAILY_BONUS + ' 已到账'
     } else if (nextM > 0) {
-      const left = nextM - kit.streak.days
+      const left = nextM - streak.days
       streakHint = left > 0 ? '再坚持 ' + left + ' 天 +' + rewardMap[nextM] : '连续奖励已全部解锁'
     }
 
@@ -317,7 +352,7 @@ Page({
         owner: tree.ownerName,
         level: tree.level.toFixed(0),
         score: tree.growthScore.toFixed(0),
-        mine: tree.treeId === t.treeId
+        mine: tree.ownerId === user.userId   // 多树：自己名下的树都高亮，不只是当前这棵
       })
       r++
     }
@@ -344,7 +379,15 @@ Page({
     }
 
     this.setData({
-      navSubtitle: '在养 ' + (t.treeId ? 1 : 0) + ' 棵 · 成长值 ' + t.growthScore.toFixed(0),
+      navSubtitle: '在养 ' + mine.length.toFixed(0) + ' 棵 · 成长值 ' + t.growthScore.toFixed(0),
+      myTrees: mine.map(function (x) {
+        return {
+          treeId: x.treeId,
+          name: x.name,
+          level: x.level.toFixed(0),
+          active: x.treeId === t.treeId
+        }
+      }),
       tree: {
         name: t.name,
         species: t.species,
@@ -360,7 +403,7 @@ Page({
       pointsText: '碳积分 ' + user.availablePoints.toFixed(0),
       coinsText: (user.coins || 0).toFixed(0),
       dailyText: '每日 ' + dailyDone + '/2',
-      streakText: kit.streak.days > 0 ? '连续护林 ' + kit.streak.days + ' 天' : '今天还没打卡',
+      streakText: streak.days > 0 ? '连续护林 ' + streak.days + ' 天' : '今天还没打卡',
       streakHint: streakHint,
       photoBar: 'width:' + photoBar + '%',
       photoHint: photoHint,
@@ -384,6 +427,21 @@ Page({
     })
   },
 
+  /* ---------- 多树切换 ---------- */
+
+  onSwitchTree(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    if (!store.selectTree(id)) {
+      toast('这棵树不在你的林地里')
+      return
+    }
+    this.careComment = ''   // 核验评语属于上一棵树，切走就清掉
+    this.refresh()
+    const now = store.myTree()
+    toast('已切换到「' + (now.name || '') + '」')
+  },
+
   /* ---------- 养成 ---------- */
 
   onWater() {
@@ -401,7 +459,7 @@ Page({
   performWater(comment) {
     const t = store.myTree()
     const lvBefore = t.level
-    const err = store.water()
+    const err = store.water(t.treeId)
     if (err) return toast(err)
 
     if (t.growthScore > GROWTH_CAP) t.growthScore = GROWTH_CAP
@@ -413,7 +471,7 @@ Page({
       this.careComment = comment
     }
     const gained = this.grantTask('water', lvNow > lvBefore)
-    saveKit(this.kit)
+    saveKit(this.kt)
     this.refresh()
 
     let msg = '浇水成功 · 成长 +' + WATER_GAIN
@@ -427,7 +485,7 @@ Page({
   performFertilize(comment) {
     const t = store.myTree()
     const lvBefore = t.level
-    const err = store.fertilize()
+    const err = store.fertilize(t.treeId)
     if (err) return toast(err)
 
     if (t.growthScore > GROWTH_CAP) t.growthScore = GROWTH_CAP
@@ -439,7 +497,7 @@ Page({
       this.careComment = comment
     }
     const gained = this.grantTask('fert', lvNow > lvBefore)
-    saveKit(this.kit)
+    saveKit(this.kt)
     this.refresh()
 
     let msg = '施肥成功 · 成长 +' + FERT_GAIN
@@ -453,6 +511,7 @@ Page({
   /** 结算任务 / 升级 / 连续 / 全勤，全部发护林币 */
   grantTask(kind, levelUp) {
     const kit = this.kit
+    const streak = this.kt.streak
     const result = { task: 0, level: 0, bonus: 0 }
     const today = todayStr()
 
@@ -468,17 +527,17 @@ Page({
       this.addCoins(LEVEL_UP_COINS)
     }
 
-    if (kind !== 'photo' && kit.streak.lastAt !== today) {
+    if (kind !== 'photo' && streak.lastAt !== today) {
       let d = 1
-      if (kit.streak.lastTs > 0 && (Date.now() - kit.streak.lastTs) / 3600000 <= 36) {
-        d = kit.streak.days + 1
+      if (streak.lastTs > 0 && (Date.now() - streak.lastTs) / 3600000 <= 36) {
+        d = streak.days + 1
       }
-      kit.streak.days = d
-      kit.streak.lastAt = today
-      kit.streak.lastTs = Date.now()
-      if (d >= 3 && kit.streak.milestone < 3) { kit.streak.milestone = 3; this.addCoins(STREAK_3) }
-      if (d >= 7 && kit.streak.milestone < 7) { kit.streak.milestone = 7; this.addCoins(STREAK_7) }
-      if (d >= 14 && kit.streak.milestone < 14) { kit.streak.milestone = 14; this.addCoins(STREAK_14) }
+      streak.days = d
+      streak.lastAt = today
+      streak.lastTs = Date.now()
+      if (d >= 3 && streak.milestone < 3) { streak.milestone = 3; this.addCoins(STREAK_3) }
+      if (d >= 7 && streak.milestone < 7) { streak.milestone = 7; this.addCoins(STREAK_7) }
+      if (d >= 14 && streak.milestone < 14) { streak.milestone = 14; this.addCoins(STREAK_14) }
     }
 
     if (kit.dailyBonusAt !== today && taskDone(kit, 'water') && taskDone(kit, 'fert')) {
@@ -589,7 +648,7 @@ Page({
       store.updateTree(t.treeId, { growthScore: g, level: levelOf(g) })
     }
 
-    saveKit(kit)
+    saveKit(this.kt)
     this.setData({ sheetMode: '' })
     this.refresh()
     toast(gained.task ? '已记入时光轴 · 任务 +' + gained.task + ' 护林币' : '已记入时光轴（本周期奖励已领过）')
@@ -608,7 +667,7 @@ Page({
   setPeriod(e) {
     const days = Number(e.currentTarget.dataset.days)
     this.kit.tasks.photo.periodDays = days
-    saveKit(this.kit)
+    saveKit(this.kt)
     this.setData({ sheetMode: '' })
     toast('拍照提醒已改为每 ' + days + ' 天')
     this.refresh()
@@ -684,7 +743,7 @@ Page({
       imageUrl: this.data.hazardImage
     })
     store.updateTree(t.treeId, { status: 'hazard', hazardText: h.analysis })
-    saveKit(this.kit)
+    saveKit(this.kt)
     this.setData({ sheetMode: '' })
     this.refresh()
     toast('工单已推送总务处 · +' + h.reward + ' 积分')
@@ -702,7 +761,7 @@ Page({
     }
     const t = store.myTree()
     store.updateTree(t.treeId, { status: 'normal', hazardText: '' })
-    saveKit(this.kit)
+    saveKit(this.kt)
     this.refresh()
     toast('已模拟后勤处理完成，树恢复健康')
   },

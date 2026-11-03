@@ -1014,3 +1014,46 @@
 .popt-t-on {
 	color: #FFFFFF;
 }
+
+/* ---------- 多树切换条 ---------- */
+
+.mt-bar {
+	display: flex;
+	flex-direction: row;
+	white-space: nowrap;
+	margin: 6px 16px 0 16px;
+}
+
+.mt-chip {
+	display: inline-flex;
+	flex-direction: row;
+	align-items: center;
+	height: 30px;
+	border-radius: 15px;
+	background-color: #F1F0E9;
+	padding-left: 12px;
+	padding-right: 12px;
+	margin-right: 8px;
+}
+
+.mt-chip-on {
+	background-color: #4E8A6B;
+}
+
+.mt-chip-n {
+	font-size: 12px;
+	color: #3F3D36;
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mt-chip-l {
+	font-size: 11px;
+	color: #7A7768;
+	margin-left: 6px;
+}
+
+.mt-chip-l-on {
+	color: rgba(255, 255, 255, 0.86);
+}

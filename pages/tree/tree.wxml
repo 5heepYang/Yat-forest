@@ -6,7 +6,21 @@
 	</nav-bar>
 
 	<scroll-view class="body" scroll-y>
-		<!-- 认养的树 -->
+		<!-- 我认养的多棵树：只有一棵时不显示切换条 -->
+		<scroll-view class="mt-bar" scroll-x wx:if="{{myTrees.length > 1}}">
+			<view
+				class="mt-chip {{item.active ? 'mt-chip-on' : ''}}"
+				wx:for="{{myTrees}}"
+				wx:key="treeId"
+				data-id="{{item.treeId}}"
+				bindtap="onSwitchTree"
+			>
+				<text class="mt-chip-n">{{item.name}}</text>
+				<text class="mt-chip-l {{item.active ? 'mt-chip-l-on' : ''}}">Lv.{{item.level}}</text>
+			</view>
+		</scroll-view>
+
+		<!-- 当前养护的树 -->
 		<view class="main-card">
 			<view class="mc-head">
 				<view class="mc-left">

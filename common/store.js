@@ -113,16 +113,71 @@ function treeById(id) {
   return null
 }
 
-/** 我认养的那棵树（1.0 每人一棵，简化交互） */
-function myTree() {
-  const t = treeById(state.adoptedTreeId)
-  if (t === null) {
-    return {
-      treeId: '', name: '还没有认养的树', species: '', posX: 0, posY: 0,
-      ownerId: '', ownerName: '', level: 0, growthScore: 0,
-      status: 'normal', hazardText: '', age: '', distance: 0
-    }
+/** 空树占位：没有认养任何树时用它兜底，页面不用到处判空 */
+function emptyTree() {
+  return {
+    treeId: '', name: '还没有认养的树', species: '', posX: 0, posY: 0,
+    ownerId: '', ownerName: '', level: 0, growthScore: 0,
+    status: 'normal', hazardText: '', age: '', distance: 0
   }
+}
+
+/**
+ * 我认养的全部树（多树模型）。
+ * 事实来源就是 trees 里 ownerId === 我的 userId，不需要额外存 id 列表，
+ * 因此认养第二棵不会影响第一棵，也不存在"id 列表和树归属不一致"的脏数据。
+ * 排序：等级高的在前，同级按成长值，方便林地页切换条直接展示。
+ */
+function myTrees() {
+  const me = state.user.userId
+  const out = []
+  let i = 0
+  while (i < state.trees.length) {
+    if (state.trees[i].ownerId === me) {
+      out.push(state.trees[i])
+    }
+    i++
+  }
+  out.sort(function (a, b) {
+    if (a.level !== b.level) return b.level - a.level
+    return b.growthScore - a.growthScore
+  })
+  return out
+}
+
+/**
+ * 当前正在养护的那棵树。
+ * adoptedTreeId 的语义从"我认养的树"变成"我当前选中的树"：
+ * 它指向的树若已不属于我（或不存在），自动退化成我最好的一棵。
+ */
+function myTree() {
+  let t = treeById(state.adoptedTreeId)
+  if (t === null || t.ownerId !== state.user.userId) {
+    const mine = myTrees()
+    t = mine.length > 0 ? mine[0] : null
+  }
+  return t === null ? emptyTree() : t
+}
+
+/** 切换当前养护的树，只允许切自己的树 */
+function selectTree(treeId) {
+  const t = treeById(treeId)
+  if (t === null || t.ownerId !== state.user.userId) return false
+  if (state.adoptedTreeId === treeId) return true
+  state.adoptedTreeId = treeId
+  persist(['users'])
+  return true
+}
+
+/**
+ * 浇水/施肥的作用对象：
+ *   不传 treeId      -> 当前选中的那棵
+ *   传了 treeId      -> 必须是自己的树，否则返回 null（调用方报错，不静默改到别的树上）
+ */
+function careTarget(treeId) {
+  if (!treeId) return myTree()
+  const t = treeById(treeId)
+  if (t === null || t.ownerId !== state.user.userId) return null
   return t
 }
 
@@ -259,11 +314,14 @@ function adoptTree(id) {
   return ''
 }
 
-function water() {
+function water(treeId) {
   if (state.user.availablePoints < WATER_COST) {
     return '积分不足，去低碳日程攒一点吧'
   }
-  const t = myTree()
+  const t = careTarget(treeId)
+  if (t === null) {
+    return '这不是你认养的树'
+  }
   if (t.treeId === '') {
     return '先认养一棵树吧'
   }
@@ -277,11 +335,14 @@ function water() {
   return ''
 }
 
-function fertilize() {
+function fertilize(treeId) {
   if (state.user.availablePoints < FERT_COST) {
     return '积分不足，去低碳日程攒一点吧'
   }
-  const t = myTree()
+  const t = careTarget(treeId)
+  if (t === null) {
+    return '这不是你认养的树'
+  }
   if (t.treeId === '') {
     return '先认养一棵树吧'
   }
@@ -449,7 +510,7 @@ module.exports = {
   ready,
   persist,
 
-  treeById, myTree,
+  treeById, myTree, myTrees, selectTree, careTarget,
   todayCarbon, todayPoints, totalCarbon, doneCount, todayTaskCount, progressPct, unownedCount, myTreeCount,
 
   adoptTree, water, fertilize, completeTask,

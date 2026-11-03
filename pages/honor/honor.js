@@ -27,6 +27,7 @@ Page({
     topBadges: [],
     treeName: '',
     treeGrowth: '0',
+    myTrees: [],
     adoptText: '',
     recordText: '',
     topGoods: [],
@@ -87,9 +88,21 @@ Page({
       }
     })
 
+    // 我的树：多棵时横向滑动展示，点任意一棵直接切过去养护
+    const myTrees = store.myTrees().map(function (x) {
+      return {
+        treeId: x.treeId,
+        name: x.name,
+        level: x.level.toFixed(0),
+        growth: x.growthScore.toFixed(0),
+        image: x.image || '/static/illus/palm.png',
+        active: x.treeId === t.treeId
+      }
+    })
+
     let adoptText = '暂无'
-    if (t.treeId !== '') {
-      adoptText = t.species + ' · 08 号'
+    if (myTrees.length > 0) {
+      adoptText = myTrees.length.toFixed(0) + ' 棵 · ' + myTrees[0].name
     }
 
     let recordText = '暂无'
@@ -110,6 +123,7 @@ Page({
       topBadges: badges,
       treeName: t.name,
       treeGrowth: t.growthScore.toFixed(0),
+      myTrees: myTrees,
       adoptText: adoptText,
       recordText: recordText,
       topGoods: goods
@@ -184,5 +198,15 @@ Page({
 
   goTree() {
     wx.reLaunch({ url: '/pages/tree/tree' })
+  },
+
+  /** 点「我的树」里的某棵 → 切为当前养护对象再进林地页 */
+  openTree(e) {
+    const id = e.currentTarget.dataset.id
+    if (id && store.selectTree(id)) {
+      wx.reLaunch({ url: '/pages/tree/tree' })
+      return
+    }
+    this.goTree()
   }
 })

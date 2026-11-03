@@ -46,21 +46,34 @@
 			</view>
 		</view>
 
-		<view class="sec-row">
-			<text class="sec-title">森林补给站 · 用积分换周边</text>
+		<view class="sec-row sec-row-between">
+			<text class="sec-title">我的树 · {{adoptedCount}} 棵</text>
+			<text class="sec-more" wx:if="{{myTrees.length > 0}}" bindtap="goTree">去林地养护 ›</text>
 		</view>
 
-		<view class="mytree-card" bindtap="goTree">
-			<view class="mt-thumb">
-				<image class="mt-img" src="/static/illus/palm.png"></image>
+		<scroll-view class="mytree-bar" scroll-x wx:if="{{myTrees.length > 0}}">
+			<view
+				class="mytree-card2 {{item.active ? 'mytree-card2-on' : ''}}"
+				wx:for="{{myTrees}}"
+				wx:key="treeId"
+				data-id="{{item.treeId}}"
+				bindtap="openTree"
+			>
+				<view class="mt-thumb">
+					<image class="mt-img" src="{{item.image}}"></image>
+				</view>
+				<view class="mt-info">
+					<text class="mt-name">{{item.name}}</text>
+					<text class="mt-sub">Lv.{{item.level}} · 成长值 {{item.growth}}</text>
+				</view>
+				<view class="go-pill">
+					<text class="go-pill-t">{{item.active ? '养护中' : '去养护'}}</text>
+				</view>
 			</view>
-			<view class="mt-info">
-				<text class="mt-name">我的树 · {{treeName}}</text>
-				<text class="mt-sub">Lv.{{treeLevel}} · 成长值 {{treeGrowth}} / 1000</text>
-			</view>
-			<view class="go-pill">
-				<text class="go-pill-t">去看看</text>
-			</view>
+		</scroll-view>
+
+		<view class="mytree-empty" wx:else bindtap="goTree">
+			<text class="mytree-empty-t">还没有认养的树 · 去地图认养一棵</text>
 		</view>
 
 		<view class="list-card">
@@ -72,6 +85,10 @@
 				<text class="list-k">兑换记录</text>
 				<text class="list-v">{{recordText}}</text>
 			</view>
+		</view>
+
+		<view class="sec-row">
+			<text class="sec-title">森林补给站 · 用护林币换周边</text>
 		</view>
 
 		<view class="goods-row">
