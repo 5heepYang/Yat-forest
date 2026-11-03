@@ -143,3 +143,46 @@
 	letter-spacing: 0.4px;
 	font-family: HYSans;
 }
+
+/* ---------- 选点提示条 ---------- */
+
+.pick-bar {
+	display: flex;
+	flex-direction: row;
+	position: absolute;
+	left: 12px;
+	right: 12px;
+	top: 66px;
+	height: 40px;
+	border-radius: 20px;
+	background-color: #22302A;
+	align-items: center;
+	justify-content: space-between;
+	padding-left: 14px;
+	padding-right: 8px;
+	box-shadow: 0px 6px 18px rgba(34, 48, 42, 0.22);
+}
+
+.pick-t {
+	font-size: 12px;
+	color: #FFFFFF;
+	font-family: HYSans;
+}
+
+.pick-cancel {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	height: 28px;
+	border-radius: 14px;
+	background-color: rgba(255, 255, 255, 0.16);
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
+.pick-cancel-t {
+	font-size: 11px;
+	color: #FFFFFF;
+	font-family: HYSans;
+}

@@ -43,5 +43,11 @@
 		<view class="tc-btn {{tree.btnBg}}" bindtap="onAction">
 			<text class="tc-btn-t {{tree.btnColor}}">{{tree.btnText}}</text>
 		</view>
+
+		<!-- 任何一棵树都能拍照上报隐患（含别人认养的树） -->
+		<view class="tc-hazard" bindtap="onHazard">
+			<text class="tc-hazard-ic">!</text>
+			<text class="tc-hazard-t">拍照上报异常</text>
+		</view>
 	</view>
 </block>

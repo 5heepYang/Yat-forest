@@ -405,10 +405,14 @@ function addGrowthLog(image, desc) {
   return log
 }
 
-function reportHazard(r, desc, image) {
-  const t = myTree()
-  if (t.treeId === '') {
-    return '先认养一棵树，再来上报隐患'
+/**
+ * 上报隐患。
+ * treeId 可选：地图页可以对任意一棵树上报（别人的树也算），不传时默认当前养护树。
+ */
+function reportHazard(r, desc, image, treeId) {
+  const t = treeId ? treeById(treeId) : myTree()
+  if (t === null || t.treeId === '') {
+    return treeId ? '这棵树不存在' : '先认养一棵树，再来上报隐患'
   }
   const log = {
     logId: db.newId('log'),

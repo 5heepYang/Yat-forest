@@ -1,11 +1,21 @@
 /**
  * 新增树木弹窗
  *
- * 表单：名称* / 树种* / 现场照片*（wx.chooseMedia）/ 位置（当前地图中心，页面传入）/ 描述。
- * 组件内管表单状态和必填校验，校验通过把字段抛 submit 事件给页面入库。
- * 每次打开时重置表单，避免上一次的草稿残留。
+ * 表单：名称* / 树种* / 树龄 / 现场照片*（wx.chooseMedia）/ 位置* / 描述。
+ *
+ * 位置有两种来源：
+ *   1. 打开弹窗时页面的地图中心（默认）
+ *   2. 点「在地图上点选」去地图上戳一下（抛 pick 事件，页面收起弹窗进入选点模式）
+ *
+ * 为了选点回来不丢草稿，表单状态由页面持有：
+ * 组件每次输入抛 draftchange，页面存下来再通过 draft 属性回灌，
+ * 所以"选点 → 回到弹窗"时名称、树种、照片都还在。
  */
 const { toast } = require('../../../../common/util')
+
+function trim(s) {
+  return String(s || '').replace(/^\s+|\s+$/g, '')
+}
 
 Component({
   options: {
@@ -17,8 +27,13 @@ Component({
       type: Boolean,
       value: false
     },
-    /** 新增点位坐标：{ latitude, longitude }，取打开弹窗时的地图中心 */
+    /** 新增点位坐标：{ latitude, longitude } */
     location: {
+      type: Object,
+      value: null
+    },
+    /** 页面持有的表单草稿，选点往返时用它回灌 */
+    draft: {
       type: Object,
       value: null
     }
@@ -27,17 +42,36 @@ Component({
   data: {
     name: '',
     species: '',
+    age: '',
     image: '',
     description: '',
+    locationText: '',
     render: false,
     anim: false
   },
 
   observers: {
+    'location': function (loc) {
+      if (!loc) {
+        this.setData({ locationText: '' })
+        return
+      }
+      this.setData({
+        locationText: Number(loc.latitude).toFixed(6) + ' , ' + Number(loc.longitude).toFixed(6)
+      })
+    },
+
     'show': function (show) {
       if (show) {
-        // 每次打开重置表单，然后先挂载再下一拍挂过渡类，实现上滑 + 淡入
-        this.setData({ name: '', species: '', image: '', description: '', render: true })
+        const d = this.data.draft || {}
+        this.setData({
+          name: d.name || '',
+          species: d.species || '',
+          age: d.age || '',
+          image: d.image || '',
+          description: d.description || '',
+          render: true
+        })
         wx.nextTick(() => this.setData({ anim: true }))
         return
       }
@@ -58,20 +92,45 @@ Component({
   },
 
   methods: {
+    /** 把当前表单抛给页面保存，避免选点回来丢内容 */
+    emitDraft() {
+      this.triggerEvent('draftchange', {
+        name: this.data.name,
+        species: this.data.species,
+        age: this.data.age,
+        image: this.data.image,
+        description: this.data.description
+      })
+    },
+
     onClose() {
       this.triggerEvent('close')
     },
 
     onNameInput(e) {
       this.setData({ name: e.detail.value })
+      this.emitDraft()
     },
 
     onSpeciesInput(e) {
       this.setData({ species: e.detail.value })
+      this.emitDraft()
+    },
+
+    onAgeInput(e) {
+      this.setData({ age: e.detail.value })
+      this.emitDraft()
     },
 
     onDescInput(e) {
       this.setData({ description: e.detail.value })
+      this.emitDraft()
+    },
+
+    /** 收起弹窗，去地图上戳一个点 */
+    onPickLocation() {
+      this.emitDraft()
+      this.triggerEvent('pick')
     },
 
     /** 拍摄或从相册选择现场照片，选完直接预览 */
@@ -82,7 +141,10 @@ Component({
         sourceType: ['album', 'camera'],
         success: (res) => {
           const f = res.tempFiles[0]
-          if (f) this.setData({ image: f.tempFilePath })
+          if (f) {
+            this.setData({ image: f.tempFilePath })
+            this.emitDraft()
+          }
         },
         fail: (e) => {
           // 用户取消不提示；其它失败给统一 Toast
@@ -94,8 +156,8 @@ Component({
     },
 
     onSubmit() {
-      const name = this.data.name.replace(/^\s+|\s+$/g, '')
-      const species = this.data.species.replace(/^\s+|\s+$/g, '')
+      const name = trim(this.data.name)
+      const species = trim(this.data.species)
 
       if (name === '') {
         toast('请填写树木名称')
@@ -109,12 +171,17 @@ Component({
         toast('请先拍摄或选择现场照片')
         return
       }
+      if (!this.data.location) {
+        toast('请先确认树木位置')
+        return
+      }
 
       this.triggerEvent('submit', {
         name: name,
         species: species,
+        age: trim(this.data.age) || '未知',
         image: this.data.image,
-        description: this.data.description.replace(/^\s+|\s+$/g, '')
+        description: trim(this.data.description)
       })
     }
   }

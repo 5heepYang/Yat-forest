@@ -21,6 +21,11 @@
 			</view>
 
 			<view class="um-field">
+				<text class="um-label">树龄</text>
+				<input class="um-input" value="{{age}}" type="text" placeholder="例如 35（年），不清楚可留空" placeholder-class="um-ph" bindinput="onAgeInput" />
+			</view>
+
+			<view class="um-field">
 				<text class="um-label">现场照片 <text class="um-req">*</text></text>
 				<view class="um-photo" bindtap="onChooseImage">
 					<image wx:if="{{image}}" class="um-photo-img" src="{{image}}" mode="aspectFill"></image>
@@ -33,9 +38,15 @@
 
 			<view class="um-field">
 				<text class="um-label">位置 <text class="um-req">*</text></text>
-				<view class="um-loc">
-					<text class="um-loc-t">使用当前地图中心</text>
-					<text class="um-loc-coord" wx:if="{{location}}">{{location.latitude}} , {{location.longitude}}</text>
+				<view class="um-loc-row">
+					<view class="um-loc">
+						<text class="um-loc-t">{{location ? '已选位置' : '还没选位置'}}</text>
+						<text class="um-loc-coord" wx:if="{{location}}">{{locationText}}</text>
+						<text class="um-loc-hint" wx:else>默认用地图中心，也可以在地图上点一下</text>
+					</view>
+					<view class="um-pick" bindtap="onPickLocation">
+						<text class="um-pick-t">去地图点选</text>
+					</view>
 				</view>
 			</view>
 

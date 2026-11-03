@@ -1,10 +1,14 @@
 const { emptyTree } = require('../../common/mock')
 const store = require('../../common/store')
-const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation } = require('../../common/geo')
+const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
+const { aiAnalyzeHazard } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
 const { toast } = require('../../common/util')
 const db = require('../../common/db')
 const { getTrees } = require('./services/treeService')
+
+/** 「附近可认养」的统计半径（米） */
+const NEAR_RADIUS = 500
 
 const FILTERS = [
   { key: 'all', label: '全部' },
@@ -135,6 +139,8 @@ Page({
     sel: null,
     showUpload: false,
     uploadLoc: null,
+    uploadDraft: null,
+    pickMode: false,
     loaded: false,
     showEmpty: false,
     mapReady: false,
@@ -209,8 +215,12 @@ Page({
       hintText = '没有找到符合条件的树木'
     } else if (f !== 'all' || kw !== '') {
       hintText = '当前显示 ' + picked.length.toFixed(0) + ' 棵'
+    } else if (this.userLoc && this.userLoc.real) {
+      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养
+      const nearFree = nearbyTrees(this.userLoc.latitude, this.userLoc.longitude, this.trees, NEAR_RADIUS, true)
+      hintText = '附近 ' + nearFree.length.toFixed(0) + ' 棵可认养 · ' + NEAR_RADIUS + ' 米内'
     } else {
-      hintText = '附近 ' + store.unownedCount() + ' 棵可认养'
+      hintText = '全校 ' + store.unownedCount() + ' 棵可认养'
     }
 
     this.setData({
@@ -352,6 +362,63 @@ Page({
   },
 
   /**
+   * 拍照上报异常：任何一棵树都能报（包括别人认养的树）。
+   * 现场照片 → AI 巡检定级 → 二次确认 → 写隐患日志 + 把树标成 hazard（marker 变红）。
+   */
+  onCardHazard() {
+    const sel = this.data.sel
+    if (!sel) return
+
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera', 'album'],
+      success: (res) => {
+        const f = res.tempFiles && res.tempFiles[0]
+        this.runHazardCheck(sel, f ? f.tempFilePath : '')
+      },
+      fail: (e) => {
+        if (e && e.errMsg && e.errMsg.indexOf('cancel') === -1) {
+          toast('选择照片失败，请重试')
+        }
+      }
+    })
+  },
+
+  runHazardCheck(sel, image) {
+    wx.showLoading({ title: 'AI 巡检中', mask: true })
+    aiAnalyzeHazard(sel.name, sel.species, (r) => {
+      wx.hideLoading()
+      wx.showModal({
+        title: r.level + '预警 · ' + sel.name,
+        content: r.analysis + '\n\n建议：' + r.advice + '\n\n提交后可获得 ' + r.reward.toFixed(0) + ' 碳积分',
+        confirmText: '提交工单',
+        cancelText: '取消',
+        confirmColor: '#4E8A6B',
+        success: (m) => {
+          if (!m.confirm) return
+          const err = store.reportHazard(
+            { level: r.level, ticket: r.ticket, analysis: r.analysis, advice: r.advice, reward: r.reward },
+            '地图巡检拍照：' + sel.name,
+            image,
+            sel.treeId
+          )
+          if (err) {
+            toast(err)
+            return
+          }
+          // 再把树标成隐患态，marker 与卡片会一起变红；
+          // 别人的树可能因集合权限写不进去，失败不算错，日志和积分已经记上了
+          store.updateTree(sel.treeId, { status: 'hazard', hazardText: r.analysis })
+          this.setData({ showCard: false })
+          this.refresh()
+          toast('工单已推送总务处 · +' + r.reward.toFixed(0) + ' 积分')
+        }
+      })
+    })
+  },
+
+  /**
    * 详情卡片主按钮：认养闭环。
    * 我认养的 -> 跳林地浇水；隐患树 -> 只提示不可认养；
    * 待认养 -> 二次确认 -> store.adoptTree 校验积分并扣减 -> 刷新 marker 和详情。
@@ -414,7 +481,13 @@ Page({
   onAddTree() {
     const open = (loc) => {
       this.selectedTreeId = ''
-      this.setData({ showUpload: true, uploadLoc: loc, showCard: false })
+      this.setData({
+        showUpload: true,
+        uploadLoc: loc,
+        uploadDraft: null,   // 新开一次，草稿从头来
+        pickMode: false,
+        showCard: false
+      })
       this.refresh()
     }
     const fallback = {
@@ -433,7 +506,40 @@ Page({
   },
 
   onUploadClose() {
-    this.setData({ showUpload: false })
+    this.setData({ showUpload: false, uploadDraft: null })
+  },
+
+  /** 弹窗把表单内容实时抛上来，选点往返时不会丢已填内容 */
+  onUploadDraft(e) {
+    this.setData({ uploadDraft: e.detail })
+  },
+
+  /** 收起弹窗，进入"在地图上点一下"的选点模式 */
+  onUploadPick() {
+    this.setData({ showUpload: false, pickMode: true })
+    toast('在地图上点一下树木的位置')
+  },
+
+  onPickCancel() {
+    this.setData({ pickMode: false, showUpload: true })
+  },
+
+  /** 选点模式下的地图点击：拿经纬度回填弹窗 */
+  onMapTap(e) {
+    if (!this.data.pickMode) return
+    const d = e && e.detail
+    if (!d || typeof d.latitude !== 'number') {
+      toast('没取到位置，请再点一次')
+      return
+    }
+    this.setData({
+      pickMode: false,
+      showUpload: true,
+      uploadLoc: {
+        latitude: Number(d.latitude.toFixed(6)),
+        longitude: Number(d.longitude.toFixed(6))
+      }
+    })
   },
 
   /** 表单校验通过后入库：新树默认待认养（status normal + ownerId 空），立刻上图 */
@@ -457,7 +563,7 @@ Page({
       lat: loc.latitude,
       lng: loc.longitude,
       ownerId: '', ownerName: '', level: 0, growthScore: 0,
-      status: 'normal', hazardText: '', age: '未知',
+      status: 'normal', hazardText: '', age: f.age || '未知',
       distance: distanceMeters((this.userLoc || CAMPUS).latitude, (this.userLoc || CAMPUS).longitude, loc.latitude, loc.longitude),
       reviewStatus: 'approved',
       image: f.image,
@@ -465,7 +571,7 @@ Page({
       createdBy: store.state.user.userId
     })
 
-    this.setData({ showUpload: false })
+    this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
     this.refresh()
     toast('新增成功')
   },

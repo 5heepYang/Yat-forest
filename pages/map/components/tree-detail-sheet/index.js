@@ -61,6 +61,11 @@ Component({
       this.triggerEvent('action')
     },
 
+    /** 拍照上报异常：交给页面走 AI 巡检流程 */
+    onHazard() {
+      this.triggerEvent('hazard')
+    },
+
     onClose() {
       this.triggerEvent('close')
     }

@@ -11,6 +11,7 @@
 			markers="{{markers}}"
 			show-location="{{userReal}}"
 			bindmarkertap="onMarkerTap"
+			bindtap="onMapTap"
 		></map>
 
 		<view class="map-cover" wx:if="{{!mapReady}}">
@@ -35,11 +36,18 @@
 			bind:reset="onResetView"
 		></map-empty-state>
 
-		<view class="loc-btn" wx:if="{{!showCard && !showUpload}}" bindtap="onLocate">
+		<view class="pick-bar" wx:if="{{pickMode}}">
+			<text class="pick-t">点地图上的位置放置树木</text>
+			<view class="pick-cancel" bindtap="onPickCancel">
+				<text class="pick-cancel-t">取消</text>
+			</view>
+		</view>
+
+		<view class="loc-btn" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onLocate">
 			<image class="loc-ic" src="/pages/map/assets/loc-green.png"></image>
 		</view>
 
-		<view class="add-tree-btn" wx:if="{{!showCard && !showUpload}}" bindtap="onAddTree">
+		<view class="add-tree-btn" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onAddTree">
 			<image class="add-tree-ic" src="/pages/map/assets/plus-white.png"></image>
 			<text class="add-tree-t">新增树木</text>
 		</view>
@@ -48,13 +56,17 @@
 			show="{{showCard}}"
 			tree="{{sel}}"
 			bind:action="onCardAction"
+			bind:hazard="onCardHazard"
 			bind:close="onCardClose"
 		></tree-detail-sheet>
 
 		<upload-tree-modal
 			show="{{showUpload}}"
 			location="{{uploadLoc}}"
+			draft="{{uploadDraft}}"
 			bind:close="onUploadClose"
+			bind:pick="onUploadPick"
+			bind:draftchange="onUploadDraft"
 			bind:submit="onUploadSubmit"
 		></upload-tree-modal>
 	</view>

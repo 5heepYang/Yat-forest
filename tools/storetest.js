@@ -105,6 +105,26 @@ function ownerOf(treeId) {
     return true
   })())
 
+  console.log('===== S7 隐患上报可指定任意树（地图页场景） =====')
+  const stranger = store.state.trees.filter(function (x) { return x.ownerId !== '' && x.ownerId !== store.state.user.userId })[0]
+  check('找到别人认养的树', !!stranger)
+  const logsBefore = store.state.logs.length
+  const ptsBefore = store.state.user.availablePoints
+  const errH = store.reportHazard(
+    { level: '中', ticket: 'HT-TEST', analysis: '树冠枯枝', advice: '修剪', reward: 30 },
+    '地图巡检拍照：' + stranger.name,
+    '/static/illus/palm.png',
+    stranger.treeId
+  )
+  check('对别人的树上报成功', errH === '', errH)
+  check('写了一条隐患日志', store.state.logs.length === logsBefore + 1, store.state.logs.length)
+  check('日志挂在那棵树上', store.state.logs[store.state.logs.length - 1].treeId === stranger.treeId,
+    store.state.logs[store.state.logs.length - 1].treeId)
+  check('上报人拿到积分', store.state.user.availablePoints === ptsBefore + 30,
+    ptsBefore + ' -> ' + store.state.user.availablePoints)
+  const errBad = store.reportHazard({ level: '中', ticket: 'X', analysis: '', advice: '', reward: 10 }, 'x', '', 'not_exist_tree')
+  check('不存在的树会被拒绝', errBad === '这棵树不存在', errBad)
+
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
   process.exit(failCount === 0 ? 0 : 1)
 })().catch(function (e) {
