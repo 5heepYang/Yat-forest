@@ -125,6 +125,43 @@ function ownerOf(treeId) {
   const errBad = store.reportHazard({ level: '中', ticket: 'X', analysis: '', advice: '', reward: 10 }, 'x', '', 'not_exist_tree')
   check('不存在的树会被拒绝', errBad === '这棵树不存在', errBad)
 
+  console.log('===== S8 新增树审核流程 =====')
+  check('当前账号是管理员', store.isAdmin() === true)
+  const pendingId = 't_pending_test'
+  store.addTree({
+    treeId: pendingId, name: '测试·待审核的树', species: '樟树', posX: 60, posY: 40,
+    lat: 0, lng: 0, ownerId: '', ownerName: '', level: 0, growthScore: 0,
+    status: 'pending', hazardText: '', age: '20', reviewStatus: 'pending',
+    image: '', description: '', createdBy: store.state.user.userId
+  })
+  const t1 = store.treeById(pendingId)
+  check('待审核树已入库', !!t1 && t1.reviewStatus === 'pending')
+  const adoptErr = store.adoptTree(pendingId)
+  check('待审核的树不能认养', adoptErr === '这棵树还在人工审核中，通过后就能认养了', adoptErr)
+
+  const rvErr = store.reviewTree(pendingId, true)
+  check('管理员可通过审核', rvErr === '', rvErr)
+  const t2 = store.treeById(pendingId)
+  check('通过后状态为 approved/normal', t2.reviewStatus === 'approved' && t2.status === 'normal',
+    t2.reviewStatus + '/' + t2.status)
+  check('通过后可以认养了', store.treeById(pendingId).ownerId === '' && store.adoptTree(pendingId) === '')
+  const again = store.reviewTree(pendingId, true)
+  check('已审过的不能再审', again === '这棵树不在待审核状态', again)
+
+  const rejectId = 't_reject_test'
+  store.addTree({
+    treeId: rejectId, name: '测试·要被驳回的树', species: '榕树', posX: 40, posY: 60,
+    lat: 0, lng: 0, ownerId: '', ownerName: '', level: 0, growthScore: 0,
+    status: 'pending', hazardText: '', age: '未知', reviewStatus: 'pending',
+    image: '', description: '', createdBy: store.state.user.userId
+  })
+  check('管理员可驳回', store.reviewTree(rejectId, false) === '')
+  const t3 = store.treeById(rejectId)
+  check('驳回后状态为 rejected', t3.reviewStatus === 'rejected' && t3.status === 'rejected',
+    t3.reviewStatus + '/' + t3.status)
+  const rejAdopt = store.adoptTree(rejectId)
+  check('驳回的树也不能认养', rejAdopt === '这棵树没有通过审核，暂不可认养', rejAdopt)
+
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
   process.exit(failCount === 0 ? 0 : 1)
 })().catch(function (e) {

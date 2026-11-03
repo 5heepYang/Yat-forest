@@ -17,6 +17,7 @@ const store = require('../../common/store')
 const { aiAnalyzeHazard, aiTreeSpirit } = require('../../common/ai')
 const { toast, stamp } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
+const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
 
 const KIT_KEY = 'tree_kit_v1'
 const GROWTH_CAP = 1000
@@ -427,6 +428,28 @@ Page({
     })
   },
 
+  /**
+   * 申请拍照提醒的订阅消息授权。
+   * 没配模板 ID 时静默跳过（页面内的周期提示仍然生效），不打扰用户。
+   */
+  requestRemind(days) {
+    if (!SUBSCRIBE_TEMPLATE_ID) {
+      console.info('[tree] 未配置订阅消息模板 ID，跳过授权申请（页面内提示仍然生效）')
+      return
+    }
+    wx.requestSubscribeMessage({
+      tmplIds: [SUBSCRIBE_TEMPLATE_ID],
+      success: (res) => {
+        if (res[SUBSCRIBE_TEMPLATE_ID] === 'accept') {
+          toast('已开启：每 ' + days + ' 天提醒你拍一张')
+        }
+      },
+      fail: (e) => {
+        console.warn('[tree] 订阅消息授权失败', e)
+      }
+    })
+  },
+
   /* ---------- 多树切换 ---------- */
 
   onSwitchTree(e) {
@@ -670,6 +693,7 @@ Page({
     saveKit(this.kt)
     this.setData({ sheetMode: '' })
     toast('拍照提醒已改为每 ' + days + ' 天')
+    this.requestRemind(days)
     this.refresh()
   },
 
