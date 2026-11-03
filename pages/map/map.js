@@ -4,7 +4,7 @@ const { isAdmin } = store
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
 const { aiAnalyzeHazard, aiReviewTree } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
-const { toast } = require('../../common/util')
+const { toast, toPublicUrl } = require('../../common/util')
 const db = require('../../common/db')
 const { getTrees } = require('./services/treeService')
 
@@ -454,10 +454,24 @@ Page({
     })
   },
 
-  runHazardCheck(sel, image) {
+  async runHazardCheck(sel, image) {
     wx.showLoading({ title: 'AI 巡检中', mask: true })
-    aiAnalyzeHazard(sel.name, sel.species, (r) => {
+
+    // 照片上云 + 换公网链接，视觉模型才看得到
+    let stored = image
+    try {
+      stored = await db.uploadImage(image)
+    } catch (err) {
+      console.warn('[map] 隐患照片上传失败，用本地路径', err)
+    }
+    const visionUrl = await toPublicUrl(stored)
+
+    aiAnalyzeHazard(sel.name, sel.species, visionUrl, (r) => {
       wx.hideLoading()
+      if (r && r.reject) {
+        toast(r.reason || '照片里看不到树木，换个角度再拍')
+        return
+      }
       wx.showModal({
         title: r.level + '预警 · ' + sel.name,
         content: r.analysis + '\n\n建议：' + r.advice + '\n\n提交后可获得 ' + r.reward.toFixed(0) + ' 碳积分',
@@ -469,7 +483,7 @@ Page({
           const err = store.reportHazard(
             { level: r.level, ticket: r.ticket, analysis: r.analysis, advice: r.advice, reward: r.reward },
             '地图巡检拍照：' + sel.name,
-            image,
+            stored,
             sel.treeId
           )
           if (err) {

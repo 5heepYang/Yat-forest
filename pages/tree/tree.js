@@ -14,8 +14,9 @@
  * 任务 / 工单 / 连续护林等扩展状态存在 wx.Storage，不新增云数据库集合。
  */
 const store = require('../../common/store')
-const { aiAnalyzeHazard, aiTreeSpirit } = require('../../common/ai')
-const { toast, stamp } = require('../../common/util')
+const { aiAnalyzeHazard, aiTreeSpirit, aiReviewTree } = require('../../common/ai')
+const db = require('../../common/db')
+const { toast, stamp, toPublicUrl } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
 const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
 
@@ -32,17 +33,6 @@ const DAILY_BONUS = 10
 const STREAK_3 = 20
 const STREAK_7 = 50
 const STREAK_14 = 100
-
-const CARE_WATER = [
-  '识别到水壶与水流，土壤已经湿了，这棵树今天的水分达标。',
-  '看到你在给它浇水了，叶面有水珠、土色变深，核验通过。',
-  '浇水动作清晰，根部周围无明显积水，刚刚好。'
-]
-const CARE_FERT = [
-  '识别到施肥动作与颗粒肥，用量克制，没有被雨水冲走的痕迹。',
-  '肥料已均匀撒在根区外围，核验通过，别直接堆在树干上。',
-  '看到你在施肥了，土壤疏松、无烧根风险，这次养护合格。'
-]
 
 /* ---------- 小工具 ---------- */
 
@@ -206,9 +196,7 @@ Page({
     hazard: { level: '', ticket: '', analysis: '', advice: '', reward: '0' },
     hazardImage: '',
     pendingKind: '',
-    careLabel: '',
     careTip: '',
-    careVerified: false,
     periodOptions: [7, 14, 30],
     photoPeriod: PHOTO_PERIOD
   },
@@ -218,7 +206,6 @@ Page({
     this.gainTimer = 0
     this.kt = loadKit()
     this.kit = null
-    this.careComment = ''
   },
 
   async onShow() {
@@ -422,8 +409,11 @@ Page({
       photoCount: allPhotos.length,
       allPhotos: allPhotos,
       tickets: tickets,
-      careVerified: kit.careAt === today,
-      careTip: this.careComment ? 'AI 核验：' + this.careComment : '每天首次浇水 / 施肥需 AI 现场核验',
+      // 虚拟养护：每天各一次，只扣积分加成长，不再拍照核验
+      careTip: (t.lastWaterAt === today ? '今日已浇水' : '浇水 ' + WATER_COST + ' 积分')
+        + ' · '
+        + (t.lastFertAt === today ? '今日已施肥' : '施肥 ' + FERT_COST + ' 积分')
+        + ' · 每天各一次',
       photoPeriod: kit.tasks.photo.periodDays
     })
   },
@@ -459,7 +449,6 @@ Page({
       toast('这棵树不在你的林地里')
       return
     }
-    this.careComment = ''   // 核验评语属于上一棵树，切走就清掉
     this.refresh()
     const now = store.myTree()
     toast('已切换到「' + (now.name || '') + '」')
@@ -469,17 +458,15 @@ Page({
 
   onWater() {
     if (this.data.atMax) return toast('这棵树已经长满啦')
-    if (!this.data.careVerified) return this.openCare('water')
-    this.performWater('')
+    this.performWater()
   },
 
   onFertilize() {
     if (this.data.atMax) return toast('这棵树已经长满啦')
-    if (!this.data.careVerified) return this.openCare('fert')
-    this.performFertilize('')
+    this.performFertilize()
   },
 
-  performWater(comment) {
+  performWater() {
     const t = store.myTree()
     const lvBefore = t.level
     const err = store.water(t.treeId)
@@ -489,10 +476,6 @@ Page({
     const lvNow = levelOf(t.growthScore)
     store.updateTree(t.treeId, { growthScore: t.growthScore, level: lvNow })
 
-    if (comment) {
-      this.kit.careAt = todayStr()
-      this.careComment = comment
-    }
     const gained = this.grantTask('water', lvNow > lvBefore)
     saveKit(this.kt)
     this.refresh()
@@ -505,7 +488,7 @@ Page({
     this.playGain(String(WATER_GAIN))
   },
 
-  performFertilize(comment) {
+  performFertilize() {
     const t = store.myTree()
     const lvBefore = t.level
     const err = store.fertilize(t.treeId)
@@ -515,10 +498,6 @@ Page({
     const lvNow = levelOf(t.growthScore)
     store.updateTree(t.treeId, { growthScore: t.growthScore, level: lvNow })
 
-    if (comment) {
-      this.kit.careAt = todayStr()
-      this.careComment = comment
-    }
     const gained = this.grantTask('fert', lvNow > lvBefore)
     saveKit(this.kt)
     this.refresh()
@@ -574,49 +553,6 @@ Page({
   addCoins(n) {
     const user = store.state.user
     store.updateUser({ coins: (user.coins || 0) + n })
-  },
-
-  /* ---------- 养护核验 ---------- */
-
-  openCare(kind) {
-    this.setData({
-      sheetMode: 'care',
-      pendingKind: kind,
-      careLabel: kind === 'fert' ? '施肥' : '浇水'
-    })
-  },
-
-  useSampleCare() {
-    this.startCare('/static/illus/palm.png')
-  },
-
-  pickCarePhoto() {
-    const that = this
-    wx.chooseImage({
-      count: 1,
-      success(res) {
-        that.startCare(res.tempFilePaths[0] || '/static/illus/palm.png')
-      }
-    })
-  },
-
-  startCare() {
-    const that = this
-    const kind = this.data.pendingKind
-    this.setData({ sheetMode: 'careLoading' })
-    this.startDots()
-
-    setTimeout(function () {
-      that.stopDots()
-      const arr = kind === 'fert' ? CARE_FERT : CARE_WATER
-      const comment = arr[Math.floor(Math.random() * arr.length)]
-      that.setData({ sheetMode: '' })
-      if (kind === 'fert') {
-        that.performFertilize(comment)
-      } else {
-        that.performWater(comment)
-      }
-    }, 1400)
   },
 
   /* ---------- 任务列表点击 ---------- */
@@ -725,14 +661,29 @@ Page({
     })
   },
 
-  startHazard(image) {
+  async startHazard(image) {
     const that = this
     const t = store.myTree()
     this.setData({ sheetMode: 'hazardLoading', hazardImage: image })
     this.startDots()
 
-    aiAnalyzeHazard(t.name, t.species, function (r) {
+    // 照片上云并换公网链接，视觉模型才看得到（拿不到就退回本地模拟）
+    let stored = image
+    try {
+      stored = await db.uploadImage(image)
+    } catch (e) {
+      console.warn('[tree] 隐患照片上传失败，用本地路径', e)
+    }
+    const visionUrl = await toPublicUrl(stored)
+    this.setData({ hazardImage: stored })
+
+    aiAnalyzeHazard(t.name, t.species, visionUrl, function (r) {
       that.stopDots()
+      if (r && r.reject) {
+        that.setData({ sheetMode: '' })
+        toast(r.reason || '照片里看不到树木，换个角度再拍')
+        return
+      }
       that.setData({
         hazard: {
           level: r.level,

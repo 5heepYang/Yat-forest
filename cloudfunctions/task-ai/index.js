@@ -138,6 +138,56 @@ async function handlePlan(event) {
   }
 }
 
+/** action=hazard：树木隐患识别（有图走视觉模型，没图走文本模型） */
+async function handleHazard(event) {
+  const name = String(event.name || '').trim()
+  const species = String(event.species || '').trim()
+  const imageUrl = String(event.imageUrl || '').trim()
+
+  // 隐患上报必须带现场照片：没图就拒绝，否则纯文字也能拿积分
+  if (imageUrl === '') {
+    return { reject: true, reason: '没有照片，请拍一张树木现场照片' }
+  }
+
+  const requirement =
+    '你是中山大学校园树木安全巡检员。' +
+    (imageUrl !== '' ? '先看这张现场照片，' : '') +
+    '判断这棵树（名称：' + (name || '未知名') + '，树种：' + (species || '未知') + '）是否存在安全隐患，' +
+    '包括：枯枝悬垂、断枝、树干倾斜或空洞、白蚁/虫害、根部松动、枝叶大面积枯黄。' +
+    '如果照片里根本看不到树木（比如截图、文档、题目、室内物品），必须把 isTree 设为 false，不要硬报隐患。' +
+    '只输出 JSON，格式 {"isTree":true或false,"reason":"不是树木时的原因，不超过20字",' +
+    '"level":"低危或中危或高危","analysis":"现场判断，不超过40字","advice":"处置建议，不超过40字","reward":积分}。' +
+    'reward 只能取 60（低危）/100（中危）/150（高危）。'
+
+  const content = await callModel(VISION_MODEL, [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: requirement },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    }
+  ])
+
+  const r = extractJson(content)
+
+  // 照片不是树木现场：直接拒绝，不生成工单、不发积分（防止随便传图薅积分）
+  const isTree = r.isTree === true || r.isTree === 'true'
+  if (!isTree) {
+    return { reject: true, reason: String(r.reason || '照片里看不到树木，请拍树木本身').slice(0, 30) }
+  }
+
+  const level = ['低危', '中危', '高危'].indexOf(String(r.level)) >= 0 ? String(r.level) : '中危'
+  const reward = [60, 100, 150].indexOf(Number(r.reward)) >= 0 ? Number(r.reward) : 100
+  return {
+    level: level,
+    ticket: 'SYSU-' + Math.floor(100000 + Math.random() * 899999),
+    analysis: String(r.analysis || '').slice(0, 60),
+    advice: String(r.advice || '').slice(0, 60),
+    reward: reward
+  }
+}
+
 /** action=review：新增树木的 AI 审核（有图走视觉模型，没图走文本模型） */
 async function handleReview(event) {
   const name = String(event.name || '').trim()
@@ -249,6 +299,9 @@ exports.main = async function (event) {
     }
     if (event.action === 'review') {
       return await handleReview(event)
+    }
+    if (event.action === 'hazard') {
+      return await handleHazard(event)
     }
     console.warn('[task-ai] fallback：未知 action', String(event.action))
     return { fallback: true, reason: '未知 action: ' + String(event.action) }

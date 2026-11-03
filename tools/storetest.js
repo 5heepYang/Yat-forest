@@ -125,6 +125,18 @@ function ownerOf(treeId) {
   const errBad = store.reportHazard({ level: '中', ticket: 'X', analysis: '', advice: '', reward: 10 }, 'x', '', 'not_exist_tree')
   check('不存在的树会被拒绝', errBad === '这棵树不存在', errBad)
 
+  console.log('===== S7.5 浇水施肥每天各一次 =====')
+  const againW = store.water()
+  check('同一天再浇水被拒', againW === '今天已经浇过水了，明天再来', againW)
+  const againF = store.fertilize(second)   // 第二棵在 S4 施过肥
+  check('同一天再施肥被拒', againF === '今天已经施过肥了，明天再来', againF)
+  const crossW = store.water(second)       // 第二棵今天还没浇水，应成功
+  check('限制是按树算的，不串', crossW === '', crossW)
+  const tW = store.treeById(first)
+  const tF = store.treeById(second)
+  check('浇水日期记在第一棵', !!tW.lastWaterAt, tW.lastWaterAt)
+  check('施肥日期记在第二棵', !!tF.lastFertAt, tF.lastFertAt)
+
   console.log('===== S8 新增树审核流程 =====')
   check('当前账号是管理员', store.isAdmin() === true)
   const pendingId = 't_pending_test'

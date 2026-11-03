@@ -387,12 +387,18 @@ function water(treeId) {
   if (t.treeId === '') {
     return '先认养一棵树吧'
   }
+  // 虚拟浇水：每天每棵树只能一次，用完扣碳积分
+  const td = today()
+  if (t.lastWaterAt === td) {
+    return '今天已经浇过水了，明天再来'
+  }
   state.user.availablePoints = state.user.availablePoints - WATER_COST
   t.growthScore = t.growthScore + WATER_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + WATER_GAIN
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
+  t.lastWaterAt = td
   persist(['trees', 'users'])
   return ''
 }
@@ -408,12 +414,17 @@ function fertilize(treeId) {
   if (t.treeId === '') {
     return '先认养一棵树吧'
   }
+  const tdF = today()
+  if (t.lastFertAt === tdF) {
+    return '今天已经施过肥了，明天再来'
+  }
   state.user.availablePoints = state.user.availablePoints - FERT_COST
   t.growthScore = t.growthScore + FERT_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + FERT_GAIN
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
+  t.lastFertAt = tdF
   persist(['trees', 'users'])
   return ''
 }

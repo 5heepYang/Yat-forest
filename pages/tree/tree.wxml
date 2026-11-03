@@ -221,26 +221,6 @@
 				</view>
 			</view>
 
-			<!-- 养护核验 -->
-			<view wx:if="{{sheetMode == 'care'}}">
-				<text class="sheet-title">AI 养护核验</text>
-				<text class="sheet-sub">每天第一次{{careLabel}}需要一张现场照片，通过后当天免核验</text>
-				<view class="hint-box">
-					<text class="hint-t">照片里要能看到你正在{{careLabel}}。演示时可直接用示例照片，AI 会给出核验评语。</text>
-				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="useSampleCare">
-					<text class="sheet-btn-t sheet-btn-t-white">使用示例照片（演示）</text>
-				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="pickCarePhoto">
-					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
-				</view>
-			</view>
-
-			<view wx:if="{{sheetMode == 'careLoading'}}" class="loading-box">
-				<text class="loading-t">AI 养护核验中{{dots}}</text>
-				<text class="loading-s">正在识别画面里的{{careLabel}}动作</text>
-			</view>
-
 			<!-- 上传实拍 -->
 			<view wx:if="{{sheetMode == 'upload'}}">
 				<text class="sheet-title">上传线下生长实拍</text>

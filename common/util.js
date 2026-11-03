@@ -50,6 +50,34 @@ function stamp() {
   return d.getFullYear().toFixed(0) + '-' + m + '-' + day + ' ' + h2 + ':' + m2
 }
 
+/**
+ * 把云存储 fileID（cloud://...）换成公网可读的临时 https 链接，视觉模型只认这种地址。
+ * 非 cloud:// 的地址原样返回；取不到就返回空串（调用方自行降级）。
+ */
+function toPublicUrl(url) {
+  return new Promise(function (resolve) {
+    const s = String(url || '')
+    if (s.indexOf('cloud://') !== 0) {
+      resolve(s)
+      return
+    }
+    if (!wx.cloud || !wx.cloud.getTempFileURL) {
+      resolve('')
+      return
+    }
+    wx.cloud.getTempFileURL({
+      fileList: [s],
+      success: function (res) {
+        const f = res.fileList && res.fileList[0]
+        resolve(f && f.tempFileURL ? f.tempFileURL : '')
+      },
+      fail: function () {
+        resolve('')
+      }
+    })
+  })
+}
+
 function toast(msg) {
   wx.showToast({
     title: msg,
@@ -58,4 +86,4 @@ function toast(msg) {
   })
 }
 
-module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast }
+module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl }

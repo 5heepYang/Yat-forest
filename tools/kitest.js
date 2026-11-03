@@ -77,7 +77,7 @@ function makePage() {
   check('迁移后不再有待迁移的 legacy', p1.kt.legacy === null)
   check('连续护林天数保留（用户维度，不按树分）', p1.kt.streak.days === 5, p1.kt.streak.days)
   check('浇水任务显示已完成', p1.data.tasks[0].done === true, JSON.stringify(p1.data.tasks[0]))
-  check('今天免核验状态被带过来', p1.data.careVerified === true)
+  check('提示文案是"每天各一次"口径', p1.data.careTip.indexOf('每天各一次') >= 0, p1.data.careTip)
   check('工单迁移成功', p1.data.tickets.length === 1, p1.data.tickets.length)
 
   // 触发一次真正的写入（改拍照周期），确认落到 Storage 的是新容器格式
@@ -97,7 +97,7 @@ function makePage() {
   p2.onLoad()
   await p2.onShow()
   check('当前树已切到新认养的那棵', p2.data.tree.name === store.treeById(second).name, p2.data.tree.name)
-  check('新树今天没核验过', p2.data.careVerified === false)
+  check('新树提示同样按每天一次算', p2.data.careTip.indexOf('每天各一次') >= 0, p2.data.careTip)
   check('新树浇水任务未完成', p2.data.tasks[0].done === false, JSON.stringify(p2.data.tasks[0]))
   check('新树没有继承老工单', p2.data.tickets.length === 0, p2.data.tickets.length)
   check('切换条显示 2 棵树', p2.data.myTrees.length === 2, p2.data.myTrees.length)
@@ -109,7 +109,7 @@ function makePage() {
   await p3.onShow()
   check('切换成功', ok === true)
   check('第一棵的浇水任务仍是已完成', p3.data.tasks[0].done === true, JSON.stringify(p3.data.tasks[0]))
-  check('第一棵今天仍免核验', p3.data.careVerified === true)
+  check('切回第一棵文案正常', p3.data.careTip.indexOf('每天各一次') >= 0, p3.data.careTip)
   check('第一棵工单还在', p3.data.tickets.length === 1, p3.data.tickets.length)
 
   console.log('===== S4 两棵树的桶互不覆盖 =====')

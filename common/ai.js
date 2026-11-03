@@ -234,28 +234,60 @@ function localReviewTree(info) {
 }
 
 /** AI 树木安全巡检医生：识别虫害 / 高空坠叶风险，生成后勤工单 */
-function aiAnalyzeHazard(treeName, species, cb) {
-  setTimeout(function () {
-    let level = '高危'
-    let analysis = '识别到「' + treeName + '」顶部枯萎叶片已脱离叶鞘，处于悬垂状态，存在高空坠物砸伤风险。'
-    let advice = '建议后勤绿化队在 24 小时内完成枯叶清除，并在树下 3m 范围设置临时警戒带。'
-    if (species.indexOf('榕') >= 0) {
-      level = '中危'
-      analysis = '识别到树干基部有白蚁泥线与蛀蚀痕迹，暂未见结构失稳，但需持续监测。'
-      advice = '建议投放白蚁诱杀饵剂，两周后回访复查树干强度。'
-    } else if (species.indexOf('凤凰木') >= 0) {
-      level = '中危'
-      analysis = '台风过后存在断枝悬挂，断口未完全脱离，遇风可能二次坠落。'
-      advice = '建议修剪断枝并清理树下残枝，台风季前完成一次全面排查。'
-    }
-    cb({
-      level: level,
-      ticket: 'SYSU-' + code4(),
-      analysis: analysis,
-      advice: advice,
-      reward: 100
+function aiAnalyzeHazard(treeName, species, imageUrl, cb) {
+  if (cloudReady()) {
+    callTaskAi({
+      action: 'hazard',
+      name: treeName,
+      species: species,
+      imageUrl: imageUrl || ''
+    }, function (r) {
+      if (r && r.reject) {
+        cb({ reject: true, reason: r.reason || '照片里看不到树木' })
+        return
+      }
+      if (r && r.level) {
+        cb({
+          level: r.level,
+          ticket: r.ticket || ('SYSU-' + code4()),
+          analysis: r.analysis || '',
+          advice: r.advice || '',
+          reward: Number(r.reward) || 100,
+          detail: r.detail || ''
+        })
+        return
+      }
+      cb(localAnalyzeHazard(treeName, species))
+    }, function (reason) {
+      console.warn('[ai] hazard 云端降级：', reason)
+      cb(localAnalyzeHazard(treeName, species))
     })
-  }, 1600)
+    return
+  }
+  cb(localAnalyzeHazard(treeName, species))
+}
+
+/** 本地兜底：按树种给固定话术（测试号 / 云端不可用时用） */
+function localAnalyzeHazard(treeName, species) {
+  let level = '高危'
+  let analysis = '识别到「' + treeName + '」顶部枯萎叶片已脱离叶鞘，处于悬垂状态，存在高空坠物砸伤风险。'
+  let advice = '建议后勤绿化队在 24 小时内完成枯叶清除，并在树下 3m 范围设置临时警戒带。'
+  if (species.indexOf('榕') >= 0) {
+    level = '中危'
+    analysis = '识别到树干基部有白蚁泥线与蛀蚀痕迹，暂未见结构失稳，但需持续监测。'
+    advice = '建议投放白蚁诱杀饵剂，两周后回访复查树干强度。'
+  } else if (species.indexOf('凤凰木') >= 0) {
+    level = '中危'
+    analysis = '台风过后存在断枝悬挂，断口未完全脱离，遇风可能二次坠落。'
+    advice = '建议修剪断枝并清理树下残枝，台风季前完成一次全面排查。'
+  }
+  return {
+    level: level,
+    ticket: 'SYSU-' + code4(),
+    analysis: analysis,
+    advice: advice,
+    reward: 100
+  }
 }
 
 /** AI 日程碳管家：根据今日任务给出减碳建议 */
