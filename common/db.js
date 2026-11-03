@@ -186,29 +186,117 @@ function fetchAll(name, personal) {
 }
 
 /**
- * 覆盖写入一个集合：先删后插。
- * personal 集合只删"我的"文档，不会碰到别人的数据。
- * 注意：trees/goods 是全量覆盖，两人同时写会以后写的为准（比赛规模可接受，
- * 要严格就改成 .doc(id).update() 逐字段更新，或上云函数）。
+ * 各集合的业务主键字段。
+ * 作用有两个：①生成确定性 _id 做 upsert；②迁移期把"随机 _id 的老文档"按业务主键认回来，
+ * 避免同一棵树/同一条日程在云端出现两份。
  */
-function replaceAll(name, docs) {
-  const list = docs || []
+const KEY_FIELD = {
+  users: 'userId',
+  trees: 'treeId',
+  tasks: 'taskId',
+  tree_logs: 'logId',
+  goods: 'itemId'
+}
 
-  return fetchAll(name, PERSONAL[name])
-    .then(function (rows) {
-      if (!rows.length) return null
-      const tasks = rows.map(function (d) {
-        return cloudDb.collection(name).doc(d._id).remove()
-      })
-      return Promise.all(tasks)
+/** 业务主键 -> 云端文档 _id。个人集合加 userId 前缀，避免不同用户同名业务 id 撞车 */
+function canonicalId(name, doc, index, uid) {
+  const me = String(uid || 'me')
+  if (name === 'users') return String(doc.userId || me)
+  if (name === 'trees') return String(doc.treeId || ('tree_' + index))
+  if (name === 'goods') return String(doc.itemId || ('item_' + index))
+  if (name === 'records') return me + '_rec_' + index
+  const key = doc.taskId || doc.logId || ('i' + index)
+  return me + '_' + String(key)
+}
+
+/** 稳定指纹：字段排序后序列化，用来判断"这条文档到底变没变" */
+function fpOf(obj) {
+  const keys = Object.keys(obj || {}).sort()
+  const parts = []
+  let i = 0
+  while (i < keys.length) {
+    parts.push(keys[i] + ':' + JSON.stringify(obj[keys[i]]))
+    i++
+  }
+  return '{' + parts.join(',') + '}'
+}
+
+/**
+ * 同步一个集合：先 upsert 再清理，取代原来的"先删后插"。
+ *
+ * 为什么改：
+ *   1. 原来删完再插，中途失败（断网/被杀/单条 add 报错）会把集合留空，
+ *      下次启动 pullCloud 走"日程被清补种子"分支，把打卡历史重置回 4 条 mock。
+ *      现在内容没变的文档直接跳过、变了的原地 set()，任何时刻云端都是完整数据。
+ *   2. 原来每条 persist 都要"读全量 + 删 N 条 + 插 N 条"，加一条日程产生 2N 次云调用；
+ *      现在只有真正变化的文档才写，加一条日程 = 1 次写。
+ *
+ * 全局集合（trees/goods）只做增改不删，因为没人会删除树或商品，
+ * 而且删别人的文档会被"仅创建者可读写"权限拒绝。
+ */
+function syncCollection(name, docs, uid) {
+  const list = docs || []
+  const personal = PERSONAL[name]
+  const keyField = KEY_FIELD[name]
+
+  return fetchAll(name, personal).then(function (rows) {
+    const rowById = {}
+    const idByKey = {}
+    rows.forEach(function (r) {
+      rowById[r._id] = r
+      if (keyField) {
+        const k = String(r[keyField] == null ? '' : r[keyField])
+        if (k && !idByKey[k]) idByKey[k] = r._id
+      }
     })
-    .then(function () {
-      if (!list.length) return null
-      const tasks = list.map(function (d) {
-        return cloudDb.collection(name).add({ data: copyDoc(d) })
-      })
-      return Promise.all(tasks)
+
+    const desired = []
+    const keepId = {}
+    list.forEach(function (d, i) {
+      const payload = copyDoc(d)
+      const key = keyField ? String(payload[keyField] == null ? '' : payload[keyField]) : ''
+      const id = (key && idByKey[key]) || canonicalId(name, payload, i, uid)
+      if (keepId[id]) return   // 同 id 只留第一条，免得自己跟自己写冲突
+      keepId[id] = true
+      desired.push({ id: id, payload: payload })
     })
+
+    const writes = []
+    desired.forEach(function (d) {
+      const old = rowById[d.id]
+      if (old && fpOf(copyDoc(old)) === fpOf(d.payload)) return  // 没变，不写
+      writes.push(
+        cloudDb.collection(name).doc(d.id).set({ data: d.payload })
+          .then(function () { return true })
+          .catch(function (e) {
+            console.warn('[db] 文档写入失败', name, d.id, e)
+            return false
+          })
+      )
+    })
+
+    return Promise.all(writes).then(function (rs) {
+      const failed = rs.filter(function (x) { return !x }).length
+      if (failed) console.warn('[db] 部分文档写入失败', name, failed + '/' + rs.length)
+      const written = rs.length - failed
+
+      // 全局集合不清理；个人集合清掉本次快照里已经不存在的文档（如被删除的记录）
+      if (!personal) return { written: written, failed: failed, removed: 0 }
+      const stale = rows.filter(function (r) { return !keepId[r._id] })
+      if (!stale.length) return { written: written, failed: failed, removed: 0 }
+
+      return Promise.all(stale.map(function (r) {
+        return cloudDb.collection(name).doc(r._id).remove()
+          .then(function () { return true })
+          .catch(function (e) {
+            console.warn('[db] 旧文档清理失败（可忽略）', name, r._id, e)
+            return false
+          })
+      })).then(function (ds) {
+        return { written: written, failed: failed, removed: ds.filter(function (x) { return x }).length }
+      })
+    })
+  })
 }
 
 /** 去掉云端自动生成的字段，回写时带着它们会报错 */
@@ -264,7 +352,7 @@ function pullCloud() {
     }
 
     return Promise.all(jobs.map(function (j) {
-      return replaceAll(j[0], j[1]).catch(function (e) {
+      return syncCollection(j[0], j[1], me.userId).catch(function (e) {
         console.warn('[db] 初始化写入失败（检查集合是否建好、权限是否放开）', j[0], e)
         return null
       })
@@ -315,7 +403,7 @@ function snapshotOf(state, only) {
   const all = {
     // 认养的树 id 和碳目标没有独立集合，附在 users 文档上一起存
     users: [Object.assign(copyDoc(state.user || {}), {
-      adoptedTreeId: state.adoptedTreeId || 't_101',
+      adoptedTreeId: state.adoptedTreeId || '',
       carbonGoal: state.carbonGoal || 100
     })],
     trees: (state.trees || []).map(copyDoc),
@@ -336,9 +424,9 @@ function snapshotOf(state, only) {
 }
 
 /** 真正落库：并发写各个集合，互不影响 */
-function writeSnapshot(snap) {
+function writeSnapshot(snap, uid) {
   return Promise.all(Object.keys(snap).map(function (k) {
-    return replaceAll(k, snap[k])
+    return syncCollection(k, snap[k], uid)
   }))
 }
 
@@ -389,10 +477,11 @@ function save(state, only) {
   }
 
   const snap = snapshotOf(state, only)
+  const uid = (state && state.user && state.user.userId) || 'me'
 
   writeChain = writeChain
     .catch(function () { /* 上一次失败不影响下一次 */ })
-    .then(function () { return writeSnapshot(snap) })
+    .then(function () { return writeSnapshot(snap, uid) })
     .then(function () { return true })
     .catch(function (e) {
       console.warn('[db] 云端写入失败（本地已保存，下次启动会重试拉取）', e)
