@@ -11,12 +11,14 @@
 const ADMIN_IDS = ['u_001']
 
 /**
- * 拍照提醒的订阅消息模板 ID。
- * 留空 = 不申请订阅、不推送（页面内的周期提示仍然生效）。
- * 申请方式：小程序后台 → 订阅消息 → 选用「待办事项提醒」类模板，
- * 把模板 ID 填在这里，并把字段名对齐 cloudfunctions/notify/index.js 里的 data。
+ * 拍照提醒的订阅消息模板 ID（小程序后台 → 订阅消息 → 我的模板）。
+ *
+ * 当前模板：「日程提醒」（编号 571），字段如下，改模板时两边必须一起改：
+ *   thing2  提醒内容
+ *   date4   日程时间
+ *   thing11 备注
  */
-const SUBSCRIBE_TEMPLATE_ID = ''
+const SUBSCRIBE_TEMPLATE_ID = 'rK51LC7yeND1qD9Pqy69EB1ZpLC5NH021ELBVZooF_I'
 
 module.exports = {
   ADMIN_IDS,

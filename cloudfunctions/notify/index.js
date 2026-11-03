@@ -11,8 +11,9 @@
  * 环境变量（云开发控制台 → 云函数 → notify → 配置 → 环境变量）：
  *   REMIND_TEMPLATE_ID  订阅消息模板 ID（小程序后台 → 订阅消息 → 我的模板）
  *
- * 模板字段：下面 data 里的 thing1 / time2 / phrase3 是示例占位，
- * 必须和你在后台选的模板字段一一对应，否则会报 47003。
+ * 模板字段：当前用「日程提醒」模板（编号 571），字段是
+ *   thing2  提醒内容   date4 日程时间   thing11 备注
+ * 换模板必须同步改下面的 data，字段对不上会报 47003。
  */
 const cloud = require('wx-server-sdk')
 
@@ -22,6 +23,16 @@ const db = cloud.database()
 const _ = db.command
 
 const TEMPLATE_ID = process.env.REMIND_TEMPLATE_ID || ''
+
+/**
+ * 提醒时间：取"明天 09:00"（date 类型要求 24 小时制且带年月日，如 2026年11月4日 09:00）
+ */
+function remindTime() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  const hh = '09:00'
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hh
+}
 
 /** 取该用户名下的树名（最多 20 字，模板 thing 类型有长度限制） */
 function treeNames(trees, ownerId) {
@@ -50,8 +61,7 @@ exports.main = async function () {
 
   let sent = 0
   let failed = 0
-  const now = new Date()
-  const stamp = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate()
+  const when = remindTime()
 
   for (let i = 0; i < users.length; i++) {
     const u = users[i]
@@ -65,9 +75,9 @@ exports.main = async function () {
         page: 'pages/tree/tree',
         miniprogramState: 'developer',   // 上线改成 formal
         data: {
-          thing1: { value: names[0].slice(0, 20) },
-          time2: { value: stamp },
-          phrase3: { value: '该拍照啦' }
+          thing2: { value: names[0].slice(0, 20) },
+          date4: { value: when },
+          thing11: { value: '记得给它拍张照' }
         }
       })
       sent++
