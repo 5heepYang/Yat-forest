@@ -13,6 +13,7 @@
 const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars, today } = require('./mock')
 const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
 const { stamp } = require('./util')
+const { ADMIN_IDS } = require('./config')
 const db = require('./db')
 
 /** 全局唯一状态。直接改这里的字段，改完调 persist([...])。 */
@@ -286,6 +287,31 @@ function myTreeCount() {
 /* ------------------------------------------------------------------ */
 
 /** 认养：成功返回空串，失败返回提示语 */
+function isAdmin() {
+  return ADMIN_IDS.indexOf(state.user.userId) >= 0
+}
+
+/**
+ * 审核新增树木。
+ * 通过：正常出现在地图上，可被认养；驳回：留档但地图上不再显示。
+ */
+function reviewTree(treeId, pass) {
+  if (!isAdmin()) return '只有管理员能审核树木'
+  const t = treeById(treeId)
+  if (t === null) return '这棵树不存在'
+  if (t.reviewStatus !== 'pending') return '这棵树不在待审核状态'
+
+  if (pass) {
+    t.reviewStatus = 'approved'
+    t.status = 'normal'
+  } else {
+    t.reviewStatus = 'rejected'
+    t.status = 'rejected'
+  }
+  persist(['trees'])
+  return ''
+}
+
 function adoptTree(id) {
   const t = treeById(id)
   if (t === null) {
@@ -297,8 +323,11 @@ function adoptTree(id) {
   if (t.status === 'hazard') {
     return '该树正在隐患处理中，暂不可认养'
   }
-  if (t.status === 'pending') {
+  if (t.status === 'pending' || t.reviewStatus === 'pending') {
     return '这棵树还在人工审核中，通过后就能认养了'
+  }
+  if (t.status === 'rejected' || t.reviewStatus === 'rejected') {
+    return '这棵树没有通过审核，暂不可认养'
   }
   if (state.user.availablePoints < ADOPT_COST) {
     return '积分不足，去低碳日程做任务攒一点吧'
@@ -517,6 +546,7 @@ module.exports = {
   treeById, myTree, myTrees, selectTree, careTarget,
   todayCarbon, todayPoints, totalCarbon, doneCount, todayTaskCount, progressPct, unownedCount, myTreeCount,
 
+  isAdmin, reviewTree,
   adoptTree, water, fertilize, completeTask,
   addGrowthLog, reportHazard, exchange,
   addTree, updateTree, addTask, updateTask, updateUser

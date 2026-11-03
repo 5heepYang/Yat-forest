@@ -1,5 +1,6 @@
 const { emptyTree } = require('../../common/mock')
 const store = require('../../common/store')
+const { isAdmin } = store
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
 const { aiAnalyzeHazard } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
@@ -46,6 +47,8 @@ function buildMarkers(list, me, selectedId) {
       latitude: p.latitude,
       longitude: p.longitude,
       iconPath: markerIcon(t, me),
+      // 待审核的树画淡一点，和正式点位区分开
+      alpha: t.reviewStatus === 'pending' ? 0.55 : 1,
       width: on ? 44 : 36,
       height: on ? 56 : 46,
       // 锚点设在 pin 尖端，点位正好落在树的经纬度上
@@ -59,8 +62,13 @@ function buildMarkers(list, me, selectedId) {
 function decorateSelected(t) {
   const me = store.state.user.userId
 
+  const admin = isAdmin()
+  const pending = t.reviewStatus === 'pending'
+
   let tagText = ''
-  if (t.status === 'hazard') {
+  if (pending) {
+    tagText = admin ? '待审核 · 通过后才上地图' : '待审核，等待管理员通过'
+  } else if (t.status === 'hazard') {
     tagText = '隐患预警，待后勤处理'
   } else if (t.ownerId === '') {
     tagText = '待认养，可立即认养'
@@ -73,7 +81,11 @@ function decorateSelected(t) {
   let btnText = ''
   let btnBg = ''
   let btnColor = ''
-  if (t.ownerId === me) {
+  if (pending) {
+    btnText = '审核通过后才能认养'
+    btnBg = 'btn-mute'
+    btnColor = 'tc-btn-t-white'
+  } else if (t.ownerId === me) {
     btnText = '已认养 · 去给它浇水'
     btnBg = 'btn-soft'
     btnColor = 'tc-btn-t-deep'
@@ -113,8 +125,11 @@ function decorateSelected(t) {
     descClass: isHazard ? 'tc-desc-warn' : '',
     distanceText: formatDistance(t.distance),
     tagText: tagText,
-    tagBg: t.status === 'hazard' ? 'tag-warn' : 'tag-cream',
-    tagColor: t.status === 'hazard' ? 'tc-tag-t-warn' : 'tc-tag-t-cream',
+    tagBg: (pending || t.status === 'hazard') ? 'tag-warn' : 'tag-cream',
+    tagColor: (pending || t.status === 'hazard') ? 'tc-tag-t-warn' : 'tc-tag-t-cream',
+    canReview: pending && admin,
+    canViewOwner: t.ownerId !== '' && t.ownerId !== me,
+    ownerId: t.ownerId,
     btnText: btnText,
     btnBg: btnBg,
     btnColor: btnColor
@@ -183,12 +198,20 @@ Page({
   refresh() {
     const f = this.data.filter
     const me = store.state.user.userId
+    const admin = isAdmin()
     const kw = this.data.keyword.replace(/^\s+|\s+$/g, '').toLowerCase()
+
+    // 审核可见性：驳回的谁都不看；待审核只有管理员和提交者本人能看
+    const visible = this.trees.filter(function (t) {
+      if (t.reviewStatus === 'rejected') return false
+      if (t.reviewStatus === 'pending' && !admin && t.createdBy !== me) return false
+      return true
+    })
 
     const picked = []
     let i = 0
-    while (i < this.trees.length) {
-      const t = this.trees[i]
+    while (i < visible.length) {
+      const t = visible[i]
       // 第一步：状态筛选
       if (f === 'mine') {
         if (t.ownerId !== me) { i++; continue }
@@ -216,15 +239,17 @@ Page({
     } else if (f !== 'all' || kw !== '') {
       hintText = '当前显示 ' + picked.length.toFixed(0) + ' 棵'
     } else if (this.userLoc && this.userLoc.real) {
-      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养
-      const nearFree = nearbyTrees(this.userLoc.latitude, this.userLoc.longitude, this.trees, NEAR_RADIUS, true)
+      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养（待审核的不算）
+      const nearFree = nearbyTrees(this.userLoc.latitude, this.userLoc.longitude, visible, NEAR_RADIUS, true)
       hintText = '附近 ' + nearFree.length.toFixed(0) + ' 棵可认养 · ' + NEAR_RADIUS + ' 米内'
     } else {
-      hintText = '全校 ' + store.unownedCount() + ' 棵可认养'
+      const free = visible.filter(function (t) { return t.ownerId === '' && t.reviewStatus !== 'pending' }).length
+      hintText = '全校 ' + free + ' 棵可认养'
     }
 
     this.setData({
-      subtitle: '南校园 · ' + this.trees.length.toFixed(0) + ' 棵树在册',
+      subtitle: '南校园 · ' + visible.length.toFixed(0) + ' 棵树在册'
+        + (admin && this.trees.length !== visible.length ? ' · 含待审核' : ''),
       markers: buildMarkers(picked, me, this.selectedTreeId),
       showEmpty: this.loaded && picked.length === 0,
       hintText: hintText
@@ -359,6 +384,45 @@ Page({
     this.selectedTreeId = ''
     this.setData({ showCard: false })
     this.refresh()
+  },
+
+  /** 管理员审核：通过则上地图可认养，驳回则从地图移除（保留记录） */
+  onCardReview(e) {
+    const sel = this.data.sel
+    if (!sel) return
+    const pass = !!(e.detail && e.detail.pass)
+    const that = this
+
+    wx.showModal({
+      title: pass ? '通过上架' : '驳回这棵树',
+      content: pass
+        ? '通过后「' + sel.name + '」会出现在地图上，可被认养。'
+        : '驳回后地图上不再显示这棵树，记录会保留。',
+      confirmText: pass ? '通过' : '驳回',
+      cancelText: '取消',
+      confirmColor: pass ? '#4E8A6B' : '#C0392B',
+      success: function (m) {
+        if (!m.confirm) return
+        const err = store.reviewTree(sel.treeId, pass)
+        if (err) {
+          toast(err)
+          return
+        }
+        that.selectedTreeId = ''
+        that.setData({ showCard: false })
+        that.refresh()
+        toast(pass ? '已通过，已上地图' : '已驳回')
+      }
+    })
+  },
+
+  /** 看认养人主页（只读，数据从公有 trees 集合推算） */
+  onViewOwner() {
+    const sel = this.data.sel
+    if (!sel || !sel.ownerId) return
+    wx.navigateTo({
+      url: '/pages/honor/honor?userId=' + encodeURIComponent(sel.ownerId)
+    })
   },
 
   /**
@@ -563,17 +627,18 @@ Page({
       lat: loc.latitude,
       lng: loc.longitude,
       ownerId: '', ownerName: '', level: 0, growthScore: 0,
-      status: 'normal', hazardText: '', age: f.age || '未知',
+      status: store.isAdmin() ? 'normal' : 'pending', hazardText: '', age: f.age || '未知',
       distance: distanceMeters((this.userLoc || CAMPUS).latitude, (this.userLoc || CAMPUS).longitude, loc.latitude, loc.longitude),
-      reviewStatus: 'approved',
+      reviewStatus: store.isAdmin() ? 'approved' : 'pending',
       image: f.image,
       description: f.description,
       createdBy: store.state.user.userId
     })
 
+    const needReview = !store.isAdmin()
     this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
     this.refresh()
-    toast('新增成功')
+    toast(needReview ? '已提交，管理员审核通过后会出现在地图上' : '新增成功')
   },
 
   /** 空状态里点"清除筛选和搜索"：回到全部 + 清空关键词 */

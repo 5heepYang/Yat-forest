@@ -2,7 +2,12 @@
 	<scroll-view class="body" scroll-y>
 		<view class="hero">
 			<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
-			<text class="hero-sub">南校园 · 护林第 {{days}} 天</text>
+
+			<view class="back-pill" wx:if="{{guest}}" bindtap="goBack">
+				<text class="back-pill-t">{{backText}}</text>
+			</view>
+
+			<text class="hero-sub">{{guest ? '南校园 · 认养人主页' : '南校园 · 护林第 ' + days + ' 天'}}</text>
 			<text class="hero-name" bindtap="openProfile">{{nickname}}</text>
 			<view class="hero-row">
 				<view class="avatar-box">
@@ -10,12 +15,13 @@
 				</view>
 				<view class="hero-info">
 					<text class="hero-line1">Lv.{{treeLevel}} 护林人 · 椰林排雷兵</text>
-					<text class="hero-line2">已点亮 {{unlockedCount}} / {{badgeTotal}} 枚勋章</text>
+					<text class="hero-line2" wx:if="{{!guest}}">已点亮 {{unlockedCount}} / {{badgeTotal}} 枚勋章</text>
+					<text class="hero-line2" wx:else>在养 {{adoptedCount}} 棵树</text>
 				</view>
 			</view>
 		</view>
 
-		<view class="stats">
+		<view class="stats" wx:if="{{!guest}}">
 			<view class="stat-cell">
 				<text class="stat-num">{{pointsText}}</text>
 				<text class="stat-lb">可用碳积分</text>
@@ -33,11 +39,32 @@
 			</view>
 		</view>
 
-		<view class="sec-row">
+		<!-- 访客只能看到从公有数据（trees）推算出来的东西 -->
+		<view class="stats" wx:else>
+			<view class="stat-cell">
+				<view class="stat-num-row">
+					<text class="stat-num">{{adoptedCount}}</text>
+					<text class="stat-unit">棵</text>
+				</view>
+				<text class="stat-lb">认养的树</text>
+			</view>
+			<view class="stat-cell">
+				<view class="stat-num-row">
+					<text class="stat-num">Lv.{{treeLevel}}</text>
+				</view>
+				<text class="stat-lb">最高等级</text>
+			</view>
+			<view class="stat-cell">
+				<text class="stat-num">{{growthText}}</text>
+				<text class="stat-lb">总成长值</text>
+			</view>
+		</view>
+
+		<view class="sec-row" wx:if="{{!guest}}">
 			<text class="sec-title">勋章墙 · 已点亮 {{unlockedCount}} / {{badgeTotal}}</text>
 		</view>
 
-		<view class="badge-row">
+		<view class="badge-row" wx:if="{{!guest}}">
 			<view class="badge-cell" wx:for="{{topBadges}}" wx:key="badgeId">
 				<view class="{{item.cls}}">
 					<image class="badge-ico" src="{{item.icon}}"></image>
@@ -47,8 +74,8 @@
 		</view>
 
 		<view class="sec-row sec-row-between">
-			<text class="sec-title">我的树 · {{adoptedCount}} 棵</text>
-			<text class="sec-more" wx:if="{{myTrees.length > 0}}" bindtap="goTree">去林地养护 ›</text>
+			<text class="sec-title">{{guest ? 'TA 的树' : '我的树'}} · {{adoptedCount}} 棵</text>
+			<text class="sec-more" wx:if="{{myTrees.length > 0 && !guest}}" bindtap="goTree">去林地养护 ›</text>
 		</view>
 
 		<scroll-view class="mytree-bar" scroll-x wx:if="{{myTrees.length > 0}}">
@@ -72,11 +99,15 @@
 			</view>
 		</scroll-view>
 
-		<view class="mytree-empty" wx:else bindtap="goTree">
+		<view class="mytree-empty" wx:elif="{{!guest}}" bindtap="goTree">
 			<text class="mytree-empty-t">还没有认养的树 · 去地图认养一棵</text>
 		</view>
 
-		<view class="list-card">
+		<view class="mytree-empty" wx:else>
+			<text class="mytree-empty-t">TA 还没有认养树木</text>
+		</view>
+
+		<view class="list-card" wx:if="{{!guest}}">
 			<view class="list-row">
 				<text class="list-k">我的认养</text>
 				<text class="list-v">{{adoptText}}</text>
@@ -87,11 +118,11 @@
 			</view>
 		</view>
 
-		<view class="sec-row">
+		<view class="sec-row" wx:if="{{!guest}}">
 			<text class="sec-title">森林补给站 · 用护林币换周边</text>
 		</view>
 
-		<view class="goods-row">
+		<view class="goods-row" wx:if="{{!guest}}">
 			<view
 				class="goods-card"
 				wx:for="{{topGoods}}"
@@ -110,7 +141,7 @@
 		<view class="bottom-pad"></view>
 	</scroll-view>
 
-	<app-tabbar active="me"></app-tabbar>
+	<app-tabbar active="me" wx:if="{{!guest}}"></app-tabbar>
 
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>

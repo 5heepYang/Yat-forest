@@ -44,6 +44,21 @@
 			<text class="tc-btn-t {{tree.btnColor}}">{{tree.btnText}}</text>
 		</view>
 
+		<!-- 管理员审核待上架的树 -->
+		<view class="tc-review" wx:if="{{tree.canReview}}">
+			<view class="tc-review-btn tc-review-no" data-pass="0" bindtap="onReview">
+				<text class="tc-review-t tc-review-t-no">驳回</text>
+			</view>
+			<view class="tc-review-btn tc-review-yes" data-pass="1" bindtap="onReview">
+				<text class="tc-review-t tc-review-t-yes">通过上架</text>
+			</view>
+		</view>
+
+		<!-- 看认养人主页（别人的树才有） -->
+		<view class="tc-owner" wx:if="{{tree.canViewOwner}}" bindtap="onOwner">
+			<text class="tc-owner-t">看看 {{tree.ownerText}} 的主页 ›</text>
+		</view>
+
 		<!-- 任何一棵树都能拍照上报隐患（含别人认养的树） -->
 		<view class="tc-hazard" bindtap="onHazard">
 			<text class="tc-hazard-ic">!</text>

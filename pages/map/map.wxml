@@ -57,6 +57,8 @@
 			tree="{{sel}}"
 			bind:action="onCardAction"
 			bind:hazard="onCardHazard"
+			bind:review="onCardReview"
+			bind:owner="onViewOwner"
 			bind:close="onCardClose"
 		></tree-detail-sheet>
 

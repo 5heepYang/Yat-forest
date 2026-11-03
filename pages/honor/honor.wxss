@@ -549,3 +549,25 @@
 	color: #7A9C86;
 	font-family: HYSans;
 }
+
+/* ---------- 访客模式返回 ---------- */
+
+.back-pill {
+	display: flex;
+	flex-direction: row;
+	align-self: flex-start;
+	height: 26px;
+	border-radius: 13px;
+	background-color: rgba(255, 255, 255, 0.7);
+	align-items: center;
+	justify-content: center;
+	padding-left: 10px;
+	padding-right: 12px;
+	margin-bottom: 8px;
+}
+
+.back-pill-t {
+	font-size: 11px;
+	color: #2E6B4F;
+	font-family: HYSans;
+}

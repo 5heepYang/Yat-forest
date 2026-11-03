@@ -28,6 +28,9 @@ Page({
     treeName: '',
     treeGrowth: '0',
     myTrees: [],
+    guest: false,
+    guestName: '',
+    backText: '',
     adoptText: '',
     recordText: '',
     topGoods: [],
@@ -38,9 +41,11 @@ Page({
     nicknameInput: ''
   },
 
-  onLoad() {
+  onLoad(options) {
     const app = getApp()
     const g = (app && app.globalData) || {}
+    // 从地图点别人的树进来时带 ?userId=xxx，进只读的"认养人主页"模式
+    this.viewUserId = (options && options.userId) ? decodeURIComponent(options.userId) : ''
     this.setData({ statusBarHeight: g.statusBarHeight || 20 })
   },
 
@@ -51,14 +56,24 @@ Page({
 
   refresh() {
     const st = store.state
-    const t = store.myTree()
+    const me = st.user.userId
+    const guest = !!this.viewUserId && this.viewUserId !== me
 
-    let adopted = 0
+    // 访客模式只看得到公有数据（trees 是全局集合），积分/护林币/勋章拿不到，直接不展示
     let i = 0
+    let owned = []
     while (i < st.trees.length) {
-      if (st.trees[i].ownerId === st.user.userId) adopted++
+      const tr = st.trees[i]
+      if (tr.ownerId === (guest ? this.viewUserId : me)) owned.push(tr)
       i++
     }
+    owned.sort(function (a, b) {
+      if (a.level !== b.level) return b.level - a.level
+      return b.growthScore - a.growthScore
+    })
+
+    const t = guest ? (owned[0] || store.myTree()) : store.myTree()
+    const adopted = owned.length
 
     let unlocked = 0
     i = 0
@@ -88,8 +103,8 @@ Page({
       }
     })
 
-    // 我的树：多棵时横向滑动展示，点任意一棵直接切过去养护
-    const myTrees = store.myTrees().map(function (x) {
+    // 我的树：多棵时横向滑动展示，点任意一棵直接切过去养护（访客模式不可点进养护）
+    const myTrees = owned.map(function (x) {
       return {
         treeId: x.treeId,
         name: x.name,
@@ -110,15 +125,27 @@ Page({
       recordText = st.records.length.toFixed(0) + ' 次 · 帆布袋'
     }
 
+    let totalGrowth = 0
+    let maxLevel = 0
+    i = 0
+    while (i < owned.length) {
+      totalGrowth += owned[i].growthScore
+      if (owned[i].level > maxLevel) maxLevel = owned[i].level
+      i++
+    }
+
     this.setData({
+      guest: guest,
+      guestName: owned.length > 0 ? (owned[0].ownerName || '这位森友') : '这位森友',
+      backText: guest ? '‹ 返回地图' : '',
       days: st.user.days.toFixed(0),
-      nickname: st.user.nickname,
-      avatar: st.user.avatar,
-      treeLevel: t.level.toFixed(0),
+      nickname: guest ? (owned.length > 0 ? (owned[0].ownerName || '这位森友') : '这位森友') : st.user.nickname,
+      avatar: guest ? '/static/illus/avatar.png' : st.user.avatar,
+      treeLevel: (guest ? maxLevel : t.level).toFixed(0),
       unlockedCount: unlocked,
       badgeTotal: st.badges.length,
-      pointsText: fmt(st.user.availablePoints),
-      growthText: fmt(st.user.totalGrowthScore),
+      pointsText: fmt(guest ? totalGrowth : st.user.availablePoints),
+      growthText: fmt(guest ? totalGrowth : st.user.totalGrowthScore),
       adoptedCount: adopted,
       topBadges: badges,
       treeName: t.name,
@@ -175,6 +202,7 @@ Page({
 
   /** 点昵称 → 改名弹层 */
   openProfile() {
+    if (this.data.guest) return
     this.setData({
       sheetMode: 'profile',
       nicknameInput: store.state.user.nickname
@@ -200,8 +228,21 @@ Page({
     wx.reLaunch({ url: '/pages/tree/tree' })
   },
 
+  /** 访客模式：返回地图 */
+  goBack() {
+    wx.navigateBack({
+      fail: function () {
+        wx.reLaunch({ url: '/pages/map/map' })
+      }
+    })
+  },
+
   /** 点「我的树」里的某棵 → 切为当前养护对象再进林地页 */
   openTree(e) {
+    if (this.data.guest) {
+      toast('这是别人的林地，去地图认养一棵自己的吧')
+      return
+    }
     const id = e.currentTarget.dataset.id
     if (id && store.selectTree(id)) {
       wx.reLaunch({ url: '/pages/tree/tree' })
