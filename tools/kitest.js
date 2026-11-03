@@ -14,6 +14,8 @@ global.wx = {
   setStorageSync(k, v) { memStorage[k] = JSON.parse(JSON.stringify(v)) },
   getStorageSync(k) { return memStorage[k] },
   showToast(o) { toasts.push(o && o.title) },
+  // 设置周期后会申请订阅消息授权，桩里直接当作"用户拒绝"，不影响断言
+  requestSubscribeMessage(o) { if (o && o.fail) o.fail({ errMsg: 'stub: not supported' }) },
   getWindowInfo() { return { statusBarHeight: 20 } },
   createMapContext() { return { moveToLocation() {} } }
 }
