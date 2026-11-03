@@ -135,6 +135,21 @@
 				</view>
 			</view>
 
+			<view wx:if="{{sheetMode == 'reject'}}">
+				<view class="reject-head">
+					<view class="reject-badge">
+						<text class="reject-badge-t">凭证未通过</text>
+					</view>
+				</view>
+				<view class="hint-box">
+					<text class="hint-t">{{result.comment}}</text>
+				</view>
+				<text class="result-detail">{{result.detail}}</text>
+				<view class="sheet-btn sheet-btn-main" bindtap="retryProof">
+					<text class="sheet-btn-t sheet-btn-t-white">换一张凭证重试</text>
+				</view>
+			</view>
+
 			<view wx:if="{{sheetMode == 'advice'}}">
 				<text class="sheet-title">AI 日程碳管家</text>
 				<text class="sheet-sub">基于你今天的日程与任务完成情况</text>

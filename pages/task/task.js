@@ -429,6 +429,18 @@ Page({
         return
       }
       that.stopDots()
+      // 云端判不通过：不给积分，走驳回态，让用户换一张凭证
+      if (r.passed === false) {
+        that.setData({
+          result: {
+            carbonSavedG: '0',
+            comment: r.comment || '这张凭证还不足以证明低碳行为已经发生',
+            detail: r.detail || ''
+          },
+          sheetMode: 'reject'
+        })
+        return
+      }
       that.setData({
         result: {
           carbonSavedG: r.carbonSavedG.toFixed(0),
@@ -437,6 +449,17 @@ Page({
         },
         sheetMode: 'result'
       })
+    })
+  },
+
+  /** 驳回后重来：清掉这次的凭证，回到任务弹层重新拍 */
+  retryProof() {
+    this.setData({
+      sheetMode: 'task',
+      proofThumb: '',
+      proofText: '',
+      proofUrl: '',
+      result: { carbonSavedG: '0', comment: '', detail: '' }
     })
   },
 

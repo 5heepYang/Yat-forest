@@ -85,7 +85,6 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
       proofText: proofText || '',
       imageUrl: img
     }, function (r) {
-      // 1.0 演示口径：云端判不通过也回退本地通过，保证演示链路不断
       if (r && r.passed && Number(r.carbonSavedG) > 0) {
         cb({
           passed: true,
@@ -93,9 +92,20 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
           comment: r.comment || '',
           detail: '云端核验：' + (r.detail || '视觉模型凭证判定通过')
         })
-      } else {
-        localVerify(taskTitle, basePoints, proofText, cb)
+        return
       }
+      if (r && r.passed === false) {
+        // 云端明确判定不通过：透传驳回，让用户换凭证重拍，不再假装通过
+        cb({
+          passed: false,
+          carbonSavedG: 0,
+          comment: r.comment || '这张凭证还不足以证明低碳行为已经发生',
+          detail: '云端核验：' + (r.detail || '凭证未通过判定')
+        })
+        return
+      }
+      // 云端没给出明确结论（字段缺失/为空）：退回本地判定，保证流程不断
+      localVerify(taskTitle, basePoints, proofText, cb)
     }, function (reason) {
       console.warn('[ai] verify 云端降级：', reason)
       localVerify(taskTitle, basePoints, proofText, cb)
