@@ -296,18 +296,15 @@ function syncCollection(name, docs, uid) {
        *
        * 之前这里见 stale 就 remove，结果换号重登后留下了别的 openid 的文档，
        * 客户端按"仅创建者可读写"去删会报 -502001，每次启动刷一条警告（无害但很吵）。
-       * 云函数以管理员身份写的文档不带 _openid，客户端同样删不掉。
        *
-       * 判据：这个文档的 _openid 必须是本次"要保留"的文档里出现过的 openid。
-       * 那些文档一定是我的（能读到、又要继续写），所以删同 openid 的兄弟文档不会被拒。
-       * 剩下的脏数据不在这里硬删，交给 actions 的 resetDemoData 以管理员身份清。
+       * 现在的判据：whoami 取到真实 openid 时严格按它匹配（最稳，不会有 -502001）；
+       * 没取到时 rows 本身来自按 openid 过滤的查询，可放心删。
+       * 注意不能只用"本次要保留的文档的 openid 集合"当判据——
+       * 快照把某个集合全清空时 keepId 为空，会一条都删不掉（dbtest S4 抓到过）。
        */
-      const ownOpenids = {}
-      rows.forEach(function (r) {
-        if (keepId[r._id] && r._openid) ownOpenids[r._openid] = true
-      })
       const stale = rows.filter(function (r) {
-        return !keepId[r._id] && r._openid && ownOpenids[r._openid]
+        if (keepId[r._id] || !r._openid) return false
+        return myOpenid ? r._openid === myOpenid : true
       })
       if (!stale.length) return { written: written, failed: failed, removed: 0 }
 

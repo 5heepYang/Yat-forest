@@ -90,7 +90,7 @@ function check(label, cond, detail) {
   wipeCloud()
   const s1 = await db.pull()
   check('trees 0 条（云端不播种演示树，等真实导入）', countOf('trees') === 0, '实际 ' + countOf('trees'))
-  check('tasks 4 条', countOf('tasks') === 4, '实际 ' + countOf('tasks'))
+  check('tasks 0 条（新号不再灌示例日程）', countOf('tasks') === 0, '实际 ' + countOf('tasks'))
   check('state.user 存在', !!(s1 && s1.user && s1.user.userId), JSON.stringify(s1 && s1.user))
   console.log('  写入 ' + stats.writes + ' 次 / 删除 ' + stats.removes + ' 次')
 
@@ -100,7 +100,7 @@ function check(label, cond, detail) {
   await db.save(s1, ['tasks'])
   check('只产生 1 次写入', stats.writes === 1, '实际 ' + stats.writes)
   check('没有删除动作', stats.removes === 0, '实际 ' + stats.removes)
-  check('tasks 变成 5 条', countOf('tasks') === 5, '实际 ' + countOf('tasks'))
+  check('tasks 变成 1 条', countOf('tasks') === 1, '实际 ' + countOf('tasks'))
 
   console.log('===== S3 重复保存同样内容：应零写入 =====')
   reset()
@@ -113,9 +113,15 @@ function check(label, cond, detail) {
   await db.save(s1, ['tasks'])
   check('零写入', stats.writes === 0, '实际 ' + stats.writes)
   check('只删 1 条', stats.removes === 1, '实际 ' + stats.removes)
-  check('tasks 回到 4 条', countOf('tasks') === 4, '实际 ' + countOf('tasks'))
+  check('tasks 回到 0 条', countOf('tasks') === 0, '实际 ' + countOf('tasks'))
 
   console.log('===== S5 旧随机 _id 文档迁移：不得插出重复 =====')
+  // 新号不再灌示例日程，自己造一份带 taskId 的正常文档，再改成随机 _id 模拟老数据
+  s1.tasks.push({
+    taskId: 'task_201', userId: s1.user.userId, date: '11-03', slot: '09:00',
+    title: '标准标题', desc: 'x', basePoints: 20, done: false, carbonSavedG: 0
+  })
+  await db.save(s1, ['tasks'])
   reset()
   const bag = store.tasks
   const victim = Array.from(bag.values()).find(d => d.taskId === 'task_201')
@@ -152,10 +158,18 @@ function check(label, cond, detail) {
   reset()
   OPENID = 'openid_B'
   const s2 = await db.pull()
+  const aTasksBefore = countOf('tasks')
+  // B 自己加一条同名日程（验证同名不会覆盖 A 的文档）
+  s2.tasks.push({
+    taskId: 'task_201', userId: s2.user.userId, date: '11-03', slot: '09:00',
+    title: 'B 的日程', desc: 'x', basePoints: 20, done: false, carbonSavedG: 0
+  })
+  await db.save(s2, ['tasks'])
   const rowsB = Array.from(store.tasks.values()).filter(d => d.userId === s2.user.userId)
   const rowsA = Array.from(store.tasks.values()).filter(d => d.userId !== s2.user.userId)
-  check('B 用户有自己的 4 条日程', rowsB.length === 4, '实际 ' + rowsB.length)
-  check('A 用户数据未被覆盖', rowsA.length === 7, '实际 ' + rowsA.length)
+  check('B 用户注册了独立档案', !!(s2 && s2.user && s2.user.userId), JSON.stringify(s2 && s2.user))
+  check('B 的日程只写进自己的桶', rowsB.length === 1, '实际 ' + rowsB.length)
+  check('A 用户数据未被覆盖', rowsA.length === aTasksBefore, rowsA.length + ' / ' + aTasksBefore)
   check('B 的文档 _id 带自己 userId 前缀', rowsB.every(d => d._id.indexOf(s2.user.userId) === 0), rowsB.map(d => d._id).join(','))
   check('task_201 在两个用户下各一份', Array.from(store.tasks.values()).filter(d => d.taskId === 'task_201').length === 2)
 

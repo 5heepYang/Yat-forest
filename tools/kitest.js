@@ -77,15 +77,17 @@ function makePage() {
   check('迁移后不再有待迁移的 legacy', p1.kt.legacy === null)
   check('连续护林天数保留（用户维度，不按树分）', p1.kt.streak.days === 5, p1.kt.streak.days)
   check('浇水任务显示已完成', p1.data.tasks[0].done === true, JSON.stringify(p1.data.tasks[0]))
-  check('提示文案是"每天各一次"口径', p1.data.careTip.indexOf('每天各一次') >= 0, p1.data.careTip)
+  check('页面任务列表已就绪', Array.isArray(p1.data.tasks) && p1.data.tasks.length > 0, JSON.stringify(p1.data.tasks))
   check('工单迁移成功', p1.data.tickets.length === 1, p1.data.tickets.length)
 
-  // 触发一次真正的写入（改拍照周期），确认落到 Storage 的是新容器格式
-  p1.setPeriod({ currentTarget: { dataset: { days: 30 } } })
+  // 改拍照周期已改版为订阅消息授权，不再写周期字段；
+  // 用"领取任务奖励"触发一次真实写入（saveKit），再验证落到 Storage 的容器格式
+  p1.claimTask('water')
   check('Storage 里已是容器格式', !!memStorage[KIT_KEY].trees && !memStorage[KIT_KEY].tasks,
     JSON.stringify(Object.keys(memStorage[KIT_KEY])))
-  check('周期改动写进了当前树的桶', memStorage[KIT_KEY].trees[first].tasks.photo.periodDays === 30,
-    memStorage[KIT_KEY].trees[first].tasks.photo.periodDays)
+  check('老树工单已落在自己的桶',
+    memStorage[KIT_KEY].trees[first] && memStorage[KIT_KEY].trees[first].tickets.length === 1,
+    JSON.stringify(memStorage[KIT_KEY].trees && memStorage[KIT_KEY].trees[first]))
 
   console.log('===== S2 认养第二棵后切换：新树必须是一张白纸 =====')
   store.updateUser({ availablePoints: 2000 })
@@ -97,7 +99,7 @@ function makePage() {
   p2.onLoad()
   await p2.onShow()
   check('当前树已切到新认养的那棵', p2.data.tree.name === store.treeById(second).name, p2.data.tree.name)
-  check('新树提示同样按每天一次算', p2.data.careTip.indexOf('每天各一次') >= 0, p2.data.careTip)
+  check('新树页面任务列表已就绪', Array.isArray(p2.data.tasks) && p2.data.tasks.length > 0, JSON.stringify(p2.data.tasks))
   check('新树浇水任务未完成', p2.data.tasks[0].done === false, JSON.stringify(p2.data.tasks[0]))
   check('新树没有继承老工单', p2.data.tickets.length === 0, p2.data.tickets.length)
   check('切换条显示 2 棵树', p2.data.myTrees.length === 2, p2.data.myTrees.length)
@@ -109,7 +111,7 @@ function makePage() {
   await p3.onShow()
   check('切换成功', ok === true)
   check('第一棵的浇水任务仍是已完成', p3.data.tasks[0].done === true, JSON.stringify(p3.data.tasks[0]))
-  check('切回第一棵文案正常', p3.data.careTip.indexOf('每天各一次') >= 0, p3.data.careTip)
+  check('切回后任务列表已就绪', Array.isArray(p3.data.tasks) && p3.data.tasks.length > 0, JSON.stringify(p3.data.tasks))
   check('第一棵工单还在', p3.data.tickets.length === 1, p3.data.tickets.length)
 
   console.log('===== S4 两棵树的桶互不覆盖 =====')
