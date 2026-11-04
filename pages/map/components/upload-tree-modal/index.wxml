@@ -2,7 +2,7 @@
 	<view class="um-mask {{anim ? 'um-mask-on' : ''}}" bindtap="onMaskTap"></view>
 
 	<!-- 结果态：AI 识别完生成的树卡片 -->
-	<view wx:if="{{result}}" class="um-card um-card-result {{anim ? 'um-on' : ''}}">
+	<view wx:if="{{result}}" class="um-card {{anim ? 'um-on' : ''}}">
 		<view class="um-head">
 			<text class="um-title">{{result.ok ? '树卡片' : '没认出是树'}}</text>
 			<view class="um-close" bindtap="onResultClose">
