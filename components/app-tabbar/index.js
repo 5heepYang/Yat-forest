@@ -38,6 +38,14 @@ Component({
       if (key === this.data.active) {
         return
       }
+      // 记录切页方向：目标页 onShow 时播放入场动画（左移就左进、右移就右进）
+      const order = ['map', 'task', 'tree', 'me']
+      const from = order.indexOf(this.data.active)
+      const to = order.indexOf(key)
+      const app = getApp()
+      if (app && app.globalData) {
+        app.globalData.tabAnim = (from >= 0 && to >= 0 && to > from) ? 'right' : 'left'
+      }
       wx.reLaunch({ url: path })
     }
   }

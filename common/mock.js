@@ -28,12 +28,15 @@ function mockUser() {
 
 /**
  * 新用户注册用：云端查不到"我的"文档时，用这个开号。
- * 初始送 520 积分 + 120 护林币，保证新用户进来就能认养、浇水、兑换，演示不冷场。
+ * 零起点：0 碳积分、0 护林币、0 成长值，日程也是空的（由用户自己添加）。
+ * 首棵树认养免费，所以零积分也能开始养树。
  */
 function newUser() {
   const u = mockUser()
   u.userId = 'u_' + Date.now().toString(36) + Math.floor(Math.random() * 1000)
   u.nickname = '护林员' + Math.floor(1000 + Math.random() * 9000)
+  u.availablePoints = 0
+  u.coins = 0
   u.totalGrowthScore = 0
   u.badgeCount = 0
   u.days = 1

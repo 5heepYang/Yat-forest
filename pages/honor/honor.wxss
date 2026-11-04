@@ -388,7 +388,7 @@
 	margin-top: 8px;
 }
 
-/* 名称行：昵称在左、info 图标在右（自己的主页；访客态只显示昵称） */
+/* 名称行：昵称在左、编辑资料入口在右（自己的主页；访客态只显示昵称） */
 .name-row {
 	display: flex;
 	flex-direction: row;
@@ -401,22 +401,23 @@
 	margin-top: 0;
 }
 
-.info-btn {
+.edit-btn {
 	display: flex;
-	flex-direction: column;
-	width: 24px;
-	height: 24px;
-	border-radius: 12px;
-	background-color: #E5EAE2;
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
+	height: 22px;
+	padding-left: 10px;
+	padding-right: 10px;
+	border-radius: 11px;
+	background-color: #EAF4E6;
 }
 
-.info-t {
-	font-size: 14px;
-	font-weight: bold;
-	color: #9AA394;
-	font-family: HYSansBold;
+.edit-t {
+	font-size: 10px;
+	color: #4E8A6B;
+	letter-spacing: 0.3px;
+	font-family: HYSans;
 }
 
 .back-pill {
@@ -490,7 +491,7 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* 勋章馆入口 / 签名输入 / 勋章馆与兑换记录弹层 / 商品换行               */
+/* 勋章馆入口 / 勋章馆与兑换记录弹层 / 商品换行                       */
 /* ------------------------------------------------------------------ */
 
 .badge-head {
@@ -503,17 +504,6 @@
 .more-t {
 	font-size: 10px;
 	color: #9AA394;
-	font-family: HYSans;
-}
-
-.form-area {
-	height: 72px;
-	background-color: #F6FAF2;
-	border-radius: 12px;
-	padding: 10px 12px 10px 12px;
-	margin-top: 7px;
-	font-size: 13px;
-	color: #22302A;
 	font-family: HYSans;
 }
 
@@ -603,75 +593,6 @@
 }
 
 /* 退出登录：红边描线按钮，与上方面板（16px 边距）同宽 */
-/* 关于弹层：经济闭环图 */
-.flow-box {
-	display: flex;
-	flex-direction: column;
-	background-color: #F0F7EC;
-	border-radius: 14px;
-	padding: 12px;
-	margin-top: 12px;
-}
-
-.flow-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding-top: 5px;
-	padding-bottom: 5px;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
-	border-bottom-color: #E2EDDC;
-}
-
-.flow-from {
-	font-size: 11px;
-	font-weight: bold;
-	color: #2E6B4F;
-	font-family: HYSansBold;
-	flex-shrink: 0;
-}
-
-.flow-arrow {
-	font-size: 10px;
-	color: #9DC9AA;
-	margin-left: 6px;
-	margin-right: 6px;
-	font-family: HYSans;
-	flex-shrink: 0;
-}
-
-.flow-to {
-	font-size: 11px;
-	color: #5C6B60;
-	font-family: HYSans;
-}
-
-/* 关于弹层的说明分节 */
-.about-sec {
-	display: flex;
-	flex-direction: column;
-	background-color: #F6FAF2;
-	border-radius: 14px;
-	padding: 12px;
-	margin-top: 12px;
-}
-
-.about-t {
-	font-size: 12px;
-	font-weight: bold;
-	color: #2E6B4F;
-	font-family: HYSansBold;
-}
-
-.about-d {
-	font-size: 11px;
-	color: #5C6B60;
-	line-height: 18px;
-	margin-top: 5px;
-	font-family: HYSans;
-}
-
 .logout-btn {
 	display: flex;
 	flex-direction: column;
@@ -717,7 +638,7 @@
 	flex-direction: column;
 	background-color: #FFFFFF;
 	border-radius: 26px;
-	padding: 20px 18px 24px 18px;
+	padding: 20px 18px calc(24px + env(safe-area-inset-bottom)) 18px;
 }
 
 .sheet-title {
@@ -780,71 +701,6 @@
 
 .sheet-btn-t-deep {
 	color: #2E6B4F;
-}
-
-/* 我的 ID：调试/配白名单用，故意做得像脚注 */
-.dev-userid {
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	margin-top: 14px;
-	padding: 6px;
-}
-
-.dev-userid-t {
-	font-size: 10px;
-	color: #B4BCAF;
-	font-family: HYSans;
-}
-
-/* 清空所有用户数据：比重置更狠，红色加重提醒 */
-.wipe-entry {
-	display: flex;
-	flex-direction: column;
-	margin-top: 18px;
-	padding: 12px;
-	border-radius: 12px;
-	background-color: #C0392B;
-}
-
-.wipe-entry-t {
-	font-size: 12px;
-	font-weight: bold;
-	color: #FFFFFF;
-	font-family: HYSansBold;
-}
-
-.wipe-entry-d {
-	font-size: 10px;
-	color: #F2C6BF;
-	margin-top: 4px;
-	line-height: 15px;
-	font-family: HYSans;
-}
-
-/* 演示数据重置入口：故意做得不起眼，只有管理员看得到 */
-.reset-entry {
-	display: flex;
-	flex-direction: column;
-	margin-top: 18px;
-	padding: 12px;
-	border-radius: 12px;
-	background-color: #FDF3F1;
-}
-
-.reset-entry-t {
-	font-size: 12px;
-	font-weight: bold;
-	color: #C0392B;
-	font-family: HYSansBold;
-}
-
-.reset-entry-d {
-	font-size: 10px;
-	color: #B4877F;
-	margin-top: 4px;
-	line-height: 15px;
-	font-family: HYSans;
 }
 
 .ok-head {

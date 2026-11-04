@@ -17,7 +17,7 @@
  * 判断依据：wx.getAccountInfoSync().miniProgram.appId === 'touristappid'
  * 就是测试号，直接走本地模式，不去碰 wx.cloud（碰了会报错刷屏）。
  */
-const { mockUser, newUser, mockTrees, mockTasks, mockGoods } = require('./mock')
+const { mockUser, newUser, mockTrees, mockGoods } = require('./mock')
 const { stamp } = require('./util')
 
 const STATE_KEY = 'ec_state_v1'
@@ -86,7 +86,7 @@ function seedState() {
   return {
     user: mockUser(),
     trees: mockTrees(),
-    tasks: mockTasks(),
+    tasks: [],
     logs: [
       {
         logId: 'log_501', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage1.png',
@@ -155,11 +155,13 @@ const PERSONAL = {
   records: true
 }
 
-/** 生成某用户的初始日程（每人自己的低碳日程，内容同一套模板） */
+/**
+ * 某用户的初始日程。
+ * 现在固定为空：日程只算用户自己添加上传的那几条，不再给新号灌模板。
+ * （函数保留是为了兼容旧调用方/旧数据脚本，返回值恒为 []）
+ */
 function personalTasks(userId) {
-  return mockTasks().map(function (t) {
-    return Object.assign({}, t, { userId: userId })
-  })
+  return []
 }
 
 /** 小程序端单次最多取 100 条，多了要翻页 */
@@ -389,17 +391,14 @@ function pullCloudInner() {
     if (!goods.length) jobs.push(['goods', seed.goods])
 
     // —— 个人数据：查不到"我的"文档 = 第一次来，静默注册（openid 自动建档）——
-    // 每个新 openid 都开干净新号：随机昵称、初始积分、没有树
+    // 每个新 openid 都开干净新号：随机昵称、0 积分 0 币、没有树；
+    // 日程也不再灌模板 —— 只有用户自己添加的才算，空日程页显示空态。
     let me = users[0]
     if (!me) {
       me = newUser()
       console.warn('[db] 未查到我的档案，注册新号（openid 前 10 位：' + myOpenid.slice(0, 10) + '）。' +
         '若这不是首次进入，说明按 openid 查档案失败，把这条日志发给开发者')
       jobs.push(['users', [me]])
-      jobs.push(['tasks', personalTasks(me.userId)])
-    } else if (!tasks.length) {
-      // 老用户但日程被清了，补一份
-      jobs.push(['tasks', personalTasks(me.userId)])
     }
 
     return Promise.all(jobs.map(function (j) {
@@ -411,7 +410,6 @@ function pullCloudInner() {
       // 写入完成后再拼 state，新写入的文档这里直接用内存值兜底
       // 注意 trees 不兜底：云端没树就是没树（等真实数据导入）
       if (!users.length) users = [me]
-      if (!tasks.length) tasks = personalTasks(me.userId)
       if (!goods.length) goods = seed.goods
 
       return buildState(users, trees, tasks, logs, goods, records)

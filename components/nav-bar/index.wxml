@@ -5,7 +5,7 @@
 			<text class="nav-title">{{title}}</text>
 			<text class="nav-sub">{{subtitle}}</text>
 		</view>
-		<view class="nav-right">
+		<view class="nav-right" style="margin-right:{{rightPad}}px">
 			<slot></slot>
 		</view>
 	</view>

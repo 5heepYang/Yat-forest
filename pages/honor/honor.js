@@ -1,9 +1,8 @@
 const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
-const { fmt, toast, resolveCloudUrl } = require('../../common/util')
-const { BUILD_TAG } = require('../../common/config')
-const { speciesArt, treeCover } = require('../../common/speciesArt')
+const { fmt, toast, resolveCloudUrl, pageEnter, switchTabAnim, clearTabPages, setTabBarHidden } = require('../../common/util')
+const { speciesArt } = require('../../common/speciesArt')
 
 function badgeClass(b) {
   if (!b.unlocked) return 'badge-circle badge-off'
@@ -17,8 +16,8 @@ function goodsBoxClass(itemId) {
 }
 
 /** 树列表卡片用的展示字段（wxml 不能调函数，这里算好） */
-/** 首帧不要直接吃 cloud://：渲染层会先尝试加载并失败，留下一条红字。
- *  先用本地占位图，拿到 https 后再替换（后续 fixTreeImages / fixAvatar 负责）。 */
+/** 头像首帧不要直接吃 cloud://：渲染层会先尝试加载并失败，留下一条红字。
+ *  先用本地占位图，拿到 https 后再替换（fixAvatar 负责）。 */
 function safeImg(url, fallback) {
   const s = String(url || '')
   if (s === '' ) return fallback
@@ -30,7 +29,8 @@ function decorateTrees(list) {
     return {
       treeId: t.treeId,
       name: t.name,
-      img: safeImg(treeCover(t), speciesArt(t.species)),
+      // 卡片统一用按树种生成的卡通插画；用户上传的实拍图只在点击预览时看
+      img: speciesArt(t.species),
       species: t.species,
       rawImg: t.image || '',
       level: t.level.toFixed(0),
@@ -82,8 +82,8 @@ Page({
     currentGoods: null,
     codeText: '',
     nicknameInput: '',
-    bioInput: '',
-    avatarSheet: ''
+    avatarSheet: '',
+    navAnim: ''
   },
 
   /**
@@ -96,22 +96,6 @@ Page({
     if (!a || String(a).indexOf('cloud://') !== 0) return
     resolveCloudUrl(a).then(function (u) {
       if (u && u !== a) that.setData({ avatar: u })
-    })
-  },
-
-  /** 树卡图片若是 cloud://，换成 https 临时地址（权限受限时由云函数代取） */
-  fixTreeImages() {
-    const list = this.data.treeList || []
-    const that = this
-    list.forEach(function (it, i) {
-      const src = it.rawImg || it.img
-      if (!src || String(src).indexOf('cloud://') !== 0) return
-      resolveCloudUrl(src).then(function (u) {
-        if (!u || u === src) return
-        const patch = {}
-        patch['treeList[' + i + '].img'] = u
-        that.setData(patch)
-      })
     })
   },
 
@@ -129,10 +113,25 @@ Page({
   },
 
   async onShow() {
+    pageEnter(this, 'me')
+    const tb = this.getTabBar && this.getTabBar()
+    if (tb && tb.syncActive) tb.syncActive()
+    // 弹层开着的页面重新显示时，tabBar 继续保持隐藏（关闭弹层时才恢复）
+    setTabBarHidden(this, this.data.sheetMode !== '')
+    const app = getApp()
+    const g = (app && app.globalData) || {}
+    // 地图页「查看认养人」：tab 页不能带参数，改用 globalData 交接访客 id（消费即清）
+    let incoming = ''
+    if (g.visUserId) {
+      incoming = g.visUserId
+      g.visUserId = ''
+    }
     await store.ready()
-    if (this.visUserId !== '' && this.visUserId !== store.state.user.userId) {
+    if (incoming !== '' && incoming !== store.state.user.userId) {
+      this.visUserId = incoming
       this.loadVisitor()
     } else {
+      this.visUserId = ''
       this.refresh()
     }
   },
@@ -228,17 +227,10 @@ Page({
       totalCarbonText: fmt(totalCarbon) + ' g',
       recordText: recordText,
       recordList: recordList,
-      topGoods: goods,
-      // 只有演示管理员能看到「重置演示数据」入口（真正的权限校验在云函数里）
-      isAdmin: store.isAdmin(),
-      // 调试用：报 userId 用（加白名单时需要）
-      myUserId: st.user.userId,
-      myOpenid: '',
-      buildTag: BUILD_TAG
+      topGoods: goods
     })
 
     this.fixAvatar()
-    this.fixTreeImages()
   },
 
   /**
@@ -301,7 +293,6 @@ Page({
       })
 
       that.fixAvatar()
-      that.fixTreeImages()
     })
   },
 
@@ -323,15 +314,14 @@ Page({
     if (this.data.viewing) return
     const id = e && e.currentTarget && e.currentTarget.dataset ? e.currentTarget.dataset.id : ''
     if (id) store.selectTree(id)
-    wx.reLaunch({ url: '/pages/tree/tree' })
+    switchTabAnim('/pages/tree/tree', 'tree', 'left')
   },
 
   goBack() {
-    wx.navigateBack({
-      fail: function () {
-        wx.reLaunch({ url: '/pages/map/map' })
-      }
-    })
+    // 「我的」是 tab 页，访客档案在本页内切换：返回 = 回到自己的主页
+    this.visUserId = ''
+    this.setData({ viewing: false })
+    this.refresh()
   },
 
   onLogout() {
@@ -343,6 +333,8 @@ Page({
       success: function (res) {
         if (!res.confirm) return
         auth.clearLogin()
+        // 四页会随 reLaunch 销毁，清掉供切页动画用的页面引用，避免指向已销毁实例
+        clearTabPages()
         wx.reLaunch({ url: '/pages/login/login' })
       }
     })
@@ -363,6 +355,7 @@ Page({
     }
     if (!g) return
 
+    setTabBarHidden(this, true)
     this.setData({
       currentGoods: {
         itemId: g.itemId,
@@ -390,6 +383,7 @@ Page({
   },
 
   closeSheet() {
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '' })
   },
 
@@ -472,7 +466,7 @@ Page({
       try { wx.removeStorageSync('tree_kit_v1') } catch (e) { /* 没有就不清 */ }
       store.resetForNewUser()
       wx.hideLoading()
-      wx.reLaunch({ url: '/pages/map/map' })
+      switchTabAnim('/pages/map/map', 'map', 'left')
       return
     }
 
@@ -491,18 +485,7 @@ Page({
     // 重新拉取：云端查不到档案 → 自动注册全新账号（护林员XXXX、初始积分）
     await store.reload()
     auth.markLoggedIn()
-    wx.reLaunch({ url: '/pages/map/map' })
-  },
-
-  /** 复制身份信息（userId + openid），发给开发者排查"每次换号"问题用 */
-  onCopyUserId() {
-    const uid = this.data.myUserId || (store.state.user && store.state.user.userId) || ''
-    const oid = this.data.myOpenid || ''
-    const text = 'userId: ' + uid + '\nopenid: ' + (oid || '未取到') + '\n时间: ' + new Date().toLocaleString()
-    wx.setClipboardData({
-      data: text,
-      success: function () { toast('身份信息已复制，直接粘贴发送即可') }
-    })
+    switchTabAnim('/pages/map/map', 'map', 'left')
   },
 
   async doResetDemo() {
@@ -523,39 +506,13 @@ Page({
 
   /** 勋章馆弹层：全部勋章 + 点亮状态 + 获取条件 */
   openBadges() {
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'badges' })
-  },
-
-  /** 关于弹层：积分/成长值/护林币的获得与使用说明 */
-  openAbout() {
-    this.setData({ sheetMode: 'about', myOpenid: '' })
-    // 诊断：把云端眼里的 openid 显示出来。同一微信号每次进入应完全一致，
-    // 变了就说明扫码的账号在变，而不是注册逻辑的锅
-    const that = this
-    // 10 秒兜底：callFunction 被挂起（最常见是工具开着"云函数本地调试"，
-    // 真机的调用被路由到电脑本地连不通）时明确提示，别让人对着"获取中"干等
-    let timedOut = false
-    const timer = setTimeout(function () {
-      timedOut = true
-      if (that._alive) {
-        that.setData({ myOpenid: '获取超时：云端没响应。检查工具是否开着「云函数本地调试」，关掉后重新进入' })
-      }
-    }, 10000)
-    store.cloudWhoami().then(function (r) {
-      clearTimeout(timer)
-      if (timedOut || !that._alive) return
-      if (r && r.ok) {
-        that.setData({ myOpenid: r.openid })
-      } else {
-        // 失败也要说清原因：最常见是 actions 没重传（没有 whoami 接口）
-        const why = (r && (r.msg || r.detail)) || '未知原因'
-        that.setData({ myOpenid: '获取失败：' + why })
-      }
-    })
   },
 
   /** 兑换记录弹层：逐条展示商品名 + 凭证码 */
   openRecords() {
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'records' })
   },
 
@@ -570,13 +527,13 @@ Page({
     })
   },
 
-  /** 点昵称 → 改资料弹层（改名/换头像/签名；登录页只一键进入，资料在这补） */
+  /** 编辑资料弹层：只改头像和昵称 */
   openProfile() {
     this.avatarTemp = ''
+    setTabBarHidden(this, true)
     this.setData({
       sheetMode: 'profile',
       nicknameInput: store.state.user.nickname,
-      bioInput: store.state.user.bio || '',
       avatarSheet: store.state.user.avatar
     })
   },
@@ -593,30 +550,27 @@ Page({
     this.setData({ nicknameInput: e.detail.value })
   },
 
-  onBioInput(e) {
-    this.setData({ bioInput: e.detail.value })
-  },
-
   saveProfile() {
     const nick = (this.data.nicknameInput || '').trim()
     if (!nick) {
       toast('先写个名字吧')
       return
     }
-    const bio = (this.data.bioInput || '').trim()
 
     const that = this
     const finish = function (avatarUrl) {
       if (store.isCloud()) {
-        store.cloudUpdateProfile({ nickname: nick, avatar: avatarUrl, bio: bio }).then(function (r) {
-          that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl, heroLine2: bio })
+        store.cloudUpdateProfile({ nickname: nick, avatar: avatarUrl }).then(function (r) {
+          setTabBarHidden(that, false)
+          that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl })
           toast(r && r.ok ? '改好了' : ((r && r.msg) || '保存失败'))
           that.refresh()
         })
         return
       }
-      store.updateUser({ nickname: nick, avatar: avatarUrl, bio: bio })
-      that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl, heroLine2: bio })
+      store.updateUser({ nickname: nick, avatar: avatarUrl })
+      setTabBarHidden(that, false)
+      that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl })
       toast('改好了')
     }
 

@@ -1,6 +1,7 @@
 const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
+const { switchTabAnim } = require('../../common/util')
 
 Page({
   data: {
@@ -15,7 +16,7 @@ Page({
 
     // 已登录的老用户直接进首页，登录页只拦新用户和退出登录的人
     if (auth.isLoggedIn()) {
-      wx.reLaunch({ url: '/pages/map/map' })
+      switchTabAnim('/pages/map/map', 'map', '')
     }
   },
 
@@ -38,7 +39,7 @@ Page({
             auth.markResetDone()
           }
           auth.markLoggedIn()
-          wx.reLaunch({ url: '/pages/map/map' })
+          switchTabAnim('/pages/map/map', 'map', '')
         })
       }
     })

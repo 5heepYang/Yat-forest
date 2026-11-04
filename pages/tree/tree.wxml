@@ -1,9 +1,5 @@
-<view class="page">
-	<nav-bar title="我的林地" subtitle="{{navSubtitle}}">
-		<view class="icon-btn" bindtap="onBell">
-			<image class="icon-18" src="/static/ui/bell.png"></image>
-		</view>
-	</nav-bar>
+<view class="page {{navAnim}}">
+	<nav-bar title="我的林地" subtitle="{{navSubtitle}}"></nav-bar>
 
 	<scroll-view class="body" scroll-y>
 		<!-- 我认养的多棵树：只有一棵时不显示切换条 -->
@@ -50,24 +46,25 @@
 				<view class="gbar-in" style="{{growthBarStyle}}"></view>
 			</view>
 
-			<view class="coin-row">
-				<view class="coin-pill">
-					<image class="coin-ico" src="/static/ui/badge-medal.png"></image>
-					<text class="coin-t">护林币 ×{{coinsText}}</text>
-				</view>
-				<text class="coin-hint">浇水 +2 · 施肥 +5，可在「我的」页换周边</text>
-			</view>
-
 			<view class="act-row">
-				<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onWater">
-					<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
+				<view class="act-col">
+					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onWater">
+						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
+					</view>
+					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{waterNote}}</text>
 				</view>
-				<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onFertilize">
-					<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '施肥'}}</text>
+				<view class="act-col">
+					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onFertilize">
+						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '施肥'}}</text>
+					</view>
+					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{fertNote}}</text>
 				</view>
-			</view>
-			<view class="care-tip-row">
-				<text class="care-tip">{{careTip}}</text>
+				<view class="act-col">
+					<view class="act-btn {{photoDone ? 'act-btn-off' : ''}}" bindtap="onPhotoAct">
+						<text class="act-t {{photoDone ? 'act-t-off' : ''}}">生长实拍</text>
+					</view>
+					<text class="act-note {{photoDone ? 'act-t-off' : ''}}">{{photoNote}}</text>
+				</view>
 			</view>
 		</view>
 
@@ -75,22 +72,19 @@
 		<view class="task-card">
 			<view class="sec-head">
 				<text class="sec-title">成长任务</text>
-				<text class="sec-extra">{{pointsText}} · 护林币 {{coinsText}} · {{dailyText}}</text>
-			</view>
-			<view class="streak-row">
-				<text class="streak-l">{{streakText}}</text>
-				<text class="streak-r">{{streakHint}}</text>
 			</view>
 			<view class="trow {{item.done ? 'trow-done' : ''}}" wx:for="{{tasks}}" wx:key="kind" bindtap="onTask" data-kind="{{item.kind}}">
 				<view class="tdot {{item.done ? 'tdot-done' : ''}}"></view>
 				<view class="tmain">
 					<text class="ttitle {{item.done ? 'ttitle-done' : ''}}">{{item.title}}</text>
-					<text class="tsub">{{item.sub}}</text>
-					<view class="tbar" wx:if="{{item.kind == 'photo'}}">
-						<view class="tbar-in" style="{{photoBar}}"></view>
-					</view>
 				</view>
-				<text class="trew {{item.done ? 'trew-done' : ''}}">+{{item.reward}}</text>
+				<view
+					class="tclaim {{item.claimable ? 'tclaim-on' : (item.claimed ? 'tclaim-off' : 'tclaim-wait')}}"
+					catchtap="onClaim"
+					data-kind="{{item.kind}}"
+				>
+					<text class="tclaim-t">{{item.claimable ? '领取 +' + item.reward + ' 护林币' : (item.claimed ? '已领取' : '待完成')}}</text>
+				</view>
 			</view>
 		</view>
 
@@ -136,7 +130,6 @@
 			</view>
 			<view class="tl-acts">
 				<text class="tl-add-t" wx:if="{{photoCount > 3}}" bindtap="openAllLogs">全部 {{photoCount}}</text>
-				<text class="tl-add-t" bindtap="openUpload">＋ 上传</text>
 			</view>
 		</view>
 
@@ -168,24 +161,10 @@
 			</view>
 		</view>
 
-		<!-- 隐患入口 -->
-		<view class="hazard-card">
-			<view class="hz-ico-box">
-				<image class="hz-ico" src="/static/ui/camera.png"></image>
-			</view>
-			<view class="hz-left">
-				<text class="hz-title">树有异常？</text>
-				<text class="hz-sub">拍一张，AI 判断风险并通知后勤</text>
-			</view>
-			<view class="hz-btn" bindtap="openHazard">
-				<text class="hz-btn-t">拍照上报</text>
-			</view>
-		</view>
-
 		<view class="bottom-pad"></view>
 	</scroll-view>
 
-	<app-tabbar active="tree"></app-tabbar>
+	<view class="tabbar-holder"></view>
 
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
@@ -232,12 +211,9 @@
 			<!-- 上传实拍 -->
 			<view wx:if="{{sheetMode == 'upload'}}">
 				<text class="sheet-title">上传线下生长实拍</text>
-				<text class="sheet-sub">完成本周期任务可得 +50 护林币与 +30 成长</text>
+				<text class="sheet-sub">{{photoPeriodSub}} · 上传后可在成长任务里领取 +50 护林币与 +30 成长</text>
 				<view class="hint-box">
-					<text class="hint-t">建议每两周拍一张，完整记录它从春芽到枝繁叶茂的全过程。</text>
-				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="useSampleUpload">
-					<text class="sheet-btn-t sheet-btn-t-white">使用示例照片（演示）</text>
+					<text class="hint-t">{{photoPeriodSub}}，记录它的生长；系统会核对是不是同一棵树。</text>
 				</view>
 				<view class="sheet-btn sheet-btn-soft" bindtap="pickGrowthPhoto">
 					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
@@ -259,20 +235,6 @@
 				</scroll-view>
 				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">关闭</text>
-				</view>
-			</view>
-
-			<!-- 提醒周期 -->
-			<view wx:if="{{sheetMode == 'period'}}">
-				<text class="sheet-title">拍照提醒周期</text>
-				<text class="sheet-sub">到了周期，林地页会提醒你线下给它拍张照</text>
-				<view class="period-row">
-					<view class="popt {{item == photoPeriod ? 'popt-on' : ''}}" wx:for="{{periodOptions}}" wx:key="*this" bindtap="setPeriod" data-days="{{item}}">
-						<text class="popt-t {{item == photoPeriod ? 'popt-t-on' : ''}}">{{item}} 天</text>
-					</view>
-				</view>
-				<view class="hint-box">
-					<text class="hint-t">周期拉长可以减少打扰，但照片太少就看不出四季变化，建议 14 天。</text>
 				</view>
 			</view>
 		</view>

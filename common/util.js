@@ -128,4 +128,86 @@ function toast(msg) {
   })
 }
 
-module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl, resolveCloudUrl }
+/* ------------------------------------------------------------------ */
+/* tab 页常驻 + 切页入场动画                                             */
+/* switchTab 不销毁页面，切回时第一帧用的是上次离开时的 data；若等 onShow */
+/* 才挂动画类，会先正常显示一帧、再跳到动画起点（用户看到的一帧跳变）。   */
+/* 做法：点 tabBar 时先给目标页预置「暂停在 0% 帧」的动画类，切回首帧就是 */
+/* 动画起点，onShow 只负责解除暂停；类名交替两套等价 keyframes，保证重放。 */
+/* ------------------------------------------------------------------ */
+const TAB_PAGES = {}
+
+/** seq 奇数/偶数交替两套等价关键帧：computed animation 变化才会重放动画 */
+function animClass(dir, seq) {
+  const n = seq % 2 === 1 ? '1' : '2'
+  if (dir === 'right') return 'page-anim-right-' + n
+  if (dir === 'left') return 'page-anim-left-' + n
+  return 'page-anim-fade-' + n
+}
+
+/** 地图页含原生 map 组件：根节点 transform 会让原生层错位/闪烁，只做淡入 */
+function animDir(key, dir) {
+  return key === 'map' ? '' : (dir || '')
+}
+
+/** tabBar 点击前预置目标页动画；目标页实例还不存在时返回 false，由 onShow 兜底 */
+function armTabAnim(key, dir) {
+  const page = TAB_PAGES[key]
+  if (!page || !page.setData) return false
+  page._animSeq = (page._animSeq || 0) + 1
+  try {
+    page.setData({ navAnim: 'page-anim-paused ' + animClass(animDir(key, dir), page._animSeq) })
+  } catch (e) {
+    // 页面实例可能已经销毁（退出登录等 reLaunch）：丢掉旧引用，交给目标页 onShow 兜底
+    delete TAB_PAGES[key]
+    return false
+  }
+  return true
+}
+
+/** 退出登录等 reLaunch 场景：页面实例会销毁，清空注册表避免对已销毁页面 setData */
+function clearTabPages() {
+  Object.keys(TAB_PAGES).forEach(function (k) {
+    delete TAB_PAGES[k]
+  })
+}
+
+/** 页面 onShow 第一条调用：注册 tab 页实例 + 播放入场动画 */
+function pageEnter(page, key) {
+  if (key) TAB_PAGES[key] = page
+  const app = getApp()
+  const g = (app && app.globalData) || {}
+  const dir = animDir(key, g.tabAnim || '')
+  if (g.tabAnim) g.tabAnim = ''
+  const cur = page.data.navAnim || ''
+  // tabBar 已经预置了暂停态：首帧就是动画起点，这里只解除暂停让它播完
+  if (cur.indexOf('page-anim-paused') >= 0) {
+    const next = cur.replace('page-anim-paused', '').trim()
+    if (next) {
+      page.setData({ navAnim: next })
+      return
+    }
+  }
+  page._animSeq = (page._animSeq || 0) + 1
+  page.setData({ navAnim: animClass(dir, page._animSeq) })
+}
+
+/** 非 tabBar 触发的 switchTab（看认养人、认养成功跳林地等）：同样先预置动画，避免常驻页一帧跳 */
+function switchTabAnim(path, key, dir) {
+  armTabAnim(key, dir || '')
+  wx.switchTab({ url: path })
+}
+
+/**
+ * 弹层打开/关闭时隐藏/显示自定义 tabBar。
+ * 自定义 tabBar 由框架渲染在页面之上（页面内 z-index 盖不住），
+ * 弹层底部按钮会被挡，所以弹层期间直接隐藏。
+ */
+function setTabBarHidden(page, hidden) {
+  const tb = page && page.getTabBar && page.getTabBar()
+  if (tb && tb.setData) {
+    tb.setData({ hidden: !!hidden })
+  }
+}
+
+module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl, resolveCloudUrl, pageEnter, armTabAnim, switchTabAnim, clearTabPages, setTabBarHidden }

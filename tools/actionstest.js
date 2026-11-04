@@ -272,9 +272,26 @@ function treeDoc(treeId) {
 
 ;(async () => {
   console.log('===== 认养 =====')
+  // 首棵免费：先让 openid_B 名下没有树（临时释放原来归它的 t_broken），
+  // 它只有 50 分，按 300 收根本认不起，能成功就说明没扣分
+  db.trees.find(function (t) { return t.treeId === 't_broken' }).ownerId = ''
+  openid = 'openid_B'
   let r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112001' } })
+  check('没有树时首棵认养免费',
+    r.ok === true && userDoc('openid_B').availablePoints === 50,
+    r.msg + ' / 积分 ' + userDoc('openid_B').availablePoints)
+  // 还原现场：树释放回无主、t_broken 归属 B，后面 openid_A 继续走原有用例
+  const tmpFreeTree = db.trees.find(function (t) { return t.treeId === 't_1730001112001' })
+  tmpFreeTree.ownerId = ''
+  tmpFreeTree.ownerName = ''
+  tmpFreeTree.level = 0
+  tmpFreeTree.growthScore = 0
+  db.trees.find(function (t) { return t.treeId === 't_broken' }).ownerId = 'u_018'
+  openid = 'openid_A'
+
+  r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112001' } })
   check('无主树认养成功', r.ok === true, r.msg)
-  check('积分扣 300', userDoc('openid_A').availablePoints === 700, userDoc('openid_A').availablePoints)
+  check('已有树再认养扣 300', userDoc('openid_A').availablePoints === 700, userDoc('openid_A').availablePoints)
   check('树归属变成我', treeDoc('t_1730001112001').ownerId === 'u_001', treeDoc('t_1730001112001').ownerId)
 
   r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112001' } })
@@ -287,16 +304,25 @@ function treeDoc(treeId) {
   check('不存在的树被拒', r.ok === false, r.msg)
 
   console.log('===== 浇水 / 施肥（每天各一次）=====')
+  const ptsBeforeCare = userDoc('openid_A').availablePoints
   r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
   check('首次浇水成功', r.ok === true, r.msg)
   check('加了成长值', treeDoc('t_101').growthScore > 30, treeDoc('t_101').growthScore)
-  check('发了护林币 +2', userDoc('openid_A').coins === 302, userDoc('openid_A').coins)
+  check('浇水扣 10 积分（与 theme.WATER_COST 对齐）',
+    userDoc('openid_A').availablePoints === ptsBeforeCare - 10,
+    userDoc('openid_A').availablePoints + ' / ' + ptsBeforeCare)
+  check('浇水成长 +20（与 theme.WATER_GAIN 对齐）', r.gain === 20, r.gain)
+  check('护林币不再自动发（等手动领取）', userDoc('openid_A').coins === 300, userDoc('openid_A').coins)
 
   r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
   check('同一天再浇水被拒', r.ok === false && r.msg.indexOf('今天已经浇过水') >= 0, r.msg)
 
+  const ptsBeforeFert = userDoc('openid_A').availablePoints
   r = await actions.main({ action: 'fertilize', payload: { treeId: 't_1730001112001' } })
   check('施肥成功', r.ok === true, r.msg)
+  check('施肥扣 20 积分 / 成长 +50（与 theme 对齐）',
+    userDoc('openid_A').availablePoints === ptsBeforeFert - 20 && r.gain === 50,
+    userDoc('openid_A').availablePoints + ' / ' + ptsBeforeFert + ' / gain ' + r.gain)
 
   r = await actions.main({ action: 'water', payload: { treeId: 't_1730001112002' } })
   check('别人的树不能浇水', r.ok === false && r.msg.indexOf('不是你认养') >= 0, r.msg)
@@ -507,8 +533,8 @@ function treeDoc(treeId) {
   check('种子树成长值归零', seed.level === 0 && seed.growthScore === 0, seed.level + '/' + seed.growthScore)
   check('种子树隐患状态复原', seed.status === 'normal' && seed.hazardText === '', seed.status)
   check('日程被清空', db.tasks.length === 0, db.tasks.length)
-  check('积分币归零到演示初值',
-    userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
+  check('积分币归零（零起点新用户）',
+    userDoc('openid_A').availablePoints === 0 && userDoc('openid_A').coins === 0,
     userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
 
   console.log('===== 清空用户数据（wipeData：用户层全清 + 树木全删）=====')

@@ -3,10 +3,10 @@ const store = require('../../common/store')
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
 const { aiAnalyzeHazard, aiReviewTree } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
-const { toast, toPublicUrl } = require('../../common/util')
+const { toast, toPublicUrl, pageEnter, switchTabAnim } = require('../../common/util')
 const db = require('../../common/db')
 const { getTrees } = require('./services/treeService')
-const { treeCover } = require('../../common/speciesArt')
+const { speciesArt } = require('../../common/speciesArt')
 
 /** 「附近可认养」的统计半径（米） */
 const NEAR_RADIUS = 500
@@ -59,6 +59,8 @@ function buildMarkers(list, me, selectedId) {
 /** 详情卡片里的文案 / 配色，按状态预先算好（wxml 里不能调用函数） */
 function decorateSelected(t) {
   const me = store.state.user.userId
+  // 自己名下的树用「当前昵称」覆盖树上的旧快照（改资料后不必重新认养也能立刻显示新昵称）
+  const meName = (store.state.user && store.state.user.nickname) || t.ownerName
 
   let tagText = ''
   if (t.status === 'hazard') {
@@ -93,7 +95,10 @@ function decorateSelected(t) {
     btnBg = 'btn-soft'
     btnColor = 'tc-btn-t-deep'
   } else {
-    btnText = '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养'
+    // 首棵树免费认养（扣费逻辑在 store.adoptTree 里，这里只保证按钮文案一致）
+    btnText = store.myTreeCount() === 0
+      ? '免费认养第一棵树'
+      : '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养'
     btnBg = 'btn-main'
     btnColor = 'tc-btn-t-white'
   }
@@ -111,8 +116,8 @@ function decorateSelected(t) {
     age: t.age,
     status: t.status,
     ownerId: t.ownerId,
-    coverImg: treeCover(t),
-    ownerText: t.ownerId === '' ? '暂无认养人' : (t.ownerId === me ? t.ownerName + '（我）' : t.ownerName),
+    coverImg: speciesArt(t.species),
+    ownerText: t.ownerId === '' ? '暂无认养人' : (t.ownerId === me ? meName + '（我）' : t.ownerName),
     growthScore: t.growthScore,
     levelText: t.level > 0 ? 'Lv.' + t.level : '未养成',
     desc: desc,
@@ -154,7 +159,7 @@ Page({
     loaded: false,
     showEmpty: false,
     mapReady: false,
-    hintText: '正在加载树木点位…'
+    navAnim: ''
   },
 
   onLoad() {
@@ -172,14 +177,20 @@ Page({
   },
 
   async onShow() {
+    pageEnter(this, 'map')
+    const tb = this.getTabBar && this.getTabBar()
+    if (tb && tb.syncActive) tb.syncActive()
     // 1) 先出内容：store 有本地缓存时 ready() 毫秒返回，marker 立刻渲染出来
     this.trees = await getTrees()
     this.loaded = true
     this.refresh()
     this.revealMap()
 
-    // 2) 定位和云端同步并行跑，谁先回来谁刷新，不再串行等两轮网络
-    this.locate(true).then(() => this.refresh())
+    // 2) 定位只在首次进入做；每次切回都重新定位会把用户拖过的地图拉回当前位置，看着像跳帧
+    if (!this.locatedOnce) {
+      this.locatedOnce = true
+      this.locate(true).then(() => this.refresh())
+    }
     store.synced().then(() => {
       this.trees = store.state.trees
       this.refresh()
@@ -231,26 +242,10 @@ Page({
 
     this.markerTreeIds = picked.map(function (t) { return t.treeId })
 
-    // 提示文案：无结果 / 有筛选或搜索 / 默认三种口径
-    let hintText = ''
-    if (picked.length === 0) {
-      hintText = '没有找到符合条件的树木'
-    } else if (f !== 'all' || kw !== '') {
-      hintText = '当前显示 ' + picked.length.toFixed(0) + ' 棵'
-    } else if (this.userLoc && this.userLoc.real) {
-      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养
-      const nearFree = nearbyTrees(this.userLoc.latitude, this.userLoc.longitude, visible, NEAR_RADIUS, true)
-      hintText = '附近 ' + nearFree.length.toFixed(0) + ' 棵可认养 · ' + NEAR_RADIUS + ' 米内'
-    } else {
-      const free = visible.filter(function (t) { return t.ownerId === '' }).length
-      hintText = '全校 ' + free + ' 棵可认养'
-    }
-
     this.setData({
       subtitle: '南校园 · ' + visible.length.toFixed(0) + ' 棵树在册',
       markers: buildMarkers(picked, me, this.selectedTreeId),
-      showEmpty: this.loaded && picked.length === 0,
-      hintText: hintText
+      showEmpty: this.loaded && picked.length === 0
     })
   },
 
@@ -262,6 +257,8 @@ Page({
 
   /** 点击 marker：marker.id 是数组下标，先换成 treeId 再找回树木；选中 pin 放大反馈 */
   onMarkerTap(e) {
+    // 选点模式下点 marker 不弹详情卡，避免和选点提示条叠两层交互
+    if (this.data.pickMode) return
     const treeId = this.markerTreeIds[e.detail.markerId]
     if (!treeId) return
     const t = store.treeById(treeId)
@@ -388,9 +385,10 @@ Page({
   onViewOwner() {
     const sel = this.data.sel
     if (!sel || !sel.ownerId) return
-    wx.navigateTo({
-      url: '/pages/honor/honor?userId=' + encodeURIComponent(sel.ownerId)
-    })
+    // 「我的」是 tab 页，不能 navigateTo 带参数：改用 globalData 交接访客 id
+    const app = getApp()
+    if (app && app.globalData) app.globalData.visUserId = sel.ownerId
+    switchTabAnim('/pages/honor/honor', 'me', 'right')
   },
 
   /**
@@ -495,13 +493,15 @@ Page({
     if (sel.ownerId === store.state.user.userId) {
       // 先把自己这棵切成"当前养护树"，再去林地页，避免多树时点哪棵都进同一棵
       store.selectTree(sel.treeId)
-      wx.reLaunch({ url: '/pages/tree/tree' })
+      switchTabAnim('/pages/tree/tree', 'tree', 'right')
       return
     }
 
-    // 别人认养的树 → 访客模式进 TA 的个人主页
+    // 别人认养的树 → 访客模式进 TA 的个人主页（tab 页，用 globalData 交接 id）
     if (sel.ownerId !== '') {
-      wx.navigateTo({ url: '/pages/honor/honor?userId=' + encodeURIComponent(sel.ownerId) })
+      const app = getApp()
+      if (app && app.globalData) app.globalData.visUserId = sel.ownerId
+      switchTabAnim('/pages/honor/honor', 'me', 'right')
       return
     }
 
@@ -515,9 +515,13 @@ Page({
     this.adopting = true
 
     const me = store.state.user
+    // 首棵树免费：确认框文案与按钮保持一致（扣费逻辑在 store.adoptTree）
+    const costText = store.myTreeCount() === 0
+      ? '免费认养'
+      : '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养'
     wx.showModal({
       title: '确认认养',
-      content: '消耗 ' + ADOPT_COST.toFixed(0) + ' 积分认养「' + sel.name + '」？\n当前可用积分：' + me.availablePoints.toFixed(0),
+      content: costText + '「' + sel.name + '」？\n当前可用积分：' + me.availablePoints.toFixed(0),
       confirmText: '确认认养',
       cancelText: '再想想',
       confirmColor: '#4E8A6B',
@@ -540,7 +544,7 @@ Page({
         store.selectTree(sel.treeId)
         toast('认养成功，剩余 ' + store.state.user.availablePoints.toFixed(0) + ' 积分')
         setTimeout(function () {
-          wx.reLaunch({ url: '/pages/tree/tree' })
+          switchTabAnim('/pages/tree/tree', 'tree', 'right')
         }, 800)
       },
       complete: () => {
@@ -549,72 +553,36 @@ Page({
     })
   },
 
-  /** 打开新增树木弹窗，位置取打开时的地图中心（取不到则用默认校园中心） */
   /**
-   * 新增树木：位置默认取「用户当前位置」，而不是地图中心。
-   * 你站在哪棵树旁边就加哪棵，不用先把地图拖到位。
-   * 拿不到定位时才退回地图中心。
+   * 新增树木：先进入"在地图上点一下"的选点模式。
+   * 位置只能由用户在地图上点出来，不再自动取定位或地图中心；
+   * 选好点后由 onMapTap 带着坐标打开上传弹窗。
    */
   onAddTree() {
-    const round = (o) => ({
-      latitude: Number(o.latitude.toFixed(6)),
-      longitude: Number(o.longitude.toFixed(6))
+    this.selectedTreeId = ''
+    this.setData({
+      pickMode: true,
+      showUpload: false,
+      uploadLoc: null,
+      uploadDraft: null,
+      uploadResult: null,
+      showCard: false
     })
-    const open = (loc) => {
-      this.selectedTreeId = ''
-      this.setData({
-        showUpload: true,
-        uploadLoc: loc,
-        uploadDraft: null,
-        uploadResult: null,
-        pickMode: false,
-        showCard: false
-      })
-      this.refresh()
-    }
-
-    // 已经有定位结果，直接用
-    if (this.userLoc && this.userLoc.real) {
-      open(round(this.userLoc))
-      return
-    }
-
-    // 还没定位过：现取一次
-    wx.showLoading({ title: '定位中', mask: true })
-    getCurrentLocation().then((loc) => {
-      wx.hideLoading()
-      if (loc.real) {
-        this.userLoc = loc
-        this.applyDistances()
-        open(round(loc))
-        return
-      }
-      // 定位不可用：退回地图中心，并告诉用户位置可能不准
-      toast('拿不到定位，已用地图中心作为位置')
-      wx.createMapContext('campusMap').getCenterLocation({
-        success: (res) => open(round(res)),
-        fail: () => open(round(this.data.center))
-      })
-    })
+    this.refresh()
   },
 
   onUploadClose() {
-    this.setData({ showUpload: false, uploadDraft: null, uploadResult: null })
+    this.setData({ showUpload: false, uploadDraft: null, uploadResult: null, uploadLoc: null })
   },
 
-  /** 弹窗把表单内容实时抛上来，选点往返时不会丢已填内容 */
+  /** 弹窗把表单内容实时抛上来，重拍/回填时不会丢已填内容 */
   onUploadDraft(e) {
     this.setData({ uploadDraft: e.detail })
   },
 
-  /** 收起弹窗，进入"在地图上点一下"的选点模式 */
-  onUploadPick() {
-    this.setData({ showUpload: false, pickMode: true })
-    toast('在地图上点一下树木的位置')
-  },
-
+  /** 选点模式下点取消：直接回到普通地图，不打开弹窗 */
   onPickCancel() {
-    this.setData({ pickMode: false, showUpload: true })
+    this.setData({ pickMode: false })
   },
 
   /** 选点模式下的地图点击：拿经纬度回填弹窗 */
@@ -699,7 +667,7 @@ Page({
       this.showUploadResult({
         ok: true,
         name: f.name,
-        image: f.image,
+        image: speciesArt(r.species || '未识别'),
         species: r.species || '未识别',
         age: f.age,
         aiDown: !!r.aiDown,
@@ -756,7 +724,7 @@ Page({
     this.showUploadResult({
       ok: true,
       name: f.name,
-      image: f.image,
+      image: speciesArt(species),
       species: species,
       age: f.age,
       aiDown: false,

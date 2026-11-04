@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page {{navAnim}}">
 	<nav-bar title="森友地图" subtitle="{{subtitle}}"></nav-bar>
 
 	<view class="map-wrap">
@@ -27,17 +27,16 @@
 			bind:keywordchange="onKeywordChange"
 		></map-top-filter>
 
-		<view class="hint-pill">
-			<text class="hint-t">{{hintText}}</text>
-		</view>
-
 		<map-empty-state
 			show="{{showEmpty}}"
 			bind:reset="onResetView"
 		></map-empty-state>
 
 		<view class="pick-bar" wx:if="{{pickMode}}">
-			<text class="pick-t">点地图上的位置放置树木</text>
+			<view class="pick-texts">
+				<text class="pick-t">先在地图上点一下树木位置</text>
+				<text class="pick-sub">点完会自动弹出树木信息表</text>
+			</view>
 			<view class="pick-cancel" bindtap="onPickCancel">
 				<text class="pick-cancel-t">取消</text>
 			</view>
@@ -67,7 +66,6 @@
 			draft="{{uploadDraft}}"
 			result="{{uploadResult}}"
 			bind:close="onUploadClose"
-			bind:pick="onUploadPick"
 			bind:draftchange="onUploadDraft"
 			bind:submit="onUploadSubmit"
 			bind:retake="onUploadRetake"
@@ -75,5 +73,5 @@
 		></upload-tree-modal>
 	</view>
 
-	<app-tabbar active="map"></app-tabbar>
+	<view class="tabbar-holder"></view>
 </view>

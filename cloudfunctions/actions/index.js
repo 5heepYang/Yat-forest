@@ -21,16 +21,18 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-/** 数值口径，与 common/theme.js 保持一致 */
+/** 数值口径，与 common/theme.js 保持一致（WATER_COST 10 / FERT_COST 20，WATER_GAIN 20 / FERT_GAIN 50） */
 const COST = {
   adopt: 300,
-  water: 30,
-  fertilize: 50
+  water: 10,
+  fertilize: 20
 }
 const GAIN = {
-  water: 25,
-  fertilize: 40
+  water: 20,
+  fertilize: 50
 }
+// 已停用：浇水/施肥不再自动发护林币（任务奖励改由客户端在林地页手动领取）。
+// 常量保留只为返回字段兼容，care() 返回的 coin 现在恒为 0。
 const COIN = {
   water: 2,
   fertilize: 5
@@ -144,7 +146,17 @@ async function adopt(openid, payload) {
   const treeId = String(payload.treeId || '')
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
-  if ((me.availablePoints || 0) < COST.adopt) {
+
+  // 首棵树免积分（与客户端 store.adoptTree 一致，零起点新用户也能开始养树）。
+  // 统计失败时按原价收：安全默认，避免把收费逻辑做成"查不到就免费"。
+  let cost = COST.adopt
+  try {
+    const cnt = await db.collection('trees').where({ ownerId: me.userId }).count()
+    if (cnt && cnt.total === 0) cost = 0
+  } catch (e) {
+    console.warn('[actions] 统计名下树失败，按原价收费', e && e.message)
+  }
+  if ((me.availablePoints || 0) < cost) {
     return { ok: false, msg: '积分不足，去低碳日程做任务攒一点吧', user: pubUser(me) }
   }
 
@@ -167,7 +179,7 @@ async function adopt(openid, payload) {
     return { ok: false, msg: '该树正在隐患处理中，暂不可认养', user: pubUser(me), tree: pubTree(tree) }
   }
 
-  const points = (me.availablePoints || 0) - COST.adopt
+  const points = (me.availablePoints || 0) - cost
   const growth = 30
   await db.runTransaction(async function (t) {
     const tDoc = await t.collection('trees').doc(tree._id).get()
@@ -196,7 +208,7 @@ async function adopt(openid, payload) {
   return { ok: true, user: pubUser(me2), tree: pubTree(tree2) }
 }
 
-/** 浇水 / 施肥：每天每棵各一次，扣积分加成长并给护林币 */
+/** 浇水 / 施肥：每天每棵各一次，扣积分加成长（护林币改由客户端任务领取） */
 async function care(openid, payload, kind) {
   const treeId = String(payload.treeId || '')
   const me = await myDoc(openid)
@@ -210,7 +222,6 @@ async function care(openid, payload, kind) {
 
   const cost = kind === 'water' ? COST.water : COST.fertilize
   const gain = kind === 'water' ? GAIN.water : GAIN.fertilize
-  const coin = kind === 'water' ? COIN.water : COIN.fertilize
   const field = kind === 'water' ? 'lastWaterAt' : 'lastFertAt'
   const td = today()
 
@@ -235,17 +246,17 @@ async function care(openid, payload, kind) {
   await db.collection('trees').doc(tree._id).update({
     data: { growthScore: g, level: levelOf(g), [field]: td }
   })
+  // 护林币不再自动到账：任务完成后由客户端在林地页「成长任务」右侧手动领取
   await db.collection('users').doc(me._id).update({
     data: {
       availablePoints: (me.availablePoints || 0) - cost,
-      coins: (me.coins || 0) + coin,
       totalGrowthScore: (me.totalGrowthScore || 0) + gain
     }
   })
 
   const me2 = await myDoc(openid)
   const tree2 = await findTree(treeId)
-  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), gain: gain, coin: coin }
+  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), gain: gain, coin: 0 }
 }
 
 /** 兑换：事务扣库存 + 扣护林币 + 写兑换记录 */
@@ -329,7 +340,7 @@ async function completeTask(openid, payload) {
   const proofText = String(payload.proofText || '')
   const imageUrl = String(payload.imageUrl || '')
   if (proofText === '' && imageUrl === '') {
-    return { ok: false, msg: '拍一张照片或写一句凭证再提交', user: pubUser(me) }
+    return { ok: false, msg: '先拍一张照片再提交', user: pubUser(me) }
   }
 
   const r = await askAi({
@@ -538,7 +549,7 @@ async function reportHazard(openid, payload) {
   }
 }
 
-/** 上传生长实拍：服务端 AI 审核通过才记录 + 加成长 + 发护林币 */
+/** 上传生长实拍：服务端 AI 审核通过才记录 + 加成长（护林币由客户端手动领取） */
 async function addGrowthLog(openid, payload) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
@@ -548,16 +559,32 @@ async function addGrowthLog(openid, payload) {
   if (tree.ownerId !== me.userId) return { ok: false, msg: '这不是你认养的树', user: pubUser(me) }
   if (String(payload.image || '') === '') return { ok: false, msg: '请先拍照', user: pubUser(me) }
 
+  // 首次登记照：客户端没传时用树自己的 image 兜底。
+  // cloud:// 视觉模型取不到，先换临时 https；换不到就传空，不阻断上传。
+  let referenceImageUrl = String(payload.referenceImageUrl || tree.image || '')
+  if (referenceImageUrl.indexOf('cloud://') === 0) {
+    try {
+      const tmp = await cloud.getTempFileURL({ fileList: [referenceImageUrl] })
+      const f = tmp.fileList && tmp.fileList[0]
+      referenceImageUrl = (f && f.tempFileURL) || ''
+    } catch (e) {
+      referenceImageUrl = ''
+    }
+  }
+  if (referenceImageUrl.indexOf('http') !== 0) referenceImageUrl = ''
+
   const r = await askAi({
     action: 'review',
     name: tree.name,
     species: tree.species,
     age: tree.age,
     description: String(payload.description || '生长实拍'),
-    imageUrl: String(payload.imageUrl || '')
+    imageUrl: String(payload.imageUrl || ''),
+    referenceImageUrl: referenceImageUrl
   })
   if (r && r.passed === false) {
-    return { ok: false, msg: r.reason || '照片里看不出这棵树', user: pubUser(me) }
+    // sameTree 透传给客户端：false 时页面要显示「不是同一棵树」的专用文案
+    return { ok: false, msg: r.reason || '照片里看不出这棵树', sameTree: r.sameTree, user: pubUser(me) }
   }
 
   const logId = 'log_' + Date.now()
@@ -579,16 +606,16 @@ async function addGrowthLog(openid, payload) {
     }
   })
   await db.collection('trees').doc(tree._id).update({ data: { growthScore: g, level: levelOf(g) } })
+  // 护林币不再自动发：任务奖励由客户端在林地页手动领取
   await db.collection('users').doc(me._id).update({
     data: {
-      totalGrowthScore: (me.totalGrowthScore || 0) + gain,
-      coins: (me.coins || 0) + 50
+      totalGrowthScore: (me.totalGrowthScore || 0) + gain
     }
   })
 
   const me2 = await myDoc(openid)
   const tree2 = await findTree(tree.treeId)
-  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), logId: logId, gain: gain, coin: 50 }
+  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), logId: logId, gain: gain, coin: 0 }
 }
 
 /** 新增日程：AI 分析低碳实现方式也放服务端，保证 basePoints 不是客户端随便填的 */
@@ -749,7 +776,7 @@ async function resetDemoData(openid) {
     const u = users[i]
     try {
       await db.collection('users').doc(u._id).update({
-        data: { availablePoints: 520, coins: 120, totalGrowthScore: 0, badgeCount: 0, days: 1 }
+        data: { availablePoints: 0, coins: 0, totalGrowthScore: 0, badgeCount: 0, days: 1 }
       })
       out.resetUsers++
     } catch (e) {
@@ -909,7 +936,7 @@ async function cleanBrokenTreeImages(openid) {
   return { ok: true, checked: ids.length, cleaned: cleaned.length, detail: cleaned }
 }
 
-/** 改资料（昵称 / 签名 / 碳目标） */
+/** 改资料（昵称 / 头像 / 碳目标） */
 async function updateProfile(openid, payload) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
@@ -921,6 +948,9 @@ async function updateProfile(openid, payload) {
     patch.nickname = nick.slice(0, 12)
   }
   if (typeof payload.bio === 'string') patch.bio = payload.bio.slice(0, 40)
+  if (typeof payload.avatar === 'string' && payload.avatar !== '') {
+    patch.avatar = payload.avatar.slice(0, 1000)
+  }
   if (payload.carbonGoal !== undefined) {
     const g = Number(payload.carbonGoal)
     if (g > 0) patch.carbonGoal = g
@@ -928,6 +958,16 @@ async function updateProfile(openid, payload) {
   if (!Object.keys(patch).length) return { ok: true, user: pubUser(me) }
 
   await db.collection('users').doc(me._id).update({ data: patch })
+  // 树卡/访客档案读的是树上的冗余 ownerName，改昵称时一起同步（批量更新）
+  if (patch.nickname) {
+    try {
+      await db.collection('trees').where({ ownerId: me.userId }).update({
+        data: { ownerName: patch.nickname }
+      })
+    } catch (e) {
+      console.warn('[actions] 同步树认养人昵称失败', e && e.message)
+    }
+  }
   const me2 = await myDoc(openid)
   return { ok: true, user: pubUser(me2) }
 }

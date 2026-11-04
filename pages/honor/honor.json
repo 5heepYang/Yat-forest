@@ -1,6 +1,4 @@
 {
   "navigationStyle": "custom",
-  "usingComponents": {
-    "app-tabbar": "/components/app-tabbar/index"
-  }
+  "usingComponents": {}
 }

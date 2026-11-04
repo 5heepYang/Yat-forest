@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page {{navAnim}}">
 	<scroll-view class="body" scroll-y>
 		<view class="hero">
 			<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
@@ -9,9 +9,9 @@
 			</view>
 			<text class="hero-sub">{{viewing ? '南校园 · 森友主页' : '南校园 · 护林第 ' + days + ' 天'}}</text>
 			<view class="name-row" wx:if="{{!viewing}}">
-				<text class="hero-name" bindtap="openProfile">{{nickname}}</text>
-				<view class="info-btn" bindtap="openAbout">
-					<text class="info-t">i</text>
+				<text class="hero-name">{{nickname}}</text>
+				<view class="edit-btn" bindtap="openProfile">
+					<text class="edit-t">编辑资料</text>
 				</view>
 			</view>
 			<text class="hero-name" wx:if="{{viewing}}">{{nickname}}</text>
@@ -125,14 +125,14 @@
 		<view class="{{viewing ? 'bottom-pad-v' : 'bottom-pad'}}"></view>
 	</scroll-view>
 
-	<app-tabbar wx:if="{{!viewing}}" active="me"></app-tabbar>
+	<view class="tabbar-holder"></view>
 
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
 		<view class="sheet">
 			<view wx:if="{{sheetMode == 'profile'}}">
-				<text class="sheet-title">改资料</text>
-				<text class="sheet-sub">认养树牌、排行榜上都会显示这个名字和头像</text>
+				<text class="sheet-title">编辑资料</text>
+				<text class="sheet-sub">换个头像、改个昵称</text>
 				<button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
 					<image class="avatar-sheet-img" src="{{avatarSheet}}"></image>
 					<text class="avatar-tip">点击换头像</text>
@@ -140,10 +140,6 @@
 				<view class="form-row">
 					<text class="form-label">昵称</text>
 					<input class="form-input" value="{{nicknameInput}}" bindinput="onNickInput" maxlength="12" placeholder="最多 12 个字" />
-				</view>
-				<view class="form-row">
-					<text class="form-label">签名</text>
-					<textarea class="form-area" value="{{bioInput}}" bindinput="onBioInput" maxlength="30" placeholder="一句话介绍自己（选填）"></textarea>
 				</view>
 				<view class="sheet-btn sheet-btn-main" bindtap="saveProfile">
 					<text class="sheet-btn-t sheet-btn-t-white">保存</text>
@@ -181,7 +177,7 @@
 				</view>
 				<view wx:else>
 					<view class="hint-box">
-						<text class="hint-t">还没有兑换过纪念品。护林币在「林地」浇水施肥可以获得，攒够了来换周边～</text>
+						<text class="hint-t">还没有兑换过纪念品。护林币在「林地」完成任务后点右侧「领取」获得，攒够了来换周边～</text>
 					</view>
 				</view>
 				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
@@ -189,85 +185,11 @@
 				</view>
 			</view>
 
-			<view wx:if="{{sheetMode == 'about'}}">
-				<text class="sheet-title">关于中大森友会</text>
-				<text class="sheet-sub">三种数值怎么流转，一分钟看懂</text>
-
-				<view class="flow-box">
-					<view class="flow-row">
-						<text class="flow-from">日程页做任务</text>
-						<text class="flow-arrow">──赚──►</text>
-						<text class="flow-to">碳积分</text>
-					</view>
-					<view class="flow-row">
-						<text class="flow-from">碳积分</text>
-						<text class="flow-arrow">──花──►</text>
-						<text class="flow-to">认养树 300 · 浇水 10 · 施肥 20</text>
-					</view>
-					<view class="flow-row">
-						<text class="flow-from">林地页养护</text>
-						<text class="flow-arrow">──赚──►</text>
-						<text class="flow-to">护林币（浇水+2 · 施肥+5）</text>
-					</view>
-					<view class="flow-row">
-						<text class="flow-from">护林币</text>
-						<text class="flow-arrow">──花──►</text>
-						<text class="flow-to">补给站换周边（80~300/件）</text>
-					</view>
-					<view class="flow-row">
-						<text class="flow-from">任务 + 养护</text>
-						<text class="flow-arrow">──涨──►</text>
-						<text class="flow-to">成长值 → 勋章 · 排行</text>
-					</view>
-				</view>
-
-				<view class="about-sec">
-					<text class="about-t">我想换周边</text>
-					<text class="about-d">去「林地」页浇水施肥攒护林币，攒够到「我的」页补给站兑换，生成凭证码到校园绿化服务点领取。</text>
-				</view>
-				<view class="about-sec">
-					<text class="about-t">我想认养树</text>
-					<text class="about-d">去「日程」页做减碳任务攒碳积分，认养一棵 300 分。新号送 520 分，够认养还有余。</text>
-				</view>
-				<view class="about-sec">
-					<text class="about-t">积分不够怎么办</text>
-					<text class="about-d">上传树木生长实拍 +20 / 上报隐患 +100 / PK 获胜 +50 / 做任务得任务分。</text>
-				</view>
-				<view class="about-sec">
-					<text class="about-t">勋章怎么点亮</text>
-					<text class="about-d">勋章墙右上「全部勋章」里有每一枚的获取条件，完成对应事迹自动点亮。</text>
-				</view>
-
-				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
-					<text class="sheet-btn-t sheet-btn-t-deep">知道了</text>
-				</view>
-
-				<!-- 调试用：让用户能报出自己的 userId，配管理员白名单 -->
-				<view class="dev-userid" bindtap="onCopyUserId">
-					<text class="dev-userid-t">我的ID：{{myUserId}} · 点击复制</text>
-					<text class="dev-userid-t">openid：{{myOpenid || '获取中…'}}（每次进入应一致）</text>
-					<text class="dev-userid-t">前端版本：{{buildTag}}</text>
-				</view>
-
-				<!-- 回到"一个用户也没有"：树和商品保留，只清用户层。
-				     云端限定管理员或"库里只剩自己"，别人点了也会被拒 -->
-				<view class="wipe-entry" bindtap="onWipeData">
-					<text class="wipe-entry-t">清空所有用户数据</text>
-					<text class="wipe-entry-d">删除全部账号/日程/日志/兑换记录和所有树木点位（都是假数据），商品保留。清空后地图为空，等真实数据导入</text>
-				</view>
-
-				<!-- 仅演示管理员可见：把库恢复到刚部署的样子，答辩前反复演练用 -->
-				<view wx:if="{{isAdmin}}" class="reset-entry" bindtap="onResetDemo">
-					<text class="reset-entry-t">重置演示数据</text>
-					<text class="reset-entry-d">删除用户新增的树、清空日程/日志/兑换记录、积分归零</text>
-				</view>
-			</view>
-
 			<view wx:if="{{sheetMode == 'confirm'}}">
 				<text class="sheet-title">{{currentGoods.name}}</text>
 				<text class="sheet-sub">{{currentGoods.desc}}</text>
 				<view class="hint-box">
-					<text class="hint-t">将消耗 {{currentGoods.costText}} 护林币，兑换后生成专属凭证码，到校园绿化服务点出示即可领取。护林币在「林地」浇水施肥可获得。</text>
+					<text class="hint-t">将消耗 {{currentGoods.costText}} 护林币，兑换后生成专属凭证码，到校园绿化服务点出示即可领取。护林币在「林地」完成任务后点右侧「领取」获得。</text>
 				</view>
 				<view class="sheet-btn sheet-btn-main" bindtap="doExchange">
 					<text class="sheet-btn-t sheet-btn-t-white">确认兑换</text>

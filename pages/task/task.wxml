@@ -1,9 +1,5 @@
-<view class="page">
-	<nav-bar title="低碳日程" subtitle="{{dateLine}}">
-		<view class="icon-btn" bindtap="openAdd">
-			<image class="icon-18" src="/static/ui/calendar.png"></image>
-		</view>
-	</nav-bar>
+<view class="page {{navAnim}}">
+	<nav-bar title="低碳日程" subtitle="{{dateLine}}"></nav-bar>
 
 	<scroll-view class="body" scroll-y>
 		<view class="energy-card">
@@ -22,6 +18,11 @@
 				<view class="e-bar-in" style="{{barStyle}}"></view>
 			</view>
 			<text class="e-hint">今日目标 {{carbonGoal}} 分 · 已完成 {{progressPct}}%</text>
+		</view>
+
+		<view class="task-head" wx:if="{{groups.length > 0}}">
+			<text class="sec-title">今日日程</text>
+			<text class="task-add" bindtap="openAdd">新建日程</text>
 		</view>
 
 		<view class="task-card" wx:if="{{groups.length > 0}}">
@@ -44,8 +45,8 @@
 			</block>
 		</view>
 
-		<view class="task-card" wx:else>
-			<text class="empty-t">今天还没有日程，点右上角添加一条</text>
+		<view class="task-card task-empty" wx:else bindtap="openAdd">
+			<text class="empty-t">点击此处添加日程</text>
 		</view>
 
 		<view class="week-head">
@@ -53,27 +54,31 @@
 			<text class="week-streak">{{streakText}}</text>
 		</view>
 
-		<view class="bars">
+		<view class="week-empty" wx:if="{{weekEmpty}}">
+			<text class="week-empty-t">本周还没有完成日程</text>
+		</view>
+
+		<view class="bars" wx:else>
 			<view class="bar-col" wx:for="{{weekBars}}" wx:key="idx">
 				<view class="{{item.cls}}" style="height:{{item.h}}"></view>
 			</view>
 		</view>
 
 		<view class="ai-btn" bindtap="askAi">
-			<text class="ai-t">✦  问 AI 管家：今天还能再省多少？</text>
+			<text class="ai-t">今天还能再省多少？</text>
 		</view>
 
 		<view class="bottom-pad"></view>
 	</scroll-view>
 
-	<app-tabbar active="task"></app-tabbar>
+	<view class="tabbar-holder"></view>
 
 	<view class="mask" wx:if="{{sheetMode != ''}}">
 		<view class="mask-hit" bindtap="closeSheet"></view>
 		<view class="sheet">
 			<view wx:if="{{sheetMode == 'add'}}">
 				<text class="sheet-title">添加今日日程</text>
-				<text class="sheet-sub">写下要做的事，AI 帮你规划低碳做法 · 今日已排 {{todayCount}}/{{taskMax}}</text>
+				<text class="sheet-sub">写下要做的事 · 今日已排 {{todayCount}}/{{taskMax}}</text>
 				<view class="sheet-field">
 					<text class="field-lb">要做的事</text>
 					<input class="field-input" value="{{addTitle}}" maxlength="30" placeholder="如：去教学楼上课" bindinput="onAddTitle"></input>
@@ -85,15 +90,15 @@
 					</picker>
 				</view>
 				<view class="sheet-btn sheet-btn-main" bindtap="confirmAdd">
-					<text class="sheet-btn-t sheet-btn-t-white">创建，等 AI 分析</text>
+					<text class="sheet-btn-t sheet-btn-t-white">创建日程</text>
 				</view>
 			</view>
 
 			<view wx:if="{{sheetMode == 'task'}}">
 				<text class="sheet-title">{{current.title}}</text>
-				<text class="sheet-sub">{{current.slot}} · {{current.desc}}</text>
+				<text class="sheet-sub">{{current.slot}}</text>
 				<view class="hint-box">
-					<text class="hint-t">这条的低碳做法是「{{verifyTarget || '低碳出行'}}」，AI 核验的就是它，不是「{{current.title}}」这件事。凭证要能看出做法本身：步行/骑行给 Keep、步数、地图导航这种带距离和时长的截图；光盘给空盘；乘车给乘车码。</text>
+					<text class="hint-t">上传一张{{proofHint}}的图片凭证</text>
 				</view>
 				<image wx:if="{{proofThumb != ''}}" class="proof-thumb" src="{{proofThumb}}" mode="aspectFill"></image>
 				<view class="proof-row">
@@ -104,19 +109,14 @@
 						<text class="sheet-btn-t sheet-btn-t-deep">相册选图</text>
 					</view>
 				</view>
-				<view class="sheet-field">
-					<text class="field-lb">文字凭证</text>
-					<input class="field-input" value="{{proofText}}" maxlength="50" placeholder="如：今天骑行 3.2 公里" bindinput="onProofText" bindblur="onProofBlur"></input>
-				</view>
 				<view class="sheet-btn sheet-btn-main" bindtap="startVerify">
 					<text class="sheet-btn-t sheet-btn-t-white">提交核验</text>
 				</view>
 			</view>
 
 			<view wx:if="{{sheetMode == 'loading'}}" class="loading-box">
-				<text class="loading-t">正在核验「{{verifyTarget}}」{{dots}}</text>
-				<text class="loading-s">看凭证里的距离、时长、场景是否对得上这个做法</text>
-				<text wx:if="{{verifySlow}}" class="loading-slow">AI 还在看图，比平时慢一点，别关窗口</text>
+				<text class="loading-t">正在核验凭证{{dots}}</text>
+				<text wx:if="{{verifySlow}}" class="loading-slow">还在看图，稍等一下</text>
 			</view>
 
 			<view wx:if="{{sheetMode == 'result'}}">
@@ -130,12 +130,6 @@
 				<view class="hint-box">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
-				<view class="verify-row">
-					<text class="verify-lb">核验对象</text>
-					<text class="verify-val">{{result.mode || verifyTarget}}</text>
-				</view>
-				<text wx:if="{{result.evidence}}" class="verify-evidence">依据：{{result.evidence}}</text>
-				<text class="result-detail">{{result.detail}}</text>
 				<view class="sheet-btn sheet-btn-main" bindtap="claim">
 					<text class="sheet-btn-t sheet-btn-t-white">领取 {{currentPoints}} 积分</text>
 				</view>
@@ -150,19 +144,13 @@
 				<view class="hint-box">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
-				<view class="verify-row">
-					<text class="verify-lb">核验对象</text>
-					<text class="verify-val">{{result.mode || verifyTarget}}</text>
-				</view>
-				<text class="result-detail">{{result.detail || '换一张能看出这个做法的凭证，比如带距离和时长的运动记录。'}}</text>
 				<view class="sheet-btn sheet-btn-main" bindtap="retryProof">
 					<text class="sheet-btn-t sheet-btn-t-white">换一张凭证重试</text>
 				</view>
 			</view>
 
 			<view wx:if="{{sheetMode == 'advice'}}">
-				<text class="sheet-title">AI 日程碳管家</text>
-				<text class="sheet-sub">基于你今天的日程与任务完成情况</text>
+				<text class="sheet-title">今日建议</text>
 				<view class="hint-box">
 					<text class="hint-t">{{advice}}</text>
 				</view>

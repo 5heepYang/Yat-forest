@@ -13,6 +13,19 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "中大森友会"
   },
+  "tabBar": {
+    "custom": true,
+    "color": "#9AA394",
+    "selectedColor": "#2E6B4F",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/map/map", "text": "地图" },
+      { "pagePath": "pages/task/task", "text": "日程" },
+      { "pagePath": "pages/tree/tree", "text": "林地" },
+      { "pagePath": "pages/honor/honor", "text": "我的" }
+    ]
+  },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",

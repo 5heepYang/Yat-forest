@@ -166,26 +166,6 @@
 	padding: 10px 12px;
 }
 
-.um-pick {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: center;
-	height: 44px;
-	border-radius: 12px;
-	background-color: #EAF4E6;
-	padding-left: 12px;
-	padding-right: 12px;
-	margin-left: 8px;
-}
-
-.um-pick-t {
-	font-size: 12px;
-	font-weight: bold;
-	color: #2E6B4F;
-	font-family: HYSansBold;
-}
-
 .um-loc-hint {
 	font-size: 10px;
 	color: #9AA394;

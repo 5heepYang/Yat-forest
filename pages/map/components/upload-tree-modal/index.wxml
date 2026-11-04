@@ -66,19 +66,16 @@
 						<text class="um-photo-t">拍摄 / 选择现场照片</text>
 					</view>
 				</view>
-				<text class="um-photo-tip">AI 会看这张照片判断是不是树，并给出树种</text>
+				<text class="um-photo-tip">照片会识别树种、判断是不是树</text>
 			</view>
 
 			<view class="um-field">
 				<text class="um-label">位置 <text class="um-req">*</text></text>
 				<view class="um-loc-row">
 					<view class="um-loc">
-						<text class="um-loc-t">{{location ? '已选位置' : '还没选位置'}}</text>
+						<text class="um-loc-t">{{location ? '已在地图选点' : '还没选位置'}}</text>
 						<text class="um-loc-coord" wx:if="{{location}}">{{locationText}}</text>
-						<text class="um-loc-hint" wx:else>默认用地图中心，也可以在地图上点一下</text>
-					</view>
-					<view class="um-pick" bindtap="onPickLocation">
-						<text class="um-pick-t">去地图点选</text>
+						<text class="um-loc-hint" wx:else>请关闭弹窗后重新点「新增树木」选点</text>
 					</view>
 				</view>
 			</view>
@@ -95,7 +92,7 @@
 		</scroll-view>
 
 		<view class="um-submit" bindtap="onSubmit">
-			<text class="um-submit-t">提交，让 AI 认一下</text>
+			<text class="um-submit-t">提交</text>
 		</view>
 	</view>
 </block>

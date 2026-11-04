@@ -133,3 +133,108 @@ page {
   color: #22302A;
   font-family: HYSans;
 }
+
+/* ------------------------------------------------------------------ */
+/* tab 页切页入场动画                                                   */
+/* 两套等价 keyframes 交替：只有 computed animation 变化才会重放动画；    */
+/* 页面常驻，tabBar 点目标页时先挂 .page-anim-paused（暂停在 0% 帧），    */
+/* 切回首帧即动画起点，onShow 移除暂停后才播放，避免一帧跳变。            */
+/* 位移作用在 .page 上，fill-mode 用 none：结束后不残留 transform，       */
+/* 避免内部 fixed 元素以 .page 为包含块。                                */
+/* ------------------------------------------------------------------ */
+
+@keyframes pageInRight1 {
+  0% {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pageInRight2 {
+  0% {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pageInLeft1 {
+  0% {
+    opacity: 0;
+    transform: translateX(-36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pageInLeft2 {
+  0% {
+    opacity: 0;
+    transform: translateX(-36px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pageInFade1 {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes pageInFade2 {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.page-anim-right-1 {
+  animation: pageInRight1 220ms ease-out none;
+}
+
+.page-anim-right-2 {
+  animation: pageInRight2 220ms ease-out none;
+}
+
+.page-anim-left-1 {
+  animation: pageInLeft1 220ms ease-out none;
+}
+
+.page-anim-left-2 {
+  animation: pageInLeft2 220ms ease-out none;
+}
+
+.page-anim-fade-1 {
+  animation: pageInFade1 180ms ease-out none;
+}
+
+.page-anim-fade-2 {
+  animation: pageInFade2 180ms ease-out none;
+}
+
+/* 预置态：tabBar 点击时先挂上，动画停在 0% 帧；目标页 onShow 移除本类才播放 */
+.page-anim-paused {
+  animation-play-state: paused !important;
+}
+
+/* 自定义 tabBar 占位：tabBar 固定悬浮，页面内留出等量高度，避免底部内容被遮 */
+.tabbar-holder {
+  height: calc(78px + env(safe-area-inset-bottom));
+}

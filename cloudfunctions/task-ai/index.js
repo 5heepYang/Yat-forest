@@ -216,6 +216,8 @@ async function handleReview(event) {
   const description = String(event.description || '').trim()
   const imageUrl = String(event.imageUrl || '').trim()
   const inputSpecies = String(event.species || '').trim()
+  // 可选：这棵树第一次登记时拍的照片（生长实拍时传，用来判断"还是同一棵吗"）
+  const referenceImageUrl = String(event.referenceImageUrl || '').trim()
 
   if (name === '') {
     return { fallback: true, reason: '名称不能为空' }
@@ -243,36 +245,56 @@ async function handleReview(event) {
     }
   }
 
+  const hasRef = referenceImageUrl !== ''
+  // 有"首次登记照"时多问一句：还是同一棵树吗（同树不同角度/时间/距离都算同一棵）
   const requirement =
-    '看这张照片，判断画面主体是不是一棵树/一株植物，并识别它的品种。' +
+    (hasRef
+      ? '第一张是本次上传的照片，第二张是这棵树第一次登记时拍的照片。' +
+        '先判断两张是不是同一棵树：同一棵树的不同角度、不同时间、不同距离都算同一棵；' +
+        '明显是两棵不同的树、或第一张里根本不是树，则 sameTree 为 false。'
+      : '') +
+    '看' + (hasRef ? '第一张' : '这张') + '照片，判断画面主体是不是一棵树/一株植物，并识别它的品种。' +
     (name ? '用户给它起名叫「' + name + '」，这个名字只是位置+外号，不代表品种，不要被它干扰。' : '') +
     '判断标准放宽：只要画面主体是树木或植株就算通过，不要求拍摄专业、不要求整树入镜。' +
     '品种要具体到中文俗名（例如：香樟、大王椰子、凤凰木、细叶榕、小叶榄仁）；' +
     '如果只是背景里有一点绿、主体是书本/人/建筑/食物/屏幕，则 isTree 为 false。' +
-    '只输出 JSON，格式 {"isTree":true或false,"species":"具体树种中文名，认不出填未识别","confidence":0到1,"reason":"不超过30字的原因","detail":"外观特征不超过40字"}。'
+    '只输出 JSON，格式 {"isTree":true或false,' +
+    (hasRef ? '"sameTree":true或false,' : '') +
+    '"species":"具体树种中文名，认不出填未识别","confidence":0到1,"reason":"不超过30字的原因","detail":"外观特征不超过40字"}。'
+
+  const userContent = [
+    { type: 'text', text: requirement },
+    { type: 'image_url', image_url: { url: imageUrl } }
+  ]
+  if (hasRef) userContent.push({ type: 'image_url', image_url: { url: referenceImageUrl } })
 
   const content = await callModel(VISION_MODEL, [
     {
       role: 'user',
-      content: [
-        { type: 'text', text: requirement },
-        { type: 'image_url', image_url: { url: imageUrl } }
-      ]
+      content: userContent
     }
   ])
 
   const r = extractJson(content)
   // 只认明确布尔值；缺字段说明模型没看懂 → 不通过，交给用户重拍
   const isTree = r.isTree === true || r.isTree === 'true'
+  // 没传参考图时不做同树判断（视为通过），保持旧行为不变
+  const sameTree = hasRef ? (r.sameTree === true || r.sameTree === 'true') : true
   const species = cleanSpecies(r.species) === '未识别' ? cleanSpecies(inputSpecies) : cleanSpecies(r.species)
-  return {
-    passed: isTree,
+  let reason = String(r.reason || '')
+  if (!isTree) reason = reason || '照片里看不到树木'
+  else if (!sameTree) reason = reason || '和这棵树第一次登记的照片对不上'
+  else reason = reason || '识别通过'
+  const out = {
+    passed: isTree && sameTree,
     isTree: isTree,
     species: species,
     confidence: Number(r.confidence) || 0,
-    reason: String(r.reason || (isTree ? '识别通过' : '照片里看不到树木')).slice(0, 40),
+    reason: reason.slice(0, 40),
     detail: String(r.detail || '').slice(0, 60)
   }
+  if (hasRef) out.sameTree = sameTree
+  return out
 }
 
 /**

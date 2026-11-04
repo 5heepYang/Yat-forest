@@ -8,15 +8,15 @@
  *
  * 货币口径：
  *   - 浇水 / 施肥：消耗碳积分（availablePoints）
- *   - 任务 / 升级 / 连续护林：发放护林币（coins），去「我的」补给站兑换
+ *   - 成长任务：完成后在任务行右侧手动领取护林币（coins），去「我的」补给站兑换
  *   - 隐患上报：沿用 store.reportHazard 的碳积分奖励
  *
- * 任务 / 工单 / 连续护林等扩展状态存在 wx.Storage，不新增云数据库集合。
+ * 任务 / 工单 / 拍摄周期等扩展状态存在 wx.Storage，不新增云数据库集合。
  */
 const store = require('../../common/store')
 const { aiAnalyzeHazard, aiTreeSpirit, aiReviewTree } = require('../../common/ai')
 const db = require('../../common/db')
-const { toast, stamp, toPublicUrl, resolveCloudUrl } = require('../../common/util')
+const { toast, stamp, toPublicUrl, resolveCloudUrl, pageEnter, setTabBarHidden } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
 const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
 const { speciesArt } = require('../../common/speciesArt')
@@ -24,16 +24,11 @@ const { speciesArt } = require('../../common/speciesArt')
 const KIT_KEY = 'tree_kit_v1'
 const GROWTH_CAP = 1000
 const LEVEL_STEP = 300
-const LEVEL_UP_COINS = 50
 const REWARD_WATER = 15
 const REWARD_FERT = 20
 const REWARD_PHOTO = 50
 const PHOTO_GROWTH = 30
-const PHOTO_PERIOD = 14
-const DAILY_BONUS = 10
-const STREAK_3 = 20
-const STREAK_7 = 50
-const STREAK_14 = 100
+const PHOTO_PERIOD = 30
 
 /* ---------- 小工具 ---------- */
 
@@ -93,21 +88,38 @@ function daysPassed(ts) {
 function newBucket() {
   return {
     tasks: {
-      water: { lastDoneAt: '', lastDoneTs: 0 },
-      fert: { lastDoneAt: '', lastDoneTs: 0 },
-      photo: { lastDoneAt: '', lastDoneTs: 0, periodDays: PHOTO_PERIOD }
+      water: { lastDoneAt: '', lastDoneTs: 0, claimedAt: '' },
+      fert: { lastDoneAt: '', lastDoneTs: 0, claimedAt: '' },
+      photo: { lastDoneAt: '', lastDoneTs: 0, claimedAt: '', claimedTs: 0 }
     },
     tickets: [],
     photos: [],
-    dailyBonusAt: '',
     careAt: ''
   }
 }
 
 /**
+ * 旧 kit 兼容：补齐领取字段（缺失一律视为「未领取」）。
+ * 拍摄周期不再读旧 periodDays，统一写死 PHOTO_PERIOD 天。
+ */
+function normalizeBucket(bk) {
+  if (!bk) return newBucket()
+  if (!bk.tasks) bk.tasks = newBucket().tasks
+  const kinds = ['water', 'fert', 'photo']
+  kinds.forEach(function (k) {
+    if (!bk.tasks[k]) bk.tasks[k] = { lastDoneAt: '', lastDoneTs: 0 }
+    if (bk.tasks[k].claimedAt === undefined) bk.tasks[k].claimedAt = ''
+    if (k === 'photo' && bk.tasks[k].claimedTs === undefined) bk.tasks[k].claimedTs = 0
+  })
+  if (!bk.tickets) bk.tickets = []
+  if (!bk.photos) bk.photos = []
+  return bk
+}
+
+/**
  * kit 容器：
  *   trees[treeId] 每棵树一个桶 —— 多树后任务/工单/照片/核验状态互不串味
- *   streak        用户维度的连续护林天数，不按树分
+ *   streak        旧版连续护林统计（功能已下线，仅保留旧存储结构兼容，不再读写）
  *   legacy        老格式（tasks 直接挂在根上）暂存，等知道当前 treeId 再搬进对应桶
  */
 function defaultKit() {
@@ -124,7 +136,6 @@ function loadKit() {
       tasks: saved.tasks || newBucket().tasks,
       tickets: saved.tickets || [],
       photos: saved.photos || [],
-      dailyBonusAt: saved.dailyBonusAt || '',
       careAt: saved.careAt || ''
     }
   }
@@ -147,16 +158,35 @@ function ensureBucket(kt, treeId) {
 
 function taskDone(kit, kind) {
   const t = kit.tasks[kind]
-  if (!t || !t.lastDoneAt) return false
-  if (kind === 'photo') return t.periodDays - daysPassed(t.lastDoneTs) > 0
+  if (!t) return false
+  if (kind === 'photo') return !!t.lastDoneTs && PHOTO_PERIOD - daysPassed(t.lastDoneTs) > 0
+  if (!t.lastDoneAt) return false
   return t.lastDoneAt === todayStr()
 }
 
 function taskDaysLeft(kit, kind) {
   const t = kit.tasks[kind]
   if (!t || !t.lastDoneTs) return 0
-  const left = t.periodDays - daysPassed(t.lastDoneTs)
+  const left = PHOTO_PERIOD - daysPassed(t.lastDoneTs)
   return left > 0 ? left : 0
+}
+
+/** 领取状态：wait 未完成 / claimable 可领 / claimed 已领（旧数据缺字段按未领取处理） */
+function claimState(kit, kind) {
+  if (!taskDone(kit, kind)) return 'wait'
+  const t = kit.tasks[kind]
+  if (!t) return 'wait'
+  if (kind === 'photo') {
+    return Number(t.claimedTs || 0) >= Number(t.lastDoneTs || 0) ? 'claimed' : 'claimable'
+  }
+  return t.claimedAt === todayStr() ? 'claimed' : 'claimable'
+}
+
+function rewardOf(kind) {
+  if (kind === 'water') return REWARD_WATER
+  if (kind === 'fert') return REWARD_FERT
+  if (kind === 'photo') return REWARD_PHOTO
+  return 0
 }
 
 Page({
@@ -173,13 +203,12 @@ Page({
     gainText: '',
 
     tasks: [],
-    pointsText: '',
-    coinsText: '',
-    dailyText: '',
-    streakText: '',
-    streakHint: '',
-    photoBar: 'width:100%',
+    waterNote: '',
+    fertNote: '',
+    photoNote: '',
     photoHint: '',
+    photoDone: false,
+    photoPeriodSub: '每 ' + PHOTO_PERIOD + ' 天记录一次',
 
     rankTop: [],
     myOutOfTop: false,
@@ -197,9 +226,7 @@ Page({
     hazard: { level: '', ticket: '', analysis: '', advice: '', reward: '0' },
     hazardImage: '',
     pendingKind: '',
-    careTip: '',
-    periodOptions: [7, 14, 30],
-    photoPeriod: PHOTO_PERIOD
+    navAnim: ''
   },
 
   onLoad() {
@@ -210,8 +237,18 @@ Page({
   },
 
   async onShow() {
+    pageEnter(this, 'tree')
+    const tb = this.getTabBar && this.getTabBar()
+    if (tb && tb.syncActive) tb.syncActive()
+    // 弹层开着的页面重新显示时，tabBar 继续保持隐藏（关闭弹层时才恢复）
+    setTabBarHidden(this, this.data.sheetMode !== '')
     await store.ready()
     this.refresh()
+  },
+
+  onHide() {
+    // tab 页常驻不销毁：切走时停掉"…"动画，避免隐藏页里的 interval 继续 setData
+    this.stopDots()
   },
 
   onUnload() {
@@ -226,12 +263,10 @@ Page({
 
   refresh() {
     const t = store.myTree()
-    this.kit = ensureBucket(this.kt, t.treeId)
+    this.kit = normalizeBucket(ensureBucket(this.kt, t.treeId))
     const kit = this.kit
-    const streak = this.kt.streak
     const mine = store.myTrees()
     const user = store.state.user
-    const today = todayStr()
 
     const atMax = t.growthScore >= GROWTH_CAP
     let next = t.level * LEVEL_STEP
@@ -251,39 +286,22 @@ Page({
       { kind: 'photo', title: '上传一张生长实拍', reward: REWARD_PHOTO }
     ]
     const tasks = []
-    let dailyDone = 0
     defs.forEach(function (d) {
       const done = taskDone(kit, d.kind)
-      if (done && d.kind !== 'photo') dailyDone++
-      let sub = '今日待完成 · 点击去做'
-      if (done) {
-        sub = d.kind === 'photo' ? '已完成 · 还有 ' + taskDaysLeft(kit, d.kind) + ' 天' : '今天已完成'
-      } else if (d.kind === 'photo') {
-        sub = '本周期还没记录 · 点击上传'
-      }
-      tasks.push({ kind: d.kind, title: d.title, reward: d.reward, sub: sub, done: done })
+      const claim = claimState(kit, d.kind)
+      tasks.push({
+        kind: d.kind,
+        title: d.title,
+        reward: d.reward,
+        done: done,
+        claimed: claim === 'claimed',
+        claimable: claim === 'claimable'
+      })
     })
 
-    // 连续 / 全勤
-    const milestone = streak.milestone
-    const nextM = milestone < 3 ? 3 : (milestone < 7 ? 7 : (milestone < 14 ? 14 : 0))
-    const rewardMap = { 3: STREAK_3, 7: STREAK_7, 14: STREAK_14 }
-    let streakHint = '连续奖励已全部解锁'
-    if (kit.dailyBonusAt === today) {
-      streakHint = '今日全勤 +' + DAILY_BONUS + ' 已到账'
-    } else if (nextM > 0) {
-      const left = nextM - streak.days
-      streakHint = left > 0 ? '再坚持 ' + left + ' 天 +' + rewardMap[nextM] : '连续奖励已全部解锁'
-    }
-
-    // 拍照倒计时
-    let photoBar = 100
-    if (kit.tasks.photo.lastDoneTs) {
-      photoBar = Math.round((kit.tasks.photo.periodDays - taskDaysLeft(kit, 'photo')) / kit.tasks.photo.periodDays * 100)
-      if (photoBar < 0) photoBar = 0
-      if (photoBar > 100) photoBar = 100
-    }
-    const photoHint = taskDone(kit, 'photo')
+    // 生长实拍：周期写死 PHOTO_PERIOD 天，上传后倒数
+    const photoDone = taskDone(kit, 'photo')
+    const photoHint = photoDone
       ? '还有 ' + taskDaysLeft(kit, 'photo') + ' 天可以再拍一张'
       : '今天该给它拍张照啦'
 
@@ -341,7 +359,7 @@ Page({
         no: r + 1,
         noCls: r === 0 ? 'rno rno-gold' : (r === 1 ? 'rno rno-silver' : (r === 2 ? 'rno rno-bronze' : 'rno rno-plain')),
         name: tree.name,
-        owner: tree.ownerName,
+        owner: tree.ownerId === user.userId ? (user.nickname || tree.ownerName) : tree.ownerName,
         level: tree.level.toFixed(0),
         score: tree.growthScore.toFixed(0),
         mine: tree.ownerId === user.userId   // 多树：自己名下的树都高亮，不只是当前这棵
@@ -394,13 +412,11 @@ Page({
       growthBarStyle: 'width:' + Math.min(100, t.growthScore / GROWTH_CAP * 100).toFixed(0) + '%',
       atMax: atMax,
       tasks: tasks,
-      pointsText: '碳积分 ' + user.availablePoints.toFixed(0),
-      coinsText: (user.coins || 0).toFixed(0),
-      dailyText: '每日 ' + dailyDone + '/2',
-      streakText: streak.days > 0 ? '连续护林 ' + streak.days + ' 天' : '今天还没打卡',
-      streakHint: streakHint,
-      photoBar: 'width:' + photoBar + '%',
       photoHint: photoHint,
+      photoDone: photoDone,
+      waterNote: atMax ? '成长值已满' : '成长值+' + WATER_GAIN + ' · 消耗' + WATER_COST + '碳积分',
+      fertNote: atMax ? '成长值已满' : '成长值+' + FERT_GAIN + ' · 消耗' + FERT_COST + '碳积分',
+      photoNote: '成长值+' + PHOTO_GROWTH + ' · 每' + PHOTO_PERIOD + '天一次',
       rankTop: rankTop,
       myOutOfTop: myRankNo > 5,
       myRankRow: myRankNo > 5 ? {
@@ -414,13 +430,7 @@ Page({
       photos: photos,
       photoCount: allPhotos.length,
       allPhotos: allPhotos,
-      tickets: tickets,
-      // 虚拟养护：每天各一次，只扣积分加成长，不再拍照核验
-      careTip: (t.lastWaterAt === today ? '今日已浇水' : '浇水 ' + WATER_COST + ' 积分')
-        + ' · '
-        + (t.lastFertAt === today ? '今日已施肥' : '施肥 ' + FERT_COST + ' 积分')
-        + ' · 每天各一次',
-      photoPeriod: kit.tasks.photo.periodDays
+      tickets: tickets
     })
 
     this.fixPhotoImages()
@@ -524,7 +534,6 @@ Page({
 
   async performWater() {
     const t = store.myTree()
-    const lvBefore = t.level
     // 云端模式下 water() 返回 Promise，等云函数确认后再提示
     const err = await store.water(t.treeId)
     if (err) return toast(err)
@@ -533,21 +542,16 @@ Page({
     const lvNow = levelOf(t.growthScore)
     store.updateTree(t.treeId, { growthScore: t.growthScore, level: lvNow })
 
-    const gained = this.grantTask('water', lvNow > lvBefore)
+    this.markTaskDone('water')
     saveKit(this.kt)
     this.refresh()
 
-    let msg = '浇水成功 · 成长 +' + WATER_GAIN
-    if (gained.task) msg += ' · 任务 +' + gained.task + ' 护林币'
-    if (gained.level) msg += ' · 升 Lv.' + lvNow + ' 再 +' + gained.level
-    if (gained.bonus) msg += ' · 全勤 +' + gained.bonus
-    toast(msg)
+    toast('浇水成功 · 成长 +' + WATER_GAIN + '，右侧可领护林币')
     this.playGain(String(WATER_GAIN))
   },
 
   async performFertilize() {
     const t = store.myTree()
-    const lvBefore = t.level
     const err = await store.fertilize(t.treeId)
     if (err) return toast(err)
 
@@ -555,61 +559,46 @@ Page({
     const lvNow = levelOf(t.growthScore)
     store.updateTree(t.treeId, { growthScore: t.growthScore, level: lvNow })
 
-    const gained = this.grantTask('fert', lvNow > lvBefore)
+    this.markTaskDone('fert')
     saveKit(this.kt)
     this.refresh()
 
-    let msg = '施肥成功 · 成长 +' + FERT_GAIN
-    if (gained.task) msg += ' · 任务 +' + gained.task + ' 护林币'
-    if (gained.level) msg += ' · 升 Lv.' + lvNow + ' 再 +' + gained.level
-    if (gained.bonus) msg += ' · 全勤 +' + gained.bonus
-    toast(msg)
+    toast('施肥成功 · 成长 +' + FERT_GAIN + '，右侧可领护林币')
     this.playGain(String(FERT_GAIN))
   },
 
-  /** 结算任务 / 升级 / 连续 / 全勤，全部发护林币 */
-  grantTask(kind, levelUp) {
+  /** 完成任务：只记录进度，护林币由用户在任务行右侧手动领取 */
+  markTaskDone(kind) {
     const kit = this.kit
-    const streak = this.kt.streak
-    const result = { task: 0, level: 0, bonus: 0 }
-    const today = todayStr()
-
+    const result = { task: 0 }
     if (!taskDone(kit, kind)) {
-      kit.tasks[kind].lastDoneAt = today
+      kit.tasks[kind].lastDoneAt = todayStr()
       kit.tasks[kind].lastDoneTs = Date.now()
-      result.task = kind === 'water' ? REWARD_WATER : (kind === 'fert' ? REWARD_FERT : REWARD_PHOTO)
-      this.addCoins(result.task)
-    }
-
-    if (levelUp) {
-      result.level = LEVEL_UP_COINS
-      this.addCoins(LEVEL_UP_COINS)
-    }
-
-    if (kind !== 'photo' && streak.lastAt !== today) {
-      let d = 1
-      if (streak.lastTs > 0 && (Date.now() - streak.lastTs) / 3600000 <= 36) {
-        d = streak.days + 1
-      }
-      streak.days = d
-      streak.lastAt = today
-      streak.lastTs = Date.now()
-      if (d >= 3 && streak.milestone < 3) { streak.milestone = 3; this.addCoins(STREAK_3) }
-      if (d >= 7 && streak.milestone < 7) { streak.milestone = 7; this.addCoins(STREAK_7) }
-      if (d >= 14 && streak.milestone < 14) { streak.milestone = 14; this.addCoins(STREAK_14) }
-    }
-
-    if (kit.dailyBonusAt !== today && taskDone(kit, 'water') && taskDone(kit, 'fert')) {
-      kit.dailyBonusAt = today
-      result.bonus = DAILY_BONUS
-      this.addCoins(DAILY_BONUS)
+      result.task = rewardOf(kind)
     }
     return result
   },
 
-  addCoins(n) {
+  /** 领取任务奖励，返回需要弹出的提示文案（空串表示不提示） */
+  claimTask(kind) {
+    const reward = rewardOf(kind)
+    if (!reward) return ''
+    const state = claimState(this.kit, kind)
+    if (state === 'wait') return '先完成任务再来领取'
+    if (state === 'claimed') return kind === 'photo' ? '本周期奖励已经领过了' : '今天已经领过了'
     const user = store.state.user
-    store.updateUser({ coins: (user.coins || 0) + n })
+    store.updateUser({ coins: (user.coins || 0) + reward })
+    this.kit.tasks[kind].claimedAt = todayStr()
+    if (kind === 'photo') this.kit.tasks[kind].claimedTs = Date.now()
+    saveKit(this.kt)
+    this.refresh()
+    return '护林币 +' + reward
+  },
+
+  onClaim(e) {
+    const kind = e.currentTarget.dataset.kind
+    const msg = this.claimTask(kind)
+    if (msg) toast(msg)
   },
 
   /* ---------- 任务列表点击 ---------- */
@@ -617,6 +606,7 @@ Page({
   onTask(e) {
     const kind = e.currentTarget.dataset.kind
     if (taskDone(this.kit, kind)) {
+      if (claimState(this.kit, kind) === 'claimable') return toast('任务已完成，点右侧「领取」领护林币')
       if (kind === 'photo') return toast('本周期已完成，' + taskDaysLeft(this.kit, kind) + ' 天后再来')
       return toast('今天已经完成，明天再来')
     }
@@ -628,11 +618,16 @@ Page({
   /* ---------- 时光轴 ---------- */
 
   openUpload() {
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'upload' })
   },
 
-  useSampleUpload() {
-    this.afterUpload('/static/illus/stage3.png', '示例实拍：枝叶比上次更密了')
+  /** 上方「生长实拍」块的点击：本周期已拍就提示剩余天数 */
+  onPhotoAct() {
+    if (taskDone(this.kit, 'photo')) {
+      return toast('本周期已记录，还有 ' + taskDaysLeft(this.kit, 'photo') + ' 天再拍')
+    }
+    this.openUpload()
   },
 
   pickGrowthPhoto() {
@@ -646,7 +641,9 @@ Page({
   },
 
   /**
-   * 上传生长实拍：先过 AI 审核，通过才记入时光轴并给护林币。
+   * 上传生长实拍：先过 AI 审核，通过才记入时光轴。
+   * 云端会把本次照片和这棵树首次登记的照片一起送给 AI，判断拍的是不是同一棵树；
+   * 护林币不自动到账，去成长任务行右侧手动领取。
    * 云端模式整条链路（上传 + AI + 记账）都在 actions 云函数里完成。
    */
   async reviewPhotoAndUpload(image, desc) {
@@ -661,19 +658,26 @@ Page({
       console.warn('[tree] 实拍照片上传失败，用本地路径', e)
     }
     const visionUrl = await toPublicUrl(up)
+    // 首次登记照：交给云端 AI 判断这次拍的是不是同一棵树
+    const first = t.image || ''
+    const firstUrl = first ? await toPublicUrl(first) : ''
+    const mismatchTip = '和这棵树第一次登记的照片对不上，请拍这棵树本身（别拍别的树）。'
 
     if (store.isCloud()) {
       const r = await store.cloudAddGrowthLog({
         treeId: t.treeId,
         image: up,
         imageUrl: visionUrl,
-        description: desc
+        description: desc,
+        referenceImageUrl: firstUrl
       })
       wx.hideLoading()
       if (!r.ok) {
         wx.showModal({
           title: 'AI 审核未通过',
-          content: (r.msg || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
+          content: r.sameTree === false
+            ? mismatchTip
+            : (r.msg || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
           showCancel: false,
           confirmText: '重拍',
           confirmColor: '#4E8A6B'
@@ -685,24 +689,33 @@ Page({
         stage: t.growthScore < LEVEL_STEP ? '幼芽' : (t.growthScore < LEVEL_STEP * 2 ? '新叶' : '枝繁'),
         monthText: monthText(todayStr())
       })
+      this.markTaskDone('photo')
       saveKit(this.kt)
       this.setData({ sheetMode: '' })
       this.refresh()
-      toast('已记入时光轴 · 护林币 +' + (r.coin || 0))
+      this.requestRemind(PHOTO_PERIOD)
+      toast('已记入时光轴 · 可到成长任务里领取护林币')
       return
     }
 
     // 本地模式（测试号）：客户端 AI 审核 + 本地记账
     const verdict = await new Promise((resolve) => {
       aiReviewTree({
-        name: t.name, species: t.species, age: t.age, description: desc, imageUrl: visionUrl
+        name: t.name,
+        species: t.species,
+        age: t.age,
+        description: desc,
+        imageUrl: visionUrl,
+        referenceImageUrl: firstUrl
       }, resolve)
     })
     wx.hideLoading()
     if (verdict.passed === false) {
       wx.showModal({
         title: 'AI 审核未通过',
-        content: (verdict.reason || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
+        content: verdict.sameTree === false
+          ? mismatchTip
+          : (verdict.reason || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
         showCancel: false,
         confirmText: '重拍',
         confirmColor: '#4E8A6B'
@@ -724,7 +737,7 @@ Page({
       monthText: monthText(todayStr())
     })
 
-    const gained = this.grantTask('photo', false)
+    const gained = this.markTaskDone('photo')
     if (gained.task) {
       let g = t.growthScore + PHOTO_GROWTH
       if (g > GROWTH_CAP) g = GROWTH_CAP
@@ -732,33 +745,21 @@ Page({
     }
 
     saveKit(this.kt)
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '' })
     this.refresh()
-    toast(gained.task ? '已记入时光轴 · 任务 +' + gained.task + ' 护林币' : '已记入时光轴（本周期奖励已领过）')
+    this.requestRemind(PHOTO_PERIOD)
+    toast(gained.task ? '已记入时光轴 · 可到成长任务里领取护林币' : '已记入时光轴（本周期奖励已领过）')
   },
 
   openAllLogs() {
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'allLogs' })
-  },
-
-  /* ---------- 提醒周期 ---------- */
-
-  openPeriod() {
-    this.setData({ sheetMode: 'period' })
-  },
-
-  setPeriod(e) {
-    const days = Number(e.currentTarget.dataset.days)
-    this.kit.tasks.photo.periodDays = days
-    saveKit(this.kt)
-    this.setData({ sheetMode: '' })
-    toast('拍照提醒已改为每 ' + days + ' 天')
-    this.requestRemind(days)
-    this.refresh()
   },
 
   closeSheet() {
     this.stopDots()
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '' })
   },
 
@@ -768,6 +769,7 @@ Page({
     const t = store.myTree()
     if (!t.treeId) return toast('先认养一棵树吧')
     if (t.status === 'hazard') return toast('这棵树已有待处理工单，等后勤处理完再报')
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'hazard' })
   },
 
@@ -805,6 +807,7 @@ Page({
     aiAnalyzeHazard(t.name, t.species, visionUrl, function (r) {
       that.stopDots()
       if (r && r.reject) {
+        setTabBarHidden(that, false)
         that.setData({ sheetMode: '' })
         toast(r.reason || '照片里看不到树木，换个角度再拍')
         return
@@ -836,6 +839,7 @@ Page({
       })
       wx.hideLoading()
       if (!r.ok) return toast(r.msg || '上报失败')
+      setTabBarHidden(this, false)
       this.setData({ sheetMode: '' })
       this.refresh()
       toast('工单已推送总务处 · +' + ((r.hazard && r.hazard.reward) || 0) + ' 积分')
@@ -861,6 +865,7 @@ Page({
     })
     store.updateTree(t.treeId, { status: 'hazard', hazardText: h.analysis })
     saveKit(this.kt)
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '' })
     this.refresh()
     toast('工单已推送总务处 · +' + h.reward + ' 积分')
@@ -919,9 +924,5 @@ Page({
       clearInterval(this.dotTimer)
       this.dotTimer = 0
     }
-  },
-
-  onBell() {
-    this.openPeriod()
   }
 })

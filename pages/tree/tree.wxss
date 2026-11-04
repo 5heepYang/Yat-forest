@@ -12,22 +12,6 @@
 	height: 0;
 }
 
-.icon-btn {
-	display: flex;
-	flex-direction: column;
-	width: 36px;
-	height: 36px;
-	border-radius: 18px;
-	background-color: #EAF4E6;
-	align-items: center;
-	justify-content: center;
-}
-
-.icon-18 {
-	width: 17px;
-	height: 17px;
-}
-
 .main-card {
 	display: flex;
 	flex-direction: column;
@@ -159,21 +143,6 @@
 	border-radius: 5px;
 }
 
-.coin-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 14px;
-}
-
-.coin-hint {
-	font-size: 10px;
-	color: #9AA394;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
 .act-row {
 	display: flex;
 	flex-direction: row;
@@ -181,12 +150,19 @@
 	margin-top: 14px;
 }
 
+.act-col {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 31%;
+}
+
 .act-btn {
 	display: flex;
 	flex-direction: column;
-	width: 48%;
-	height: 46px;
-	border-radius: 23px;
+	width: 100%;
+	height: 40px;
+	border-radius: 20px;
 	background-color: #EAF4E6;
 	align-items: center;
 	justify-content: center;
@@ -197,6 +173,15 @@
 	font-weight: bold;
 	color: #2E6B4F;
 	font-family: HYSansBold;
+}
+
+.act-note {
+	font-size: 9px;
+	line-height: 1.35;
+	color: #9AA394;
+	margin-top: 5px;
+	text-align: center;
+	font-family: HYSans;
 }
 
 .pk-card {
@@ -336,73 +321,6 @@
 	font-family: HYSans;
 }
 
-.hazard-card {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	background-color: #FFF6F2;
-	border-radius: 18px;
-	margin: 14px 16px 0 16px;
-	padding: 12px;
-}
-
-.hz-ico-box {
-	display: flex;
-	flex-direction: column;
-	width: 34px;
-	height: 34px;
-	border-radius: 17px;
-	background-color: #FBE4DC;
-	align-items: center;
-	justify-content: center;
-}
-
-.hz-ico {
-	width: 17px;
-	height: 17px;
-}
-
-.hz-left {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	margin-left: 10px;
-}
-
-.hz-title {
-	font-size: 12px;
-	font-weight: bold;
-	color: #B4553F;
-	font-family: HYSansBold;
-}
-
-.hz-sub {
-	font-size: 9px;
-	color: #C08A76;
-	margin-top: 4px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.hz-btn {
-	display: flex;
-	flex-direction: row;
-	height: 30px;
-	border-radius: 15px;
-	background-color: #E07A5F;
-	padding-left: 13px;
-	padding-right: 13px;
-	align-items: center;
-	justify-content: center;
-}
-
-.hz-btn-t {
-	font-size: 11px;
-	font-weight: bold;
-	color: #FFFFFF;
-	font-family: HYSansBold;
-}
-
 .bottom-pad {
 	height: 20px;
 }
@@ -429,7 +347,7 @@
 	flex-direction: column;
 	background-color: #FFFFFF;
 	border-radius: 26px;
-	padding: 20px 18px 24px 18px;
+	padding: 20px 18px calc(24px + env(safe-area-inset-bottom)) 18px;
 }
 
 .sheet-title {
@@ -603,20 +521,6 @@
 	color: #B4BCAF;
 }
 
-.care-tip-row {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	margin-top: 10px;
-}
-
-.care-tip {
-	font-size: 9px;
-	color: #9AA394;
-	letter-spacing: 0.3px;
-	text-align: center;
-}
-
 .gain-pill {
 	position: absolute;
 	right: 58px;
@@ -672,27 +576,6 @@
 	letter-spacing: 0.4px;
 }
 
-.streak-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 6px;
-	padding-bottom: 6px;
-}
-
-.streak-l {
-	font-size: 9px;
-	color: #4E8A6B;
-	letter-spacing: 0.3px;
-}
-
-.streak-r {
-	font-size: 9px;
-	color: #9AA394;
-	letter-spacing: 0.3px;
-}
-
 .trow {
 	display: flex;
 	flex-direction: row;
@@ -733,35 +616,44 @@
 	color: #8D9A8F;
 }
 
-.tsub {
-	font-size: 9px;
-	color: #9AA394;
-	margin-top: 3px;
-	letter-spacing: 0.3px;
+.tclaim {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	min-width: 62px;
+	height: 26px;
+	border-radius: 13px;
+	margin-left: 8px;
+	padding-left: 10px;
+	padding-right: 10px;
+	background-color: #F3F9EF;
 }
 
-.trew {
-	font-size: 12px;
+.tclaim-t {
+	font-size: 11px;
 	font-weight: bold;
-	color: #4E8A6B;
+	font-family: HYSansBold;
 }
 
-.trew-done {
-	color: #B4BCAF;
+.tclaim-on {
+	background-color: #4E8A6B;
 }
 
-.tbar {
-	height: 4px;
-	border-radius: 2px;
+.tclaim-on .tclaim-t {
+	color: #FFFFFF;
+}
+
+.tclaim-off {
 	background-color: #EDF3E7;
-	margin-top: 6px;
-	overflow: hidden;
 }
 
-.tbar-in {
-	height: 4px;
-	border-radius: 2px;
-	background-color: #6BB98A;
+.tclaim-off .tclaim-t {
+	color: #9AA394;
+}
+
+.tclaim-wait .tclaim-t {
+	color: #B4BCAF;
 }
 
 .rank-card {
@@ -997,37 +889,6 @@
 	font-size: 9px;
 	color: #9AA394;
 	margin-top: 4px;
-}
-
-.period-row {
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	margin-top: 16px;
-}
-
-.popt {
-	width: 31%;
-	height: 46px;
-	border-radius: 23px;
-	background-color: #F3F9EF;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.popt-on {
-	background-color: #4E8A6B;
-}
-
-.popt-t {
-	font-size: 13px;
-	font-weight: bold;
-	color: #2E6B4F;
-}
-
-.popt-t-on {
-	color: #FFFFFF;
 }
 
 /* ---------- 多树切换条 ---------- */

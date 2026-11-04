@@ -27,7 +27,7 @@
 | 集合 | 归属 | 说明 |
 | --- | --- | --- |
 | `users` | **每人一条** | 按 `_openid` 隔离（微信服务端自动注入，无法伪造）；首次进入查不到自己的文档会自动注册（静默登录） |
-| `tasks` | **每人一套** | 新用户自动复制一份模板日程，打卡互不影响 |
+| `tasks` | **每人一套** | 用户自己添加的低碳日程；新用户**默认为空**，不再自动复制模板日程 |
 | `tree_logs` | **每人一套** | 成长日志 / 隐患上报记录 |
 | `records` | **每人一套** | 兑换记录 |
 | `trees` | 全局共享 | 大家看同一片林子；`ownerId` 标记认养人 |
@@ -46,8 +46,8 @@
 | `nickname` | string | 昵称。微信已不开放真实昵称，让用户自己填 |
 | `avatar` | string | 头像地址（图片地址或云存储 fileID） |
 | `bio` | string | 个人签名，个人主页展示 |
-| `availablePoints` | number | **碳积分**，日程页赚，认养/浇水/施肥花 |
-| `coins` | number | **护林币**，林地页赚，补给站花 |
+| `availablePoints` | number | **碳积分**，日程页赚；浇水/施肥花；认养首棵树免费，之后每棵 300 分 |
+| `coins` | number | **护林币**，林地页任务完成后点右侧「领取」手动到账（浇水 +15 / 施肥 +20 / 实拍 +50），补给站花；浇水/施肥/上传本身不再自动发币 |
 | `totalGrowthScore` | number | 累计成长值，排行榜用 |
 | `badgeCount` | number | 勋章数 |
 | `days` | number | 护林天数 |
@@ -62,7 +62,7 @@
 | `age` | string | 树龄文案，如「26 年」 |
 | `posX` / `posY` | number | 相对坐标 0-100（旧自绘地图用，保留兼容） |
 | `lat` / `lng` | number | **真实经纬度**，地图组件用这个 |
-| `image` | string | 实拍图地址 |
+| `image` | string | 实拍图地址（同时作为「生长实拍同一棵树」AI 对比的基准图；地图树卡显示按树种生成的卡通插画，不直接展示此图） |
 | `ownerId` | string | 认养人 userId，空串 = 待认养 |
 | `ownerName` | string | 认养人昵称（冗余，列表免查询） |
 | `level` | number | 等级 0-4 |
@@ -86,6 +86,8 @@
 
 ### tasks（日程任务）
 
+> 新用户**默认为空**：日程只来自用户自己添加（`store.addTask()` / `cloudCreateTask`），不再自动生成模板日程；日程页空态与 AI 管家都会引导“先添加日程”。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `taskId` | string | 业务主键 |
@@ -106,6 +108,8 @@
 | `createdAt` | string | 创建时间 |
 
 ### tree_logs（生长实拍 / 隐患工单）
+
+> 上传 `growth` 实拍时（云模式），云端会把本次照片与 `trees.image`（该树第一次登记的照片）一起送 AI，确认是**同一棵树**；对不上则拒绝上传并提示重拍。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -330,12 +334,14 @@ onWater() {
 | 定位 + 附近可认养 | `pages/map` | `geo.getCurrentLocation()` + `geo.nearbyTrees()` |
 | 看别人的个人主页 | `pages/map` → `pages/honor?userId=xxx` | `trees.ownerId` + `db.fetchUserDoc()`（访客模式：只看不改、不显示补给站） |
 | 微信一键登录 / 退出登录 | `pages/login`、`pages/honor`（退出入口） | `common/auth.js` 本地登录标记；身份靠微信 openid 静默建档（云端自动按 `_openid` 隔离），本地首登一次性 `resetForNewUser()` |
-| 养护赚护林币 | `pages/tree` | `store.water()/fertilize()` 内部发币：浇水 +2、施肥 +5（`theme.js` 的 `COIN_WATER/COIN_FERT`） |
+| 首棵树免费认养 | `pages/map` / `store` | `store.myTreeCount() === 0` 时 `adoptTree()` 扣 0 分；云端 `actions.adopt` 用服务端树数同样判定 |
+| 养护任务领护林币 | `pages/tree` | 任务完成后点右侧「领取」块手动到账：浇水 +15、施肥 +20、实拍 +50（kit 本地记录 `claimedAt/claimedTs`）；浇水/施肥/上传本身不再自动发币，连续/全勤/升级奖励已取消 |
+| 生长实拍周期 | `pages/tree` | 写死 30 天（`PHOTO_PERIOD`）；上传成功后申请订阅消息提醒下次；AI 与 `trees.image` 对比同一棵树 |
 | 树上上报异常 | `pages/map` | `store.reportHazard()` |
 | 新增日程 + AI 分析 | `pages/task` | `store.addTask()`，`ai.js` 里加分析函数 |
 | 上传凭证核验 | `pages/task` | `db.uploadImage()` → `tasks.proofImage` |
 | 碳账本周统计 | `pages/task` | `tasks.date` 按天聚合 |
-| 浇水施肥 | `pages/tree` | `store.water()/fertilize()`，扣 `availablePoints` |
+| 浇水施肥 | `pages/tree` | `store.water()/fertilize()`，扣 `availablePoints`；数值真源 `common/theme.js`（浇水 -10 / 成长 +20，施肥 -20 / 成长 +50），云函数 `actions` 的 `COST/GAIN` 已对齐同一组数值 |
 | 树木等级排行榜 | `pages/tree` | `tasks` 换成按 `trees.growthScore` 排序 |
 | 任务系统（定期实拍） | `pages/tree` | `tasks.type/repeatDays` |
 | 护林币货币 | `pages/tree` / `honor` | `user.coins`、`goods.costCurrency` |

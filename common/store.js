@@ -10,8 +10,8 @@
  * 这样做的原因：小程序没有 reactive，硬改成全异步会让四个页面的交互都要加 loading，
  * 演示时反而卡顿。同步改内存 + 后台落库，体验最好，也最不容易写错。
  */
-const { mockUser, mockTrees, mockTasks, mockGoods, mockBadges, mockWeekBars, today } = require('./mock')
-const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN, COIN_WATER, COIN_FERT } = require('./theme')
+const { mockUser, mockTrees, mockGoods, mockBadges, mockWeekBars, today } = require('./mock')
+const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN } = require('./theme')
 const { stamp } = require('./util')
 const { ADMIN_IDS } = require('./config')
 const db = require('./db')
@@ -21,7 +21,7 @@ const ai = require('./ai')
 const state = {
   user: mockUser(),
   trees: mockTrees(),
-  tasks: mockTasks(),
+  tasks: [],
   logs: [
     {
       logId: 'log_501', treeId: 't_101', kind: 'growth', imageUrl: '/static/illus/stage1.png',
@@ -201,9 +201,15 @@ function cloudCreateTask(info) {
   return cloudCall('createTask', info)
 }
 
-/** 改资料（昵称/签名/碳目标） */
+/** 改资料（昵称/头像/碳目标）：云端更新后，本地缓存里名下的树也同步认养人昵称 */
 function cloudUpdateProfile(info) {
-  return cloudCall('updateProfile', info)
+  return cloudCall('updateProfile', info).then(function (r) {
+    if (r && r.ok && info && info.nickname) {
+      syncOwnerName(info.nickname)
+      persist(['trees'])
+    }
+    return r
+  })
 }
 
 /**
@@ -616,10 +622,12 @@ function adoptTree(id) {
   if (t.status === 'rejected' || t.reviewStatus === 'rejected') {
     return '这棵树没有通过审核，暂不可认养'
   }
-  if (state.user.availablePoints < ADOPT_COST) {
+  // 首棵树免积分：零起点新用户也能开始养树；名下已有树后按 ADOPT_COST 收
+  const adoptCost = myTreeCount() === 0 ? 0 : ADOPT_COST
+  if (state.user.availablePoints < adoptCost) {
     return '积分不足，去低碳日程做任务攒一点吧'
   }
-  state.user.availablePoints = state.user.availablePoints - ADOPT_COST
+  state.user.availablePoints = state.user.availablePoints - adoptCost
   t.ownerId = state.user.userId
   t.ownerName = state.user.nickname
   t.level = 1
@@ -653,8 +661,7 @@ function water(treeId) {
   state.user.availablePoints = state.user.availablePoints - WATER_COST
   t.growthScore = t.growthScore + WATER_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + WATER_GAIN
-  // 养护附带发护林币（林地页赚，个人页补给站花）
-  state.user.coins = (state.user.coins || 0) + COIN_WATER
+  // 护林币不再随浇水自动到账：任务完成后由用户去林地页「成长任务」右侧手动领取
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
@@ -685,7 +692,7 @@ function fertilize(treeId) {
   state.user.availablePoints = state.user.availablePoints - FERT_COST
   t.growthScore = t.growthScore + FERT_GAIN
   state.user.totalGrowthScore = state.user.totalGrowthScore + FERT_GAIN
-  state.user.coins = (state.user.coins || 0) + COIN_FERT
+  // 护林币不再随施肥自动到账：任务完成后由用户去林地页「成长任务」右侧手动领取
   if (t.growthScore >= 1000 && t.level < 4) {
     t.level = 4
   }
@@ -849,11 +856,32 @@ function updateTask(taskId, patch) {
   return false
 }
 
-/** 直接改用户字段（加货币、改名等） */
+/**
+ * 把新昵称同步到自己名下所有树的冗余字段上。
+ * 地图树卡、访客档案读的是树上的 ownerName，不是 users.nickname，不同步就会一直是旧昵称。
+ */
+function syncOwnerName(nickname) {
+  const uid = state.user.userId
+  let i = 0
+  while (i < state.trees.length) {
+    const t = state.trees[i]
+    if (t.ownerId && t.ownerId === uid) {
+      t.ownerName = nickname
+    }
+    i++
+  }
+}
+
+/** 直接改用户字段（加货币、改名等）；改昵称时同步名下树的 ownerName */
 function updateUser(patch) {
   Object.keys(patch).forEach(function (k) {
     state.user[k] = patch[k]
   })
+  if (patch.nickname) {
+    syncOwnerName(patch.nickname)
+    persist(['users', 'trees'])
+    return
+  }
   persist(['users'])
 }
 
@@ -861,7 +889,7 @@ function updateUser(patch) {
  * 本地模式首次登录用：把内置演示数据重置成干净新号。
  * （云端不需要：每个 openid 自动建档隔离，新用户本来就是干净的；
  *   本地 Storage 里存的是演示账号 u_001，不清就"登录就有树"。）
- * 保留：520 碳积分 + 120 护林币新手礼（够认养一棵树再兑换一件，演示不冷场）。
+ * 零起点：0 碳积分、0 护林币、空日程 —— 与云端 newUser() 保持一致。
  */
 function resetForNewUser() {
   let i = 0
@@ -876,6 +904,8 @@ function resetForNewUser() {
     }
     i++
   }
+  state.user.availablePoints = 0
+  state.user.coins = 0
   state.user.totalGrowthScore = 0
   state.user.badgeCount = 0
   state.user.days = 1
@@ -883,7 +913,7 @@ function resetForNewUser() {
   state.user.nickname = '护林员' + Math.floor(1000 + Math.random() * 9000)
   state.user.avatar = '/static/illus/avatar.png'
   state.adoptedTreeId = ''
-  state.tasks = mockTasks()
+  state.tasks = []
   state.logs = []
   state.records = []
   persist() // 一次性重置，全量落库

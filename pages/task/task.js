@@ -5,7 +5,7 @@ const { aiVerifyProof, aiAdvice, aiPlanTask, guessMode } = require('../../common
 const TASK_MAX = 10
 const { today } = require('../../common/mock')
 const db = require('../../common/db')
-const { fmt, todayText, toast } = require('../../common/util')
+const { fmt, todayText, toast, pageEnter, setTabBarHidden } = require('../../common/util')
 
 function emptyTask() {
   return {
@@ -21,30 +21,49 @@ function nowSlot() {
 }
 
 /**
- * 周柱状图（MVP：过去 6 天演示值 + 今天真实聚合，最右一根是今天）
- * 高度和配色在 js 里算好，wxml 里不能调函数
+ * 周柱状图（真实数据：最近 7 天，过去 6 天 + 今天）
+ * 只统计已核验任务的减碳量；整周都是 0 时返回 empty=true，页面显示「本周还没有完成日程」
  */
-function buildWeekBars(todayG) {
-  const DEMO = [320, 480, 260, 540, 300, 180]
-  const bars = DEMO.concat([todayG])
-
-  let max = 1
-  let i = 0
-  while (i < bars.length) {
-    if (bars[i] > max) max = bars[i]
-    i++
+function buildWeekBars(allTasks) {
+  const days = []
+  const now = new Date()
+  let i = 6
+  while (i >= 0) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    d.setDate(d.getDate() - i)
+    days.push({
+      key: d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2),
+      g: 0,
+      today: i === 0
+    })
+    i--
   }
 
-  return bars.map(function (v, idx) {
-    let cls = 'wbar'
-    if (idx === 6) {
-      cls = 'wbar wbar-on'
-    } else if (idx === 5 || idx === 3) {
-      cls = 'wbar wbar-mid'
+  const byKey = {}
+  days.forEach(function (d) { byKey[d.key] = d })
+  const list = allTasks || []
+  let j = 0
+  while (j < list.length) {
+    const t = list[j]
+    if (t && t.done && t.date && byKey[t.date]) {
+      byKey[t.date].g += Number(t.carbonSavedG) || 0
     }
-    const h = v > 0 ? (v / max * 66).toFixed(0) + 'px' : '6px'
-    return { idx: idx, h: h, cls: cls }
+    j++
+  }
+
+  let max = 0
+  days.forEach(function (d) { if (d.g > max) max = d.g })
+
+  const bars = days.map(function (d, idx) {
+    // 那天没做任务：不画柱子，只保留列占位
+    if (d.g <= 0) {
+      return { idx: idx, h: '0px', cls: '' }
+    }
+    const h = Math.max(6, Math.round(d.g / max * 66)) + 'px'
+    return { idx: idx, h: h, cls: d.today ? 'wbar wbar-on' : 'wbar wbar-mid' }
   })
+
+  return { bars: bars, empty: max <= 0 }
 }
 
 /** 时段归属：上午(5-12) / 下午(12-18) / 晚上(18-24)，凌晨归上午 */
@@ -85,6 +104,19 @@ function buildStreakText(allTasks) {
   return '连续 0 天'
 }
 
+/** 凭证提示里的做法短句：取方案第一句、去掉括号补充和「· 少排约…」尾巴，太长就退回做法名 */
+function proofHintOf(desc, fallback) {
+  let s = String(desc || '').trim()
+  s = s.replace(/（[^）]*）|\([^)]*\)/g, '')
+  s = s.replace(/·.*$/, '')
+  s = s.replace(/[。；;！!].*$/, '')
+  s = s.replace(/[，,].*$/, '')
+  s = s.trim()
+  // 短到能直接读（「步行去教学楼」这种），太长就退回做法名
+  if (s.length > 12) return fallback
+  return s || fallback
+}
+
 Page({
   data: {
     dateLine: '',
@@ -95,6 +127,7 @@ Page({
     barStyle: 'width:0%',
     groups: [],          // 时段分组 [{ label, tasks }]
     weekBars: [],
+    weekEmpty: false,
     streakText: '连续 0 天',
 
     // 添加日程弹窗
@@ -106,8 +139,8 @@ Page({
     current: null,
     currentPoints: '0',
     proofThumb: '',
-    proofText: '',
     proofUrl: '',
+    proofHint: '',
     dots: '',
     // 这次到底在核验什么（"步行"而不是"上课"），loading 时告诉用户
     verifyTarget: '',
@@ -115,7 +148,8 @@ Page({
     todayCount: 0,
     taskMax: TASK_MAX,
     result: { carbonSavedG: '0', comment: '', detail: '', mode: '', evidence: '' },
-    advice: ''
+    advice: '',
+    navAnim: ''
   },
 
   onLoad() {
@@ -133,9 +167,19 @@ Page({
   },
 
   async onShow() {
+    pageEnter(this, 'task')
+    const tb = this.getTabBar && this.getTabBar()
+    if (tb && tb.syncActive) tb.syncActive()
+    // 弹层开着的页面重新显示时，tabBar 继续保持隐藏（关闭弹层时才恢复）
+    setTabBarHidden(this, this.data.sheetMode !== '')
     await store.ready()
     this.planPending()
     this.refresh()
+  },
+
+  onHide() {
+    // tab 页常驻不销毁：切走时停掉核验中的"…"动画与慢提示
+    this.stopDots()
   },
 
   onUnload() {
@@ -159,7 +203,7 @@ Page({
           taskId: t.taskId,
           slot: t.slot,
           title: t.title,
-          desc: t.desc === '' ? 'AI 分析中…' : t.desc,
+          desc: t.desc === '' ? '生成中…' : t.desc,
           basePoints: t.basePoints,
           done: t.done
         })
@@ -191,8 +235,8 @@ Page({
       i++
     }
 
-    // 周账本：今天的真实减碳聚合
-    const todayG = store.todayCarbon()
+    // 周账本：最近 7 天的真实减碳聚合（只算已核验任务）
+    const week = buildWeekBars(st.tasks)
 
     this.setData({
       todayPoints: pts.toFixed(0),
@@ -201,7 +245,8 @@ Page({
       progressPct: pct.toFixed(0),
       barStyle: 'width:' + pct.toFixed(0) + '%',
       groups: groups,
-      weekBars: buildWeekBars(todayG),
+      weekBars: week.bars,
+      weekEmpty: week.empty,
       streakText: buildStreakText(st.tasks),
       todayCount: list.length,
       taskMax: TASK_MAX
@@ -234,6 +279,7 @@ Page({
   /* ---------------- 添加日程 ---------------- */
 
   openAdd() {
+    setTabBarHidden(this, true)
     this.setData({ sheetMode: 'add', addSlot: nowSlot() })
   },
 
@@ -273,16 +319,17 @@ Page({
 
     // 云端模式：AI 低碳分析与写库都在 actions 云函数里完成
     if (store.isCloud()) {
-      wx.showLoading({ title: 'AI 分析中', mask: true })
+      wx.showLoading({ title: '生成中', mask: true })
       const r = await store.cloudCreateTask({ title: title, slot: slot })
       wx.hideLoading()
       if (!r.ok) {
         toast(r.msg || '添加失败')
         return
       }
+      setTabBarHidden(this, false)
       this.setData({ sheetMode: '', addTitle: '' })
       this.refresh()
-      toast('已添加 · AI 已给出低碳方案')
+      toast('已添加')
       return
     }
 
@@ -302,6 +349,7 @@ Page({
       createdAt: db.stamp()
     })
 
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '', addTitle: '' })
     this.refresh()
     this.planPending()
@@ -341,6 +389,7 @@ Page({
     }
     this.stopDots()
     this.verifying = false
+    setTabBarHidden(this, false)
     this.setData({ sheetMode: '' })
   },
 
@@ -364,33 +413,22 @@ Page({
       return
     }
     if (t.desc === '') {
-      toast('AI 正在分析这条日程，马上就好')
+      toast('这条日程还在生成，稍等一下')
       return
     }
 
+    const target = guessMode((t.title || '') + ' ' + (t.desc || '')) || '低碳做法'
+    setTabBarHidden(this, true)
     this.setData({
       current: t,
       currentPoints: t.basePoints.toFixed(0),
       proofThumb: t.proofImage || '',
-      proofText: t.proofText || '',
       proofUrl: '',
-      // 打开就说清楚核验对象，用户才知道该准备什么凭证
-      verifyTarget: guessMode((t.title || '') + ' ' + (t.desc || '')) || '低碳做法',
+      verifyTarget: target,
+      // 弹层里只留一句「上传一张 XX 的图片凭证」
+      proofHint: proofHintOf(t.desc, target),
       sheetMode: 'task'
     })
-  },
-
-  onProofText(e) {
-    this.setData({ proofText: e.detail.value })
-  },
-
-  /** 失焦即暂存草稿：误触蒙层关闭后重开不丢已输入内容 */
-  onProofBlur(e) {
-    const text = (e.detail.value || '').trim()
-    this.setData({ proofText: text })
-    if (text !== '' && this.data.current && this.data.current.taskId) {
-      store.updateTask(this.data.current.taskId, { proofText: text })
-    }
   },
 
   /** 拍照或相册选图：先压一档再上传（本地模式整图 base64 进 Storage，防撑爆 10MB 上限） */
@@ -473,10 +511,9 @@ Page({
       return
     }
 
-    const proofText = (this.data.proofText || '').trim()
-    // 空凭证拦截：图、公网链接、文字三者皆空不允许提交
-    if (proofText === '' && (this.data.proofUrl || '') === '' && (this.data.proofThumb || '') === '') {
-      toast('拍一张照片或写一句凭证再提交')
+    // 只认照片凭证：没有图、也没有公网链接，就不允许提交
+    if ((this.data.proofUrl || '') === '' && (this.data.proofThumb || '') === '') {
+      toast('先拍一张照片再提交')
       return
     }
 
@@ -491,11 +528,6 @@ Page({
     if (this.data.proofThumb && imageUrl === '') {
       toast('照片没加载成功，重新选一张再提交')
       return
-    }
-
-    // 文字凭证先暂存，AI 核验时综合判断
-    if (proofText !== '') {
-      store.updateTask(task.taskId, { proofText: proofText })
     }
 
     // 核验对象是方案里的做法（步行/骑行/光盘…），不是标题本身
@@ -513,7 +545,6 @@ Page({
       const that2 = this
       store.cloudCompleteTask({
         taskId: task.taskId,
-        proofText: proofText,
         imageUrl: imageUrl,
         proofImage: this.data.proofThumb
       }).then(function (r) {
@@ -560,7 +591,7 @@ Page({
       return
     }
 
-    aiVerifyProof(task, proofText, imageUrl, function (r) {
+    aiVerifyProof(task, '', imageUrl, function (r) {
       that.verifying = false
       // 回调作废守卫：弹窗已关 / 已切别的任务 / 页面已销毁，一律丢弃旧结果
       if (!that._alive || seq !== that.verifySeq || that.data.sheetMode !== 'loading') {
@@ -599,7 +630,6 @@ Page({
     this.setData({
       sheetMode: 'task',
       proofThumb: '',
-      proofText: '',
       proofUrl: '',
       result: { carbonSavedG: '0', comment: '', detail: '' }
     })
@@ -611,15 +641,15 @@ Page({
     // 云端模式：核验时云函数已经写好库、加过分，这里只收尾
     if (this._cloudDone) {
       this._cloudDone = false
-      this.setData({ sheetMode: '', proofThumb: '', proofText: '', proofUrl: '' })
+      setTabBarHidden(this, false)
+      this.setData({ sheetMode: '', proofThumb: '', proofUrl: '' })
       this.refresh()
       toast('+' + task.basePoints.toFixed(0) + ' 积分已到账')
       return
     }
 
     const err = store.completeTask(task.taskId, Number(this.data.result.carbonSavedG), this.data.result.comment, {
-      proofImage: this.data.proofThumb,
-      proofText: (this.data.proofText || '').trim()
+      proofImage: this.data.proofThumb
     })
 
     if (err !== '') {
@@ -628,15 +658,17 @@ Page({
       toast('+' + task.basePoints.toFixed(0) + ' 积分已到账')
     }
 
-    this.setData({ sheetMode: '', proofThumb: '', proofText: '', proofUrl: '' })
+    setTabBarHidden(this, false)
+    this.setData({ sheetMode: '', proofThumb: '', proofUrl: '' })
     this.refresh()
   },
 
   askAi() {
     const that = this
+    setTabBarHidden(this, true)
     this.setData({
       sheetMode: 'advice',
-      advice: 'AI 正在翻你的日程表…'
+      advice: '正在整理你的日程…'
     })
 
     aiAdvice(store.doneCount(), store.todayTaskCount(), function (text) {

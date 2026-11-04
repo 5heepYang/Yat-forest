@@ -231,7 +231,9 @@ function aiReviewTree(info, cb) {
     name: info.name || '',
     age: info.age || '',
     description: info.description || '',
-    imageUrl: info.imageUrl || ''
+    imageUrl: info.imageUrl || '',
+    // 可选：这棵树第一次登记时的照片，让视觉模型顺带判断"还是同一棵吗"
+    referenceImageUrl: info.referenceImageUrl || ''
   }
 
   if (cloudReady()) {
@@ -243,7 +245,8 @@ function aiReviewTree(info, cb) {
           species: r.species || '未识别',
           confidence: Number(r.confidence) || 0,
           reason: r.reason || '',
-          detail: r.detail || ''
+          detail: r.detail || '',
+          sameTree: (typeof r.sameTree === 'boolean' ? r.sameTree : undefined)
         })
         return
       }
@@ -330,11 +333,16 @@ function localAnalyzeHazard(treeName, species) {
 /** AI 日程碳管家：根据今日任务给出减碳建议 */
 function aiAdvice(doneCount, totalCount, cb) {
   setTimeout(function () {
+    // 空日程：没有日程就没有打卡进度，先引导用户添加（日程只算用户自己上传的）
+    if (totalCount <= 0) {
+      cb('今天还没有日程，点右上角添加一条吧。')
+      return
+    }
     let s = ''
     if (doneCount >= totalCount) {
-      s = '今天的任务链全部核验通过，预计再走 800 步就能多减 40g，去操场绕一圈吧。'
+      s = '今天的日程都完成了，出门走走还能再减一点碳。'
     } else {
-      s = '你还有 ' + (totalCount - doneCount).toFixed(0) + ' 个任务没打卡。按你今天的日程，晚餐光盘 + 回宿舍关灯一小时，还能再减约 120g，够你的树长 20 点成长值。'
+      s = '还有 ' + (totalCount - doneCount).toFixed(0) + ' 条日程没打卡，做完还能再减一些碳。'
     }
     cb(s)
   }, 900)
