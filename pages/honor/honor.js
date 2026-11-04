@@ -489,13 +489,14 @@ Page({
     wx.reLaunch({ url: '/pages/map/map' })
   },
 
-  /** 复制自己的 userId（要把某个号加进管理员白名单时用它） */
+  /** 复制身份信息（userId + openid），发给开发者排查"每次换号"问题用 */
   onCopyUserId() {
-    const id = this.data.myUserId || (store.state.user && store.state.user.userId) || ''
-    if (!id) return
+    const uid = this.data.myUserId || (store.state.user && store.state.user.userId) || ''
+    const oid = this.data.myOpenid || ''
+    const text = 'userId: ' + uid + '\nopenid: ' + (oid || '未取到') + '\n时间: ' + new Date().toLocaleString()
     wx.setClipboardData({
-      data: id,
-      success: function () { toast('已复制：' + id) }
+      data: text,
+      success: function () { toast('身份信息已复制，直接粘贴发送即可') }
     })
   },
 
