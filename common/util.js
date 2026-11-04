@@ -106,10 +106,11 @@ function viaCloudFunction(fileID, resolve) {
  * 云存储权限受限时由 actions 云函数代取，所以即使权限没放开，别人的图也能显示。
  */
 const urlCache = {}
-function resolveCloudUrl(url) {
+function resolveCloudUrl(url, force) {
   const s = String(url || '')
   if (s.indexOf('cloud://') !== 0) return Promise.resolve(s)
-  const hit = urlCache[s]
+  const hit = force ? null : urlCache[s]
+  if (force) delete urlCache[s]
   if (hit && hit.expire > Date.now()) return Promise.resolve(hit.url)
   return toPublicUrl(s).then(function (u) {
     if (u && u.indexOf('http') === 0) {

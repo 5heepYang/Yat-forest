@@ -1,49 +1,51 @@
+/* nav-bar · v3：大标题 + 灰色副标题，无分隔线 */
 .nav {
-	display: flex;
-	flex-direction: column;
-	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-	background-color: #FAF7F0;
-	padding-left: 20px;
-	padding-right: 20px;
-	padding-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  background-color: #F4F4F4;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .status-pad {
-	width: 100%;
+  width: 100%;
 }
 
 .nav-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	padding-top: 14px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-top: 8px;
 }
 
 .nav-left {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .nav-title {
-	font-size: 22px;
-	font-weight: bold;
-	color: #245A41;
-	letter-spacing: 0.5px;
-	font-family: HYSansBold;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  font-size: 27px;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  color: #2A3A32;
 }
 
 .nav-sub {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 6px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  color: #8B908A;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 .nav-right {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding-top: 6px;
 }

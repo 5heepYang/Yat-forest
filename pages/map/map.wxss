@@ -1,85 +1,20 @@
-/*
- * 森友地图页样式
- *
- * 配色统一用视觉稿 v5 色板（色值常量见 common/theme.js）：
- *   主绿 #3E7D5C / 深绿 #245A41 / 浅绿面 #E9F2E4 / 页面暖白底 #FAF7F0
- *   警示橙红 #D96C52 / 警示文字 #B4553F / 次要文字 #9AA394
- * 顶部筛选、详情卡片的样式在各自组件 wxss 里，这里只保留页面骨架和悬浮定位。
- */
 .page {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
 	position: relative;
-	background-color: #FAF7F0;
-	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-}
-
-/* 回到当前位置：白色圆钮，悬在"新增树木"长条上方 */
-.loc-btn {
-	display: flex;
-	flex-direction: column;
-	position: absolute;
-	right: 14px;
-	bottom: 64px;
-	width: 40px;
-	height: 40px;
-	border-radius: 20px;
-	background-color: #FFFFFF;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.05), 0 6px 18px rgba(36, 90, 65, 0.16);
-	z-index: 10;
-	transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.loc-ic {
-	width: 20px;
-	height: 20px;
-}
-
-/* 新增树木：地图右下角圆角长条（与筛选 chip 同风格），悬浮在底部栏上方；
-   详情/上传弹窗打开时隐藏，避免和底部卡片重叠 */
-.add-tree-btn {
-	display: flex;
-	flex-direction: row;
-	position: absolute;
-	right: 14px;
-	bottom: 20px;
-	height: 34px;
-	border-radius: 17px;
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
-	align-items: center;
-	padding-left: 12px;
-	padding-right: 14px;
-	box-shadow: 0 6px 16px rgba(62, 125, 92, 0.35);
-	z-index: 10;
-	transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.add-tree-ic {
-	width: 14px;
-	height: 14px;
-	margin-right: 6px;
-}
-
-.add-tree-t {
-	font-size: 12px;
-	color: #FFFFFF;
-	font-weight: bold;
-	letter-spacing: 0.4px;
-	font-family: HYSansBold;
+	background-color: #F4F4F4;
+	color: #2A3A32;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .map-wrap {
-	display: flex;
-	flex-direction: column;
 	flex: 1;
 	position: relative;
 	overflow: hidden;
+	background-color: #EDECE6;
 }
 
-/* 原生地图：铺满地图容器，浮层靠同层渲染盖在上面 */
 .map-native {
 	position: absolute;
 	left: 0;
@@ -88,94 +23,147 @@
 	bottom: 0;
 	width: 100%;
 	height: 100%;
-	background-color: #E7F0D8;
 }
 
-/* 地图就绪前的暖白遮罩：盖住地图初始化的白布，避免切页闪白屏 */
 .map-cover {
-	display: flex;
-	flex-direction: column;
 	position: absolute;
 	left: 0;
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: #FAF7F0;
+	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	z-index: 8;
+	background-color: #F4F4F4;
 }
 
 .map-cover-ico {
-	width: 40px;
-	height: 40px;
-	opacity: 0.7;
+	width: 118px;
+	height: 118px;
+	opacity: 0.55;
+	mix-blend-mode: multiply;
 }
 
-/* 顶部筛选组件的宿主定位（组件内部样式在组件 wxss 里） */
+/* 顶部检索牌 */
 .float-top {
-	display: flex;
-	flex-direction: column;
 	position: absolute;
-	left: 16px;
-	right: 16px;
+	left: 14px;
+	right: 14px;
 	top: 8px;
 	z-index: 10;
+	padding: 10px 12px 9px;
+	background-color: #FFFFFF;
+	border: 1px solid #F0F0F0;
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
 }
 
-/* ---------- 选点提示条：底部悬浮，盖在地图之上 ---------- */
-
+/* 选点提示：墨色签条 */
 .pick-bar {
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	bottom: 22px;
+	z-index: 12;
 	display: flex;
 	flex-direction: row;
-	position: absolute;
-	left: 12px;
-	right: 12px;
-	bottom: 24px;
-	min-height: 44px;
-	border-radius: 22px;
-	background-color: #1F2B24;
 	align-items: center;
 	justify-content: space-between;
-	padding: 10px 8px 10px 14px;
-	box-shadow: 0px 6px 18px rgba(34, 48, 42, 0.22);
-	z-index: 20;
+	padding: 10px 12px;
+	background-color: #2A3A32;
+	border-left: 3px solid #2A3A32;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
 }
 
 .pick-texts {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
+	padding-right: 10px;
 }
 
 .pick-t {
 	font-size: 12px;
-	font-weight: bold;
 	color: #FFFFFF;
-	font-family: HYSansBold;
+	letter-spacing: 0.4px;
 }
 
 .pick-sub {
-	font-size: 10px;
-	color: rgba(255, 255, 255, 0.68);
-	margin-top: 3px;
-	font-family: HYSans;
+	margin-top: 4px;
+	font-size: 9.5px;
+	color: #A9A392;
+	letter-spacing: 0.2px;
 }
 
 .pick-cancel {
+	flex-shrink: 0;
+	padding: 5px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.42);
+	border-radius: 12px;
+}
+
+.pick-cancel-t {
+	font-size: 10px;
+	color: #FFFFFF;
+	letter-spacing: 0.3px;
+}
+
+/* 定位：方形工具钮 */
+.loc-btn {
+	position: absolute;
+	right: 14px;
+	bottom: 76px;
+	z-index: 11;
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	height: 28px;
-	border-radius: 14px;
-	background-color: rgba(255, 255, 255, 0.16);
-	padding-left: 12px;
-	padding-right: 12px;
+	width: 42px;
+	height: 42px;
+	background-color: #FFFFFF;
+	border: 1px solid #F0F0F0;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
 }
 
-.pick-cancel-t {
-	font-size: 11px;
+.loc-ic {
+	width: 19px;
+	height: 19px;
+	filter: grayscale(1) brightness(0.4);
+}
+
+/* 新增树木：墨实心签 */
+.add-tree-btn {
+	position: absolute;
+	right: 14px;
+	bottom: 22px;
+	z-index: 11;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 42px;
+	padding-left: 13px;
+	padding-right: 14px;
+	background-color: #2A3A32;
+	border: 1px solid #F0F0F0;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
+}
+
+.add-tree-ic {
+	width: 13px;
+	height: 13px;
+	margin-right: 6px;
+}
+
+.add-tree-t {
+	font-size: 12px;
 	color: #FFFFFF;
-	font-family: HYSans;
+	letter-spacing: 0.3px;
+}
+
+.tabbar-holder {
+	height: calc(70px + env(safe-area-inset-bottom));
 }

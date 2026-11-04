@@ -16,12 +16,41 @@ function goodsBoxClass(itemId) {
 }
 
 /** 树列表卡片用的展示字段（wxml 不能调函数，这里算好） */
-/** 头像首帧不要直接吃 cloud://：渲染层会先尝试加载并失败，留下一条红字。
- *  先用本地占位图，拿到 https 后再替换（fixAvatar 负责）。 */
-function safeImg(url, fallback) {
+/* 头像地址缓存：cloud:// 换 https 要发请求，切 tab 时若每次重新解析，
+   第一帧只能是占位图，看起来就是「头像丢了」。把解析结果按 fileID 存进
+   Storage，切页时直接拿来用；过期或加载失败再重新解析。 */
+const AVATAR_CACHE = 'ec_avatar_https_v1'
+
+function readAvatarCache(fileID) {
+  try {
+    const c = wx.getStorageSync(AVATAR_CACHE)
+    if (c && c.fileID === fileID && c.url && c.expire > Date.now()) return c.url
+  } catch (e) {}
+  return ''
+}
+
+function writeAvatarCache(fileID, url) {
+  try {
+    wx.setStorageSync(AVATAR_CACHE, {
+      fileID: fileID,
+      url: url,
+      expire: Date.now() + 75 * 60 * 1000
+    })
+  } catch (e) {}
+}
+
+function clearAvatarCache() {
+  try {
+    wx.removeStorageSync(AVATAR_CACHE)
+  } catch (e) {}
+}
+
+/** 头像展示地址：缓存 https > cloud:// 原样（image 可直接吃）> 本地占位图 */
+function displayAvatar(url, fallback) {
   const s = String(url || '')
-  if (s === '' ) return fallback
-  return s.indexOf('cloud://') === 0 ? fallback : s
+  if (s === '') return fallback
+  if (s.indexOf('cloud://') === 0) return readAvatarCache(s) || s
+  return s
 }
 
 function decorateTrees(list) {
@@ -64,6 +93,7 @@ Page({
     days: '0',
     nickname: '',
     avatar: '',
+    avatarReady: false,
     heroLine1: '',
     heroLine2: '',
     stats: [],
@@ -90,12 +120,15 @@ Page({
    * 头像若是 cloud://（上传头像时传到了云存储），换成 https 临时地址再渲染。
    * <image> 直接吃 cloud:// 会走客户端换链接，存储权限受限时会加载失败。
    */
-  fixAvatar() {
+  fixAvatar(force) {
     const that = this
     const a = this.data.rawAvatar || this.data.avatar
     if (!a || String(a).indexOf('cloud://') !== 0) return
-    resolveCloudUrl(a).then(function (u) {
-      if (u && u !== a) that.setData({ avatar: u })
+    resolveCloudUrl(a, force).then(function (u) {
+      if (u && u.indexOf('http') === 0 && u !== a) {
+        writeAvatarCache(a, u)
+        that.setData({ avatar: u })
+      }
     })
   },
 
@@ -141,7 +174,9 @@ Page({
         unlockedCount: 0,
         topBadges: [],
         allBadges: [],
-        treeList: []
+        treeList: [],
+        avatar: '',
+        avatarReady: false
       })
     }
     await store.ready()
@@ -225,7 +260,8 @@ Page({
       viewing: false,
       days: st.user.days.toFixed(0),
       nickname: st.user.nickname,
-      avatar: safeImg(st.user.avatar, '/static/illus/avatar.png'),
+      avatar: displayAvatar(st.user.avatar, '/static/illus/avatar.png'),
+      avatarReady: true,
       rawAvatar: st.user.avatar || '',
       heroLine1: 'Lv.' + t.level.toFixed(0) + ' 护林人' + (titleBadge !== '' ? ' · ' + titleBadge : ''),
       heroLine2: bio !== '' ? bio : '已点亮 ' + unlocked.toFixed(0) + ' / ' + st.badges.length.toFixed(0) + ' 枚勋章',
@@ -302,7 +338,8 @@ Page({
       that.setData({
         viewing: true,
         nickname: nickname,
-        avatar: safeImg(avatar, '/static/illus/avatar.png'),
+        avatar: displayAvatar(avatar, '/static/illus/avatar.png'),
+        avatarReady: true,
         rawAvatar: avatar,
         heroLine1: 'Lv.' + tm.maxLevel.toFixed(0) + ' 护林人',
         heroLine2: bio !== '' ? bio : '已点亮 ' + badgeIds.length.toFixed(0) + ' 枚勋章',
@@ -544,6 +581,17 @@ Page({
   },
 
   /** 头像点击放大预览 */
+  /** 头像加载失败（云存储签名过期 / 网络异常）→ 回退本地占位图，不留白圆 */
+  onAvatarError() {
+    const raw = String(this.data.rawAvatar || '')
+    this.setData({ avatar: '/static/illus/avatar.png' })
+    // 缓存的临时链接过期 / 网络异常：清缓存重新换一次，别停在下不来的占位图
+    if (raw.indexOf('cloud://') === 0) {
+      clearAvatarCache()
+      this.fixAvatar(true)
+    }
+  },
+
   previewAvatar() {
     const url = this.data.avatar
     if (!url) return

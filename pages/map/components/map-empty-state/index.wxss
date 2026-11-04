@@ -1,25 +1,26 @@
-/* 空状态：地图中央的白色小卡片，不遮挡可拖动的地图底图；入场淡入 + 轻微上移 */
+/* 空状态：地图中央一张小纸条 */
 .es-card {
 	display: flex;
 	flex-direction: column;
 	position: absolute;
 	left: 50%;
-	top: 42%;
-	width: 220px;
-	margin-left: -110px;
-	background-color: rgba(255, 255, 255, 0.94);
-	border-radius: 18px;
-	padding: 18px 16px;
+	top: 40%;
+	width: 226px;
+	margin-left: -113px;
+	padding: 20px 18px 17px;
 	align-items: center;
-	box-shadow: 0px 4px 16px rgba(36, 90, 65, 0.12);
+	background-color: #FFFFFF;
+	border: 1px solid #F0F0F0;
+	border-radius: 12px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
 	z-index: 12;
-	animation: es-in 0.28s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+	animation: esIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes es-in {
+@keyframes esIn {
 	from {
 		opacity: 0;
-		transform: translateY(14px);
+		transform: translateY(8px);
 	}
 	to {
 		opacity: 1;
@@ -28,51 +29,44 @@
 }
 
 .es-ic {
-	width: 26px;
-	height: 26px;
+	width: 18px;
+	height: 18px;
+	opacity: 0.4;
+	filter: grayscale(1) brightness(0.4);
 }
 
 .es-t {
-	font-size: 14px;
-	font-weight: bold;
-	color: #1F2B24;
-	margin-top: 8px;
-	font-family: HYSansBold;
+	margin-top: 11px;
+	font-size: 12.5px;
+	color: #2A3A32;
+	letter-spacing: 0.8px;
 }
 
 .es-sub {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 6px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+	margin-top: 7px;
+	font-size: 10px;
+	color: #8B908A;
+	letter-spacing: 0.3px;
+	line-height: 1.6;
+	text-align: center;
 }
 
 .es-btn {
 	display: flex;
-	flex-direction: column;
-	height: 34px;
-	border-radius: 17px;
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
-	box-shadow: 0 6px 14px rgba(62, 125, 92, 0.28);
-	transition: transform 0.12s ease, opacity 0.12s ease;
-	align-items: center;
-	justify-content: center;
-	padding-left: 16px;
-	padding-right: 16px;
-	margin-top: 12px;
+	flex-direction: row;
+	margin-top: 14px;
+	padding-bottom: 2px;
+	border-bottom: 1px solid #2A3A32;
 }
 
 .es-btn-t {
-	font-size: 12px;
-	color: #FFFFFF;
-	font-weight: bold;
-	letter-spacing: 0.4px;
-	font-family: HYSansBold;
+	font-size: 10px;
+	color: #2A3A32;
+	letter-spacing: 0.3px;
 }
 
-/* 组件默认样式隔离：按压反馈类需在组件内再声明一份 */
+/* 组件样式隔离：按压反馈在组件内再声明一份 */
 .hv-press {
-	transform: scale(0.97);
-	opacity: 0.92;
+	opacity: 0.78;
+	transform: translateY(2px);
 }

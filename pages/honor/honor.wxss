@@ -1,863 +1,720 @@
+/* honor 页 · v3：干净白卡 + 黑字大写标题 + 彩色小标签 */
 .page {
-	display: flex;
-	flex-direction: column;
-	height: 100vh;
-	position: relative;
-	background-color: #FAF7F0;
-	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+  background-color: #F4F4F4;
+  color: #2A3A32;
 }
 
 .body {
-	flex: 1;
-	height: 0;
-}
-
-.hero {
-	display: flex;
-	flex-direction: column;
-	background: linear-gradient(160deg, #E9F2E4, #F4F8EE);
-	padding-left: 20px;
-	padding-right: 20px;
-	padding-bottom: 18px;
-	border-bottom-left-radius: 24px;
-	border-bottom-right-radius: 24px;
+  flex: 1;
+  height: 0;
 }
 
 .status-pad {
-	width: 100%;
+  width: 100%;
 }
 
-.hero-sub {
-	font-size: 10px;
-	color: #7E8C82;
-	margin-top: 12px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+/* ---------------- 档案头部 ---------------- */
+.hero {
+  padding: 6px 16px 0;
 }
-
-.hero-name {
-	font-size: 22px;
-	font-weight: bold;
-	color: #245A41;
-	margin-top: 6px;
-	font-family: HYSansBold;
-}
-
-.hero-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-top: 14px;
-}
-
-.avatar-box {
-	display: flex;
-	flex-direction: column;
-	width: 58px;
-	height: 58px;
-	border-radius: 29px;
-	background-color: #FBF3DF;
-	align-items: center;
-	justify-content: center;
-}
-
-.avatar-img {
-	width: 50px;
-	height: 50px;
-	border-radius: 25px;
-}
-
-.hero-info {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	margin-left: 12px;
-}
-
-.hero-line1 {
-	font-size: 11px;
-	font-weight: bold;
-	color: #3D5A48;
-	font-family: HYSansBold;
-}
-
-.hero-line2 {
-	font-size: 10px;
-	color: #7E8C82;
-	margin-top: 5px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-/* 四格统计收进一张白卡，数字之间加发丝分隔，层级更清楚 */
-.stats {
-	display: flex;
-	flex-direction: row;
-	background-color: #FFFFFF;
-	border-radius: 22px;
-	padding: 14px 6px;
-	margin: 12px 16px 0 16px;
-	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
-	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 backwards;
-}
-
-.stat-cell {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	position: relative;
-}
-
-.stat-cell + .stat-cell::before {
-	content: "";
-	position: absolute;
-	left: 0;
-	top: 6px;
-	bottom: 6px;
-	width: 1px;
-	background-color: #E7ECE3;
-}
-
-.stat-num {
-	font-size: 24px;
-	font-weight: bold;
-	color: #245A41;
-	font-family: HYSansBold;
-}
-
-/* 护林币数字用主题金 */
-.stat-num-gold {
-	color: #D99C2B;
-}
-
-.stat-num-row {
-	display: flex;
-	flex-direction: row;
-	align-items: flex-end;
-}
-
-.stat-unit {
-	font-size: 11px;
-	font-weight: normal;
-	color: #5C6B60;
-	margin-left: 2px;
-	margin-bottom: 3px;
-	font-family: HYSans;
-}
-
-.stat-lb {
-	font-size: 9px;
-	color: #9AA394;
-	margin-top: 5px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.sec-row {
-	margin: 10px 20px 10px 20px;
-}
-
-.sec-title {
-	font-size: 14px;
-	font-weight: bold;
-	color: #245A41;
-	font-family: HYSansBold;
-}
-
-.badge-empty {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: center;
-	height: 72px;
-	border-radius: 12px;
-	background-color: #F6FAF2;
-}
-
-.badge-empty-t {
-	font-size: 12px;
-	color: #9AA394;
-	font-family: HYSans;
-}
-
-.badge-row {
-	display: flex;
-	flex-direction: row;
-	margin: 0 20px 0 20px;
-}
-
-.badge-cell {
-	display: flex;
-	flex-direction: column;
-	width: 25%;
-	align-items: center;
-}
-
-.badge-circle {
-	display: flex;
-	flex-direction: column;
-	width: 48px;
-	height: 48px;
-	border-radius: 24px;
-	align-items: center;
-	justify-content: center;
-}
-
-.badge-gold {
-	background-color: #FBF3DF;
-}
-
-.badge-pink {
-	background-color: #FBEDEA;
-}
-
-.badge-green {
-	background-color: #E9F2E4;
-}
-
-.badge-off {
-	background-color: #F2F4EF;
-}
-
-/* 未点亮勋章：图标去色转深灰（原图是彩色 PNG，靠灰度滤镜压掉） */
-.badge-off .badge-ico {
-	filter: grayscale(100%);
-	opacity: 0.45;
-}
-
-.badge-ico {
-	width: 24px;
-	height: 24px;
-}
-
-.badge-name {
-	font-size: 9px;
-	color: #B4BCAF;
-	margin-top: 7px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.badge-name-on {
-	color: #5C6B60;
-}
-
-.mytree-card {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	background-color: #FFFFFF;
-	border-radius: 18px;
-	margin: 0 16px 0 16px;
-	padding: 12px;
-	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
-	transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.mt-thumb {
-	display: flex;
-	flex-direction: column;
-	width: 52px;
-	height: 52px;
-	border-radius: 14px;
-	background-color: #F1F8EA;
-	align-items: center;
-	justify-content: center;
-}
-
-.mt-img {
-	width: 44px;
-	height: 44px;
-}
-
-.mt-info {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	margin-left: 11px;
-}
-
-.mt-name {
-	font-size: 12px;
-	font-weight: bold;
-	color: #1F2B24;
-	font-family: HYSansBold;
-}
-
-.mt-sub {
-	font-size: 9px;
-	color: #9AA394;
-	margin-top: 4px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.go-pill {
-	display: flex;
-	flex-direction: row;
-	height: 26px;
-	border-radius: 13px;
-	background-color: #E9F2E4;
-	padding-left: 13px;
-	padding-right: 13px;
-	align-items: center;
-	justify-content: center;
-}
-
-.go-pill-t {
-	font-size: 10px;
-	font-weight: bold;
-	color: #3E7D5C;
-	font-family: HYSansBold;
-}
-
-.list-card {
-	display: flex;
-	flex-direction: column;
-	background-color: #F2F7EC;
-	border-radius: 18px;
-	margin: 10px 16px 0 16px;
-	padding-left: 14px;
-	padding-right: 14px;
-}
-
-.list-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	padding-top: 13px;
-	padding-bottom: 13px;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
-	border-bottom-color: #EAF1E4;
-}
-
-.list-k {
-	font-size: 11px;
-	color: #3D5A48;
-	font-family: HYSans;
-}
-
-.list-v {
-	font-size: 10px;
-	color: #9AA394;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.goods-row {
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	margin: 12px 16px 0 16px;
-}
-
-.goods-card {
-	display: flex;
-	flex-direction: column;
-	width: 48%;
-	box-sizing: border-box;
-	background-color: #FFFFFF;
-	border-radius: 18px;
-	padding: 10px;
-	margin-bottom: 12px;
-	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
-	transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.goods-box {
-	display: flex;
-	flex-direction: column;
-	height: 96px;
-	border-radius: 13px;
-	align-items: center;
-	justify-content: center;
-	overflow: hidden;
-}
-
-.goods-box-green {
-	background-color: #E4F0D9;
-}
-
-.goods-box-cream {
-	background-color: #FBEFD2;
-}
-
-.goods-img {
-	width: 100%;
-	height: 100%;
-	border-radius: 13px;
-}
-
-.goods-name {
-	font-size: 12px;
-	font-weight: bold;
-	color: #1F2B24;
-	margin-top: 9px;
-	font-family: HYSansBold;
-}
-
-.goods-cost {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 4px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-}
-
-.bottom-pad {
-	height: 20px;
-}
-
-/* ------------------------------------------------------------------ */
-/* 访客模式（地图页进别人主页）+ 在养的树卡片 + 退出登录                  */
-/* ------------------------------------------------------------------ */
 
 .hero-top {
-	display: flex;
-	flex-direction: row;
-	margin-top: 8px;
-}
-
-/* 名称行：昵称在左、编辑资料入口在右（自己的主页；访客态只显示昵称） */
-.name-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 6px;
-}
-
-.name-row .hero-name {
-	margin-top: 0;
-}
-
-.edit-btn {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: center;
-	height: 22px;
-	padding-left: 10px;
-	padding-right: 10px;
-	border-radius: 11px;
-	background-color: #E9F2E4;
-}
-
-.edit-t {
-	font-size: 10px;
-	color: #3E7D5C;
-	letter-spacing: 0.3px;
-	font-family: HYSans;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 
 .back-pill {
-	display: flex;
-	flex-direction: row;
-	height: 26px;
-	border-radius: 13px;
-	background-color: #FFFFFF;
-	padding-left: 12px;
-	padding-right: 12px;
-	align-items: center;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background-color: #FFFFFF;
 }
 
 .back-t {
-	font-size: 11px;
-	font-weight: bold;
-	color: #245A41;
-	font-family: HYSansBold;
+  font-size: 12px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
 }
 
-.tree-stack {
-	display: flex;
-	flex-direction: column;
+.hero-sub {
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #8B908A;
+  margin-top: 2px;
 }
 
-/* 树列表里除最后一张外都留出间距（覆盖 .mytree-card 的 margin） */
-.tree-card-row {
-	margin: 0 16px 10px 16px;
+.name-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 2px;
 }
 
-.sec-row-shop {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 22px;
+.hero-name {
+  font-size: 27px;
+  line-height: 1.2;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.4px;
 }
 
-/* 资料弹层里的头像选择（微信官方 chooseAvatar 按钮） */
-.avatar-btn {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	background-color: transparent;
-	padding: 0;
-	margin: 14px 0 0 0;
-	border: none;
-	line-height: 1.2;
+.edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 11px;
+  margin-left: auto;
+  border-radius: 999px;
+  background-color: #FFFFFF;
 }
 
-.avatar-btn::after {
-	border: none;
+.edit-t {
+  font-size: 11px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
 }
 
-.avatar-sheet-img {
-	width: 64px;
-	height: 64px;
-	border-radius: 32px;
-	background-color: #FBF3DF;
+.hero-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 14px;
 }
 
-.avatar-tip {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 6px;
-	font-family: HYSans;
+.avatar-box {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #FFFFFF;
+  flex-shrink: 0;
 }
 
-.list-row-last {
-	border-bottom-width: 0;
+.avatar-img {
+  width: 100%;
+  height: 100%;
 }
 
-/* ------------------------------------------------------------------ */
-/* 勋章馆入口 / 勋章馆与兑换记录弹层 / 商品换行                       */
-/* ------------------------------------------------------------------ */
+.avatar-ph {
+  width: 100%;
+  height: 100%;
+  background-color: #EDEDEA;
+  animation: avatarPulse 1.2s ease-in-out infinite;
+}
 
-.badge-head {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
+@keyframes avatarPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.hero-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.hero-line1 {
+  font-size: 13.5px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.hero-line2 {
+  font-size: 11.5px;
+  color: #8B908A;
+  margin-top: 3px;
+}
+
+.hero-stamp {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background-color: #2A3A32;
+}
+
+.stamp-t {
+  font-size: 10px;
+  line-height: 1;
+  color: #FFFFFF;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ---------------- 四格统计（无竖线、居中） ---------------- */
+.stats {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 18px 16px 0;
+  padding: 15px 4px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+}
+
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.stat-num-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.stat-num {
+  font-size: 21px;
+  line-height: 1.1;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-num-gold {
+  color: #E0A526;
+}
+
+.stat-unit {
+  font-size: 10px;
+  color: #8B908A;
+  margin-left: 1px;
+}
+
+.stat-lb {
+  font-size: 10px;
+  line-height: 1.3;
+  color: #8B908A;
+  margin-top: 5px;
+}
+
+/* ---------------- 章节 ---------------- */
+.sec-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 16px 10px;
+}
+
+.sec-title {
+  font-size: 15px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
 }
 
 .more-t {
-	font-size: 10px;
-	color: #9AA394;
-	font-family: HYSans;
+  font-size: 11.5px;
+  color: #8B908A;
 }
 
-.bdg-list {
-	display: flex;
-	flex-direction: column;
-	margin-top: 14px;
+/* ---------------- 勋章 ---------------- */
+.badge-head {
+  align-items: baseline;
 }
 
-.bdg-item {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding-top: 10px;
-	padding-bottom: 10px;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
-	border-bottom-color: #F0F4EC;
+.badge-row {
+  display: flex;
+  flex-direction: row;
+  margin: 0 16px;
+  padding: 16px 6px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
 }
 
-.bdg-info {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	margin-left: 12px;
+.badge-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
 }
 
-.bdg-name {
-	font-size: 12px;
-	font-weight: bold;
-	color: #B4BCAF;
-	font-family: HYSansBold;
+.badge-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #F4F4F4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.bdg-name-on {
-	color: #1F2B24;
+.badge-gold {
+  background-color: #FFF4DC;
 }
 
-.bdg-desc {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 3px;
-	font-family: HYSans;
+.badge-pink {
+  background-color: #FDEBE8;
 }
 
-.bdg-state {
-	font-size: 10px;
-	color: #B4BCAF;
-	font-family: HYSans;
+.badge-green {
+  background-color: #E8F3EA;
 }
 
-.bdg-state-on {
-	color: #3E7D5C;
-	font-weight: bold;
-	font-family: HYSansBold;
+.badge-off {
+  background-color: #F4F4F4;
 }
 
-.rec-list {
-	display: flex;
-	flex-direction: column;
-	margin-top: 14px;
+.badge-ico {
+  width: 26px;
+  height: 26px;
 }
 
-.rec-item {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: space-between;
-	padding-top: 12px;
-	padding-bottom: 12px;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
-	border-bottom-color: #F0F4EC;
+.badge-off .badge-ico {
+  opacity: 0.22;
+  filter: grayscale(1);
 }
 
-.rec-name {
-	font-size: 12px;
-	font-weight: bold;
-	color: #1F2B24;
-	font-family: HYSansBold;
+.badge-name {
+  font-size: 10px;
+  line-height: 1.3;
+  color: #8B908A;
+  margin-top: 8px;
+  text-align: center;
 }
 
-.rec-code {
-	font-size: 11px;
-	color: #D99C2B;
-	font-family: HYSans;
+.badge-name-on {
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
 }
 
-/* 退出登录：红边描线按钮，与上方面板（16px 边距）同宽 */
+.badge-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 16px;
+  padding: 28px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+}
+
+.badge-empty-t {
+  font-size: 12px;
+  color: #8B908A;
+}
+
+/* ---------------- 我的林地 ---------------- */
+.tree-stack {
+  margin: 0 16px;
+}
+
+.mytree-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  margin-bottom: 10px;
+}
+
+.mt-thumb {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: #F4F4F4;
+  flex-shrink: 0;
+}
+
+.mt-img {
+  width: 100%;
+  height: 100%;
+}
+
+.mt-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.mt-name {
+  font-size: 14.5px;
+  line-height: 1.3;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.mt-sub {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #8B908A;
+  margin-top: 3px;
+}
+
+.go-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background-color: #2A3A32;
+  flex-shrink: 0;
+}
+
+.go-pill-t {
+  font-size: 11px;
+  color: #FFFFFF;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+/* ---------------- 补给站账簿 ---------------- */
+.list-card {
+  margin: 0 16px;
+  padding: 0 14px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+}
+
+.list-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 50px;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.list-row-last {
+  border-bottom: none;
+}
+
+.list-k {
+  font-size: 13px;
+  color: #2A3A32;
+}
+
+.list-v {
+  font-size: 12.5px;
+  color: #8B908A;
+}
+
+/* ---------------- 商品卡 ---------------- */
+.goods-row {
+  display: flex;
+  flex-direction: row;
+  margin: 10px 16px 0;
+}
+
+.goods-card {
+  flex: 1;
+  padding: 10px;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  margin-right: 10px;
+}
+
+.goods-card:last-child {
+  margin-right: 0;
+}
+
+.goods-box {
+  width: 100%;
+  height: 104px;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #F4F4F4;
+}
+
+.goods-box-green {
+  background-color: #E8F3EA;
+}
+
+.goods-box-cream {
+  background-color: #FFF4DC;
+}
+
+.goods-img {
+  width: 100%;
+  height: 100%;
+}
+
+.goods-name {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #2A3A32;
+  margin-top: 8px;
+}
+
+.goods-cost {
+  display: block;
+  font-size: 13px;
+  color: #E0A526;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+/* ---------------- 退出 ---------------- */
 .logout-btn {
-	display: flex;
-	flex-direction: column;
-	height: 44px;
-	border-radius: 22px;
-	border: 1px solid #D96C52;
-	background-color: #FFFFFF;
-	margin: 26px 16px 0 16px;
-	align-items: center;
-	justify-content: center;
-	transition: transform 0.12s ease, opacity 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  margin: 20px 16px 0;
 }
 
 .logout-btn-t {
-	font-size: 13px;
-	font-weight: bold;
-	color: #B4553F;
-	font-family: HYSansBold;
+  font-size: 12.5px;
+  color: #8B908A;
+}
+
+.bottom-pad {
+  height: 24px;
 }
 
 .bottom-pad-v {
-	height: 44px;
+  height: 40px;
 }
 
-.mask {
-	display: flex;
-	flex-direction: column;
-	position: absolute;
-	left: 0;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	background-color: rgba(26, 36, 30, 0.40);
-	justify-content: flex-end;
-	z-index: 100;
-}
-
+/* ---------------- 弹层 ---------------- */
 .mask-hit {
-	flex: 1;
-}
-
-.sheet {
-	display: flex;
-	flex-direction: column;
-	background-color: #FFFFFF;
-	border-radius: 26px;
-	padding: 20px 18px calc(24px + env(safe-area-inset-bottom)) 18px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .sheet-title {
-	font-size: 17px;
-	font-weight: bold;
-	color: #1F2B24;
-	font-family: HYSansBold;
+  font-size: 21px;
+  line-height: 1.3;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
 }
 
 .sheet-sub {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 6px;
-	font-family: HYSans;
-}
-
-.hint-box {
-	display: flex;
-	flex-direction: column;
-	background-color: #F2F7EC;
-	border-radius: 14px;
-	padding: 12px;
-	margin-top: 14px;
-}
-
-.hint-t {
-	font-size: 12px;
-	color: #5C6B60;
-	line-height: 19px;
-	font-family: HYSans;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8B908A;
+  margin-top: 6px;
 }
 
 .sheet-btn {
-	display: flex;
-	flex-direction: column;
-	height: 46px;
-	border-radius: 23px;
-	align-items: center;
-	justify-content: center;
-	margin-top: 12px;
-	transition: transform 0.12s ease, opacity 0.12s ease;
+  margin-top: 16px;
 }
 
-.sheet-btn-main {
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
-	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
+.sheet-btn + .sheet-btn {
+  margin-top: 10px;
 }
 
-.sheet-btn-soft {
-	background-color: #E9F2E4;
+.avatar-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0 4px;
+  background-color: transparent;
+  line-height: normal;
 }
 
-.sheet-btn-t {
-	font-size: 14px;
-	font-weight: bold;
-	font-family: HYSansBold;
+.avatar-btn::after {
+  border: none;
 }
 
-.sheet-btn-t-white {
-	color: #FFFFFF;
+.avatar-sheet-img {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background-color: #F4F4F4;
 }
 
-.sheet-btn-t-deep {
-	color: #245A41;
+.avatar-tip {
+  font-size: 11px;
+  color: #8B908A;
+  margin-top: 8px;
+}
+
+.bdg-list {
+  margin-top: 14px;
+}
+
+.bdg-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.bdg-item .badge-circle {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.bdg-item .badge-ico {
+  width: 22px;
+  height: 22px;
+}
+
+.bdg-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-left: 12px;
+}
+
+.bdg-name {
+  font-size: 13px;
+  color: #8B908A;
+}
+
+.bdg-name-on {
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.bdg-desc {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #8B908A;
+  margin-top: 2px;
+}
+
+.bdg-state {
+  font-size: 10.5px;
+  color: #C4C4C4;
+}
+
+.bdg-state-on {
+  color: #38564A;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+.rec-list {
+  margin-top: 14px;
+}
+
+.rec-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F0F0;
+}
+
+.rec-name {
+  font-size: 13px;
+  color: #2A3A32;
+}
+
+.rec-code {
+  font-size: 12px;
+  color: #8B908A;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
 }
 
 .ok-head {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding-top: 6px;
+  padding: 4px 0 18px;
 }
 
 .ok-title {
-	font-size: 16px;
-	font-weight: bold;
-	color: #245A41;
-	font-family: HYSansBold;
+  display: block;
+  font-size: 20px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
 }
 
 .ok-sub {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 5px;
-	font-family: HYSans;
+  display: block;
+  font-size: 12px;
+  color: #8B908A;
+  margin-top: 6px;
 }
 
 .code-box {
-	display: flex;
-	flex-direction: column;
-	background-color: #F2F7EC;
-	border-radius: 16px;
-	padding: 14px;
-	margin-top: 14px;
-	align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px;
+  background-color: #F7F7F7;
+  border-radius: 14px;
 }
 
 .code-lb {
-	font-size: 10px;
-	color: #9AA394;
-	font-family: HYSans;
+  font-size: 10.5px;
+  color: #8B908A;
 }
 
 .code-t {
-	font-size: 20px;
-	font-weight: bold;
-	color: #245A41;
-	margin-top: 6px;
-	font-family: HYSansBold;
+  font-size: 22px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-top: 8px;
 }
-
-/* ---------- 我的树（多棵横滑） ---------- */
-
-.sec-row-between {
+/* 昵称条：占满右侧、内容居中 */
+.form-row {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	justify-content: space-between;
+	margin-top: 18px;
 }
 
-.sec-more {
-	font-size: 10px;
-	color: #7A9C86;
-	font-family: HYSans;
+.form-label {
+	flex-shrink: 0;
+	margin-right: 12px;
+	font-size: 13px;
+	color: #8B908A;
+	font-weight: 500;
+	letter-spacing: 0;
 }
 
-.mytree-bar {
-	display: flex;
-	flex-direction: row;
-	white-space: nowrap;
-	margin: 0 16px 0 16px;
+.form-input {
+	flex: 1;
+	height: 50px;
+	padding: 0 16px;
+	background-color: #F2F2F0;
+	border-radius: 12px;
+	font-size: 15px;
+	color: #2A3A32;
+	text-align: center;
 }
 
-.mytree-card2 {
-	display: inline-flex;
-	flex-direction: row;
-	align-items: center;
-	width: 252px;
-	background-color: #FFFFFF;
-	border-radius: 18px;
-	padding: 10px;
-	margin-right: 10px;
-	box-shadow: 0px 4px 14px rgba(36, 90, 65, 0.05);
-	border: 1px solid transparent;
-}
 
-.mytree-card2-on {
-	border-color: #BFDCC8;
-}
-
-.mytree-empty {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: center;
-	height: 56px;
-	border-radius: 18px;
-	background-color: #F2F7EC;
-	margin: 0 16px 0 16px;
-}
-
-.mytree-empty-t {
-	font-size: 11px;
-	color: #7A9C86;
-	font-family: HYSans;
-}
-
-/* ---------- 访客模式返回 ---------- */
-
-.back-pill {
-	display: flex;
-	flex-direction: row;
-	align-self: flex-start;
-	height: 26px;
-	border-radius: 13px;
-	background-color: rgba(255, 255, 255, 0.7);
-	align-items: center;
-	justify-content: center;
-	padding-left: 10px;
-	padding-right: 12px;
-	margin-bottom: 8px;
-}
-
-.back-pill-t {
-	font-size: 11px;
-	color: #245A41;
-	font-family: HYSans;
+@media (prefers-reduced-motion: reduce) {
+  .avatar-ph {
+    animation: none;
+  }
 }

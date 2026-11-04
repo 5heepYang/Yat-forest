@@ -1,7 +1,7 @@
 <view class="page {{navAnim}}">
 	<scroll-view class="body" scroll-y>
+		<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
 		<view class="hero">
-			<view class="status-pad" style="height:{{statusBarHeight}}px"></view>
 			<view class="hero-top" wx:if="{{viewing}}">
 				<view class="back-pill" bindtap="goBack">
 					<text class="back-t">‹ 返回</text>
@@ -10,18 +10,19 @@
 			<text class="hero-sub">{{viewing ? '南校园 · 森友主页' : '南校园 · 护林第 ' + days + ' 天'}}</text>
 			<view class="name-row" wx:if="{{!viewing}}">
 				<text class="hero-name">{{nickname}}</text>
-				<view class="edit-btn" hover-class="hv-press" bindtap="openProfile">
-					<text class="edit-t">编辑资料</text>
-				</view>
 			</view>
 			<text class="hero-name" wx:if="{{viewing}}">{{nickname}}</text>
 			<view class="hero-row">
 				<view class="avatar-box">
-					<image class="avatar-img" src="{{avatar}}" bindtap="previewAvatar"></image>
+					<image wx:if="{{avatarReady}}" class="avatar-img" src="{{avatar}}" binderror="onAvatarError" bindtap="previewAvatar"></image>
+					<view wx:else class="avatar-ph"></view>
 				</view>
 				<view class="hero-info">
 					<text class="hero-line1">{{heroLine1}}</text>
 					<text class="hero-line2">{{heroLine2}}</text>
+				</view>
+				<view class="edit-btn" wx:if="{{!viewing}}" hover-class="hv-press" bindtap="openProfile">
+					<text class="edit-t">编辑资料</text>
 				</view>
 			</view>
 		</view>

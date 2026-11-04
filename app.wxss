@@ -1,99 +1,204 @@
-/* 全局样式 */
+/* ============================================================
+   app.wxss · 全局视觉系统 v3
+   方向参考：干净白卡 + 强对比黑字 + 彩色小标签 + 手绘插画
+   字重：HYSans(400) 正文 / HYSansBold(700) 强调 / HYSansHeavy(900) 标题
+   ============================================================ */
 
 page {
-  background-color: #FAF7F0;
+  background-color: #F4F4F4;
+  color: #2A3A32;
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* uvue 里 view 默认是纵向 flex；小程序 view 默认 block。
-   凡是需要参与弹性布局的容器，都要显式写 display:flex 并补 flex-direction:column，
-   否则会退化成 CSS 默认的 row 方向，布局会全乱。 */
+view, text, image, input, textarea, button, scroll-view {
+  box-sizing: border-box;
+}
+
+/* ---------------- 文字 ---------------- */
+.display {
+  font-size: 30px;
+  line-height: 1.15;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.title {
+  font-size: 22px;
+  line-height: 1.25;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.num {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kicker {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #8B908A;
+  letter-spacing: 0.2px;
+}
+
+.sec-title {
+  font-size: 16px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+}
+
+.note {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #8B908A;
+}
+
+.rule {
+  height: 1px;
+  background-color: #ECECEC;
+}
+
+.clip {
+  overflow: hidden;
+}
+
+/* ---------------- 布局 ---------------- */
 .fx {
   display: flex;
-  flex-direction: column;
 }
 
 .fx-row {
   display: flex;
   flex-direction: row;
+  align-items: center;
 }
 
-/* ------------------------------------------------------------------ */
-/* 护林币胶囊（林地页赚币现场 / 个人页补给站共用）                      */
-/* ------------------------------------------------------------------ */
-
-.coin-pill {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	height: 26px;
-	border-radius: 13px;
-	background-color: #FBF3DF;
-	padding-left: 9px;
-	padding-right: 12px;
+/* ---------------- 卡片 ---------------- */
+.card {
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  padding: 16px;
 }
 
-.coin-ico {
-	width: 16px;
-	height: 16px;
-	margin-right: 4px;
+.card-ink {
+  background-color: #2A3A32;
+  border-radius: 16px;
+  padding: 16px;
+  color: #FFFFFF;
 }
 
-.coin-t {
-	font-size: 11px;
-	font-weight: bold;
-	color: #D99C2B;
-	font-family: HYSansBold;
+/* 旧装饰角线在 v3 中不再使用 */
+.corner,
+.corner-tl,
+.corner-br,
+.corner-s,
+.corner-n,
+.corner-n-light {
+  display: none;
 }
 
-/* ------------------------------------------------------------------ */
-/* 底部弹层通用件（配合 components/sheet 使用，页面里直接写 class 即可） */
-/* ------------------------------------------------------------------ */
-
-.hint-box {
-  display: flex;
-  flex-direction: column;
-  background-color: #F2F7EC;
-  border-radius: 14px;
-  padding: 12px;
-  margin-top: 14px;
-}
-
-.hint-t {
-  font-size: 12px;
-  color: #5C6B60;
-  line-height: 19px;
-  font-family: HYSans;
-}
-
-.sheet-btn {
-  display: flex;
-  flex-direction: column;
-  height: 46px;
-  border-radius: 23px;
+/* ---------------- 标签 / 印章 ---------------- */
+.stamp {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: 12px;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background-color: #2A3A32;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background-color: #3B7DD8;
+}
+
+.tag-red {
+  background-color: #38564A;
+}
+
+.tag-gold {
+  background-color: #E0A526;
+}
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: 12px;
+  background-color: #2A3A32;
+}
+
+.btn-ink {
+  background-color: #2A3A32;
+}
+
+.btn-primary {
+  background-color: #38564A;
+}
+
+.btn-red {
+  background-color: #38564A;
+}
+
+.btn-t {
+  font-size: 15px;
+  color: #FFFFFF;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.btn-t-light {
+  color: #FFFFFF;
+}
+
+/* 弹层按钮（沿用旧类名，统一到 v3 视觉） */
+.sheet-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: 12px;
+  background-color: #2A3A32;
 }
 
 .sheet-btn-main {
-  background: linear-gradient(135deg, #4A8A66, #3E7D5C);
-  box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
+  background-color: #2A3A32;
 }
 
 .sheet-btn-soft {
-  background-color: #E9F2E4;
+  background-color: #F1F1F1;
 }
 
 .sheet-btn-mute {
-  background-color: #C3CFC2;
+  background-color: #2A3A32;
+  opacity: 0.26;
 }
 
 .sheet-btn-t {
-  font-size: 14px;
-  font-weight: bold;
-  font-family: HYSansBold;
+  font-size: 15px;
+  color: #FFFFFF;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
 .sheet-btn-t-white {
@@ -101,216 +206,392 @@ page {
 }
 
 .sheet-btn-t-deep {
-  color: #245A41;
+  color: #2A3A32;
 }
 
-/* 底部弹层标题/副标题强制纵向排布（text 默认 inline，会把两行拼到一起） */
+/* ---------------- 积分胶囊 ---------------- */
+.coin-pill {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background-color: #FFFFFF;
+}
+
+.coin-ico {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+}
+
+.coin-t {
+  font-size: 11.5px;
+  color: #2A3A32;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: 700;
+}
+
+/* ---------------- 提示块 ---------------- */
+.hint-box {
+  background-color: #F7F7F7;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.hint-t {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: #6B6B6B;
+}
+
+/* ---------------- 弹层标题 ---------------- */
 .sheet-title,
 .sheet-sub {
-	display: block;
+  display: block;
 }
 
-/* 表单行：新增树木 / 新增日程这类弹窗里用 */
+/* ---------------- 表单 ---------------- */
 .form-row {
   display: flex;
-  flex-direction: column;
-  margin-top: 14px;
+  flex-direction: row;
+  align-items: center;
+  min-height: 54px;
 }
 
 .form-label {
-  font-size: 11px;
-  color: #9AA394;
-  font-family: HYSans;
-  letter-spacing: 0.4px;
+  font-size: 12px;
+  color: #8B908A;
 }
 
 .form-input {
-  height: 44px;
-  background-color: #F2F7EC;
+  height: 48px;
+  font-size: 15px;
+  color: #2A3A32;
+  background-color: #F7F7F7;
   border-radius: 12px;
-  padding-left: 12px;
-  padding-right: 12px;
-  margin-top: 7px;
-  font-size: 13px;
-  color: #1F2B24;
-  font-family: HYSans;
+  padding: 0 12px;
 }
 
-/* ------------------------------------------------------------------ */
-/* tab 页切页入场动画                                                   */
-/* 两套等价 keyframes 交替：只有 computed animation 变化才会重放动画；    */
-/* 页面常驻，tabBar 点目标页时先挂 .page-anim-paused（暂停在 0% 帧），    */
-/* 切回首帧即动画起点，onShow 移除暂停后才播放，避免一帧跳变。            */
-/* 位移作用在 .page 上，fill-mode 用 none：结束后不残留 transform，       */
-/* 避免内部 fixed 元素以 .page 为包含块。                                */
-/* ------------------------------------------------------------------ */
-
+/* ---------------- 页面切换 ---------------- */
 @keyframes pageInRight1 {
-  0% {
+  from {
     opacity: 0;
     transform: translateX(24px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes pageInRight2 {
-  0% {
+  from {
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateX(18px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes pageInLeft1 {
-  0% {
+  from {
     opacity: 0;
     transform: translateX(-24px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes pageInLeft2 {
-  0% {
+  from {
     opacity: 0;
-    transform: translateX(-24px);
+    transform: translateX(-18px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
 @keyframes pageInFade1 {
-  0% {
+  from {
     opacity: 0;
   }
-  100% {
+  to {
     opacity: 1;
   }
 }
 
 @keyframes pageInFade2 {
-  0% {
+  from {
     opacity: 0;
   }
-  100% {
+  to {
     opacity: 1;
   }
 }
 
 .page-anim-right-1 {
-  animation: pageInRight1 240ms cubic-bezier(0.22, 0.9, 0.35, 1) none;
+  animation: pageInRight1 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-anim-right-2 {
-  animation: pageInRight2 240ms cubic-bezier(0.22, 0.9, 0.35, 1) none;
+  animation: pageInRight2 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-anim-left-1 {
-  animation: pageInLeft1 240ms cubic-bezier(0.22, 0.9, 0.35, 1) none;
+  animation: pageInLeft1 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-anim-left-2 {
-  animation: pageInLeft2 240ms cubic-bezier(0.22, 0.9, 0.35, 1) none;
+  animation: pageInLeft2 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-anim-fade-1 {
-  animation: pageInFade1 200ms ease-out none;
+  animation: pageInFade1 0.24s ease both;
 }
 
 .page-anim-fade-2 {
-  animation: pageInFade2 200ms ease-out none;
+  animation: pageInFade2 0.26s ease both;
 }
 
-/* 预置态：tabBar 点击时先挂上，动画停在 0% 帧；目标页 onShow 移除本类才播放 */
 .page-anim-paused {
-  animation-play-state: paused !important;
+  animation-play-state: paused;
 }
 
-/* ------------------------------------------------------------------ */
-/* 设计动效通用类（只动 transform/opacity，不改布局）                    */
-/* ------------------------------------------------------------------ */
-
-/* 按压反馈：配合 wxml 的 hover-class="hv-press" 使用 */
+/* 按压反馈 */
 .hv-press {
-  transform: scale(0.97);
-  opacity: 0.92;
+  opacity: 0.7;
 }
 
-/* 进度条生长：从 0 长到内联 width，只播一次 */
-@keyframes barGrow {
-  from { width: 0; }
+/* ---------------- 入场动效 ---------------- */
+@keyframes dealIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+.anim-deal {
+  animation: dealIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.anim-deal-d1 {
+  animation-delay: 0.05s;
+}
+
+.anim-deal-d2 {
+  animation-delay: 0.1s;
+}
+
+.anim-deal-d3 {
+  animation-delay: 0.15s;
+}
+
+.anim-deal-d4 {
+  animation-delay: 0.2s;
+}
+
+.anim-deal-d5 {
+  animation-delay: 0.25s;
+}
+
+@keyframes flipIn {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateX(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0);
+  }
+}
+
+.anim-flip {
+  animation: flipIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+}
+
+@keyframes stampDown {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.anim-stamp {
+  animation: stampDown 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes growIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .anim-grow {
-  animation: barGrow 600ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 both;
+  transform-origin: left center;
+  animation: growIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* 首屏卡片阶梯入场 */
 @keyframes riseIn {
-  from { opacity: 0; transform: translateY(14px); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .anim-rise {
-  animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 backwards;
+  animation: riseIn 0.3s ease both;
 }
-.anim-rise-d1 { animation-delay: 70ms; }
-.anim-rise-d2 { animation-delay: 140ms; }
-.anim-rise-d3 { animation-delay: 210ms; }
 
-/* 可领取胶囊呼吸 */
-@keyframes claimBreath {
-  0%, 100% { box-shadow: 0 4px 10px rgba(217, 156, 43, 0.30); }
-  50% { box-shadow: 0 4px 16px rgba(217, 156, 43, 0.55); filter: brightness(1.06); }
+.anim-rise-d1 {
+  animation-delay: 0.06s;
 }
+
+.anim-rise-d2 {
+  animation-delay: 0.12s;
+}
+
+.anim-rise-d3 {
+  animation-delay: 0.18s;
+}
+
+@keyframes breathRing {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(216, 66, 58, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(216, 66, 58, 0.1);
+  }
+}
+
 .anim-breath {
-  animation: claimBreath 2.2s ease-in-out infinite;
+  animation: breathRing 2.4s ease-in-out infinite;
 }
 
-/* 树灵气泡轻浮 */
-@keyframes floaty {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .anim-float {
-  animation: floaty 3s ease-in-out infinite;
+  animation: floatIn 0.5s ease both;
 }
 
-/* 底部弹层：遮罩淡入 + 卡片上滑；wx:if 每次挂载都会重放。
-   直接作用到各页/组件的 .mask/.sheet，无需在 wxml 里加节点或类。 */
+/* ---------------- 遮罩与弹层 ---------------- */
 @keyframes maskIn {
-  from { opacity: 0; }
-}
-@keyframes sheetUp {
-  from { transform: translateY(32px); opacity: 0; }
-}
-.mask {
-  animation: maskIn 200ms ease both;
-}
-.sheet {
-  animation: sheetUp 260ms cubic-bezier(0.22, 0.9, 0.35, 1) both;
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-/* 弹层抓手（纯 CSS 伪元素，不改 wxml） */
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background-color: rgba(42, 58, 50, 0.45);
+  animation: maskIn 0.2s ease both;
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  background-color: #FFFFFF;
+  border-radius: 24px 24px 0 0;
+  animation: sheetUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .sheet::before {
   content: "";
-  display: block;
-  flex: none;
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  margin-left: -18px;
   width: 36px;
   height: 4px;
   border-radius: 2px;
-  background-color: #DFE5DB;
-  margin: 0 auto 14px;
+  background-color: #E6E6E6;
 }
 
-/* 自定义 tabBar 占位：tabBar 固定悬浮，页面内留出等量高度，避免底部内容被遮 */
+/* ---------------- 底部占位 ---------------- */
 .tabbar-holder {
-  height: calc(78px + env(safe-area-inset-bottom));
+  height: calc(70px + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-deal,
+  .anim-deal-d1,
+  .anim-deal-d2,
+  .anim-deal-d3,
+  .anim-deal-d4,
+  .anim-deal-d5,
+  .anim-flip,
+  .anim-stamp,
+  .anim-grow,
+  .anim-rise,
+  .anim-rise-d1,
+  .anim-rise-d2,
+  .anim-rise-d3,
+  .anim-breath,
+  .anim-float,
+  .page-anim-right-1,
+  .page-anim-right-2,
+  .page-anim-left-1,
+  .page-anim-left-2,
+  .page-anim-fade-1,
+  .page-anim-fade-2,
+  .mask,
+  .sheet {
+    animation: none;
+  }
 }

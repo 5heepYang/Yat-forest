@@ -40,7 +40,6 @@
 
 			<view class="growth-row">
 				<text class="growth-lb">成长值 {{tree.growthScore}} / 1000</text>
-				<text class="growth-hint">{{nextNeed}}</text>
 			</view>
 			<view class="gbar">
 				<view class="gbar-in" style="{{growthBarStyle}}"></view>
@@ -51,19 +50,16 @@
 					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onWater">
 						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
 					</view>
-					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{waterNote}}</text>
 				</view>
 				<view class="act-col">
 					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onFertilize">
 						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '施肥'}}</text>
 					</view>
-					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{fertNote}}</text>
 				</view>
 				<view class="act-col">
 					<view class="act-btn {{photoDone ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onPhotoAct">
 						<text class="act-t {{photoDone ? 'act-t-off' : ''}}">生长实拍</text>
 					</view>
-					<text class="act-note {{photoDone ? 'act-t-off' : ''}}">{{photoNote}}</text>
 				</view>
 			</view>
 		</view>
@@ -211,11 +207,8 @@
 			<!-- 上传实拍 -->
 			<view wx:if="{{sheetMode == 'upload'}}">
 				<text class="sheet-title">上传线下生长实拍</text>
-				<text class="sheet-sub">{{photoPeriodSub}} · 上传后可在成长任务里领取 +50 护林币与 +30 成长</text>
-				<view class="hint-box">
-					<text class="hint-t">{{photoPeriodSub}}，记录它的生长；系统会核对是不是同一棵树。</text>
-				</view>
-				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="pickGrowthPhoto">
+				<text class="sheet-sub upload-sub">{{photoPeriodSub}}。系统会核对是不是同一棵树，通过后可在成长任务里领 +50 护林币与 +30 成长值。</text>
+				<view class="sheet-btn sheet-btn-soft upload-btn" hover-class="hv-press" bindtap="pickGrowthPhoto">
 					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
 				</view>
 			</view>

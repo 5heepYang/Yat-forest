@@ -198,7 +198,7 @@ Page({
     nextNeed: '',
     growthBarStyle: 'width:0%',
     atMax: false,
-    spiritLine: '今天风大，我的叶子有点痒～',
+    spiritLine: '今天风大～',
     gainShow: false,
     gainText: '',
 
@@ -416,9 +416,9 @@ Page({
       tasks: tasks,
       photoHint: photoHint,
       photoDone: photoDone,
-      waterNote: atMax ? '成长值已满' : '成长值+' + WATER_GAIN + ' · 消耗' + WATER_COST + '碳积分',
-      fertNote: atMax ? '成长值已满' : '成长值+' + FERT_GAIN + ' · 消耗' + FERT_COST + '碳积分',
-      photoNote: '成长值+' + PHOTO_GROWTH + ' · 每' + PHOTO_PERIOD + '天一次',
+      waterNote: atMax ? '成长值已满' : '+' + WATER_GAIN + '成长 · -' + WATER_COST + '积分',
+      fertNote: atMax ? '成长值已满' : '+' + FERT_GAIN + '成长 · -' + FERT_COST + '积分',
+      photoNote: '+' + PHOTO_GROWTH + '成长 · 每' + PHOTO_PERIOD + '天',
       rankTop: rankTop,
       myOutOfTop: myRankNo > 5,
       myRankRow: myRankNo > 5 ? {

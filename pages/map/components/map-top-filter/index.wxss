@@ -1,75 +1,74 @@
-/* 顶部搜索行 */
 .search-row {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 }
 
+/* 搜索：只留一条底线，不要胶囊 */
 .search-pill {
 	display: flex;
 	flex-direction: row;
-	flex: 1;
-	height: 44px;
-	background-color: #FFFFFF;
-	border-radius: 22px;
 	align-items: center;
-	padding-left: 16px;
-	box-shadow: 0px 2px 8px rgba(36, 90, 65, 0.06);
+	flex: 1;
+	height: 30px;
+	border-bottom: 1px solid rgba(34, 36, 31, 0.3);
 }
 
 .ic-search {
-	width: 15px;
-	height: 15px;
-	margin-right: 9px;
-}
-
-.search-ph {
-	font-size: 12px;
-	color: #B4BCAF;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+	width: 13px;
+	height: 13px;
+	opacity: 0.5;
+	filter: grayscale(1) brightness(0.5);
 }
 
 .search-input {
 	flex: 1;
+	height: 30px;
+	margin-left: 8px;
 	font-size: 12px;
-	color: #1F2B24;
-	font-family: HYSans;
+	color: #2A3A32;
+	letter-spacing: 0.4px;
 }
 
-/* 筛选 Tab */
+.search-ph {
+	color: #A9A392;
+	font-size: 12px;
+	letter-spacing: 0.4px;
+}
+
+/* 筛选：方角细框签 */
 .chip-row {
 	display: flex;
 	flex-direction: row;
-	margin-top: 14px;
+	flex-wrap: wrap;
+	margin-top: 2px;
 }
 
 .chip {
-	display: flex;
-	flex-direction: row;
-	height: 28px;
-	border-radius: 14px;
-	background-color: #FFFFFF;
-	align-items: center;
-	padding-left: 12px;
-	padding-right: 12px;
-	margin-right: 8px;
-	transition: background-color 0.18s ease;
+	margin-right: 6px;
+	margin-top: 7px;
+	padding: 4px 9px 5px;
+	border: 1px solid rgba(34, 36, 31, 0.26);
+	border-radius: 12px;
 }
 
 .chip-on {
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
-	box-shadow: 0 4px 10px rgba(62, 125, 92, 0.22);
+	background-color: #2A3A32;
+	border-color: #2A3A32;
 }
 
 .chip-t {
-	font-size: 11px;
-	color: #5C6B60;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+	font-size: 10.5px;
+	color: #47514B;
+	letter-spacing: 0.3px;
 }
 
 .chip-t-on {
 	color: #FFFFFF;
-	font-weight: bold;
+}
+
+/* 组件样式隔离：按压反馈在组件内再声明一份 */
+.hv-press {
+	opacity: 0.78;
+	transform: translateY(2px);
 }

@@ -11,7 +11,7 @@
 .tabbar {
 	display: flex;
 	flex-direction: row;
-	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 	height: 62px;
 	background-color: #FFFFFF;
 	border-radius: 31px;
@@ -51,7 +51,7 @@
 	font-size: 9px;
 	color: #9AA394;
 	margin-top: 4px;
-	font-family: HYSans;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .tb-t-on {

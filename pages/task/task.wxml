@@ -29,7 +29,7 @@
 			<block wx:for="{{groups}}" wx:key="label" wx:for-item="group">
 				<text class="group-label">{{group.label}}</text>
 				<view
-					class="task-row"
+					class="task-row {{item.done ? 'task-done' : 'task-pending'}}"
 					wx:for="{{group.tasks}}"
 					wx:key="taskId"
 					data-id="{{item.taskId}}"
@@ -127,7 +127,7 @@
 					<text class="result-carbon">{{result.carbonSavedG}} g</text>
 					<text class="result-carbon-lb">本次减少碳排放</text>
 				</view>
-				<view class="hint-box">
+				<view class="hint-box" wx:if="{{result.comment}}">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
 				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="claim">
@@ -141,7 +141,7 @@
 						<text class="reject-badge-t">凭证未通过</text>
 					</view>
 				</view>
-				<view class="hint-box">
+				<view class="hint-box" wx:if="{{result.comment}}">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
 				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="retryProof">

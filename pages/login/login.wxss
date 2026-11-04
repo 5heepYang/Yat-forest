@@ -2,8 +2,8 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 100vh;
-	background-color: #FAF7F0;
-	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+	background-color: #F4F4F4;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .status-pad {
@@ -16,78 +16,85 @@
 	align-items: center;
 	padding-left: 30px;
 	padding-right: 30px;
-	margin-top: 100px;
+	margin-top: 76px;
 }
 
+/* 插画不是圆形头像，而是一张压着纸边的标本卡 */
 .logo-circle {
 	display: flex;
 	flex-direction: column;
-	width: 104px;
-	height: 104px;
-	border-radius: 52px;
-	background-color: #E9F2E4;
 	align-items: center;
 	justify-content: center;
+	width: 128px;
+	height: 128px;
+	background-color: #FFFFFF;
+	border-radius: 20px;
 }
 
 .logo-img {
-	width: 72px;
-	height: 72px;
+	width: 96px;
+	height: 96px;
 }
 
 .title {
-	font-size: 24px;
-	font-weight: bold;
-	color: #245A41;
-	margin-top: 22px;
-	font-family: HYSansBold;
+	margin-top: 30px;
+	font-size: 30px;
+	color: #2A3A32;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 800;
+	letter-spacing: -0.5px;
 }
 
 .slogan {
-	font-size: 12px;
-	color: #9AA394;
 	margin-top: 10px;
-	letter-spacing: 1px;
-	font-family: HYSans;
+	font-size: 12px;
+	color: #8B908A;
+	letter-spacing: 0;
 }
 
 .panel {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	margin-top: 60px;
 	align-items: center;
+	width: 100%;
+	margin-top: 72px;
 }
 
 .login-btn {
 	display: flex;
-	flex-direction: column;
-	width: 100%;
-	height: 50px;
-	border-radius: 25px;
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0 8px 20px rgba(62, 125, 92, 0.30);
-	transition: transform 0.12s ease, opacity 0.12s ease;
+	width: 100%;
+	height: 50px;
+	background-color: #2A3A32;
+	border-radius: 14px;
+	transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.12s ease;
 }
 
 .login-btn-mute {
-	background-color: #C3CFC2;
-	background-image: none;
-	box-shadow: none;
+	background-color: #E9E9E9;
 }
 
 .login-btn-t {
-	font-size: 15px;
-	font-weight: bold;
+	font-size: 14.5px;
 	color: #FFFFFF;
-	font-family: HYSansBold;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.login-btn-mute .login-btn-t {
+	color: #8B908A;
 }
 
 .tip {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 14px;
-	font-family: HYSans;
+	margin-top: 18px;
+	padding-left: 2px;
+	padding-right: 2px;
+	font-size: 11px;
+	color: #8B908A;
+	line-height: 1.7;
+	letter-spacing: 0;
+	text-align: center;
 }

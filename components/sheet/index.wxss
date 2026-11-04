@@ -38,7 +38,7 @@
 	flex: none;
 	width: 36px;
 	height: 4px;
-	border-radius: 2px;
+	border-radius: 12px;
 	background-color: #DFE5DB;
 	margin: 0 auto 14px;
 }
@@ -52,12 +52,13 @@
 	font-size: 17px;
 	font-weight: bold;
 	color: #1F2B24;
-	font-family: HYSansBold;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 700;
 }
 
 .sheet-sub {
 	font-size: 11px;
 	color: #9AA394;
 	margin-top: 6px;
-	font-family: HYSans;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }

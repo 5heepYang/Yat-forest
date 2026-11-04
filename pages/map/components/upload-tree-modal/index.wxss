@@ -1,40 +1,43 @@
-/* 新增树木弹窗：遮罩 + 底部卡片，风格与树木详情卡片一致；上滑 + 淡入淡出 */
+/* 遮罩 */
 .um-mask {
 	position: absolute;
 	left: 0;
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(26, 36, 30, 0.40);
+	background-color: rgba(20, 18, 14, 0.52);
 	z-index: 25;
 	opacity: 0;
-	transition: opacity 0.24s ease;
+	transition: opacity 0.22s ease;
 }
 
 .um-mask-on {
 	opacity: 1;
 }
 
+/* 弹窗：一张居中的纸牌 */
 .um-card {
+	position: absolute;
+	left: 20px;
+	right: 20px;
+	top: 50%;
+	z-index: 26;
 	display: flex;
 	flex-direction: column;
-	position: absolute;
-	left: 14px;
-	right: 14px;
-	bottom: 14px;
+	max-height: 78vh;
+	padding: 17px 16px 15px;
 	background-color: #FFFFFF;
-	border-radius: 24px;
-	padding: 16px 14px 14px;
-	box-shadow: 0px 6px 20px rgba(36, 90, 65, 0.12);
-	z-index: 26;
+	border: 1px solid #F0F0F0;
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(34, 36, 31, 0.04), 0 6px 18px -12px rgba(34, 36, 31, 0.14);
+	transform: translateY(-50%) scale(0.97);
 	opacity: 0;
-	transform: translateY(48px);
-	transition: transform 0.26s cubic-bezier(0.22, 0.9, 0.35, 1), opacity 0.26s ease;
+	transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
 }
 
 .um-on {
 	opacity: 1;
-	transform: translateY(0);
+	transform: translateY(-50%) scale(1);
 }
 
 .um-head {
@@ -42,208 +45,216 @@
 	flex-direction: row;
 	align-items: center;
 	justify-content: space-between;
+	padding-bottom: 14px;
 }
 
 .um-title {
-	font-size: 16px;
-	font-weight: bold;
-	color: #1F2B24;
-	font-family: HYSansBold;
+	font-size: 20px;
+	color: #2A3A32;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 800;
+	letter-spacing: -0.2px;
 }
 
 .um-close {
 	display: flex;
-	flex-direction: column;
-	width: 26px;
-	height: 26px;
-	border-radius: 13px;
-	background-color: #F3F9EF;
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
+	width: 28px;
+	height: 28px;
+	margin-right: -6px;
 }
 
 .um-close-t {
-	font-size: 16px;
-	line-height: 16px;
-	color: #9AA394;
+	font-size: 19px;
+	color: #8B908A;
+	line-height: 1;
 }
 
+/* 表单 */
 .um-body {
-	display: flex;
-	flex-direction: column;
-	max-height: 56vh;
-	margin-top: 6px;
+	height: 420px;
+	max-height: 54vh;
+	overflow-y: auto;
 }
 
 .um-field {
-	display: flex;
-	flex-direction: column;
-	margin-top: 12px;
+	margin-top: 16px;
+	padding: 0;
+	border-bottom: none;
 }
 
 .um-label {
+	display: block;
+	margin-bottom: 7px;
 	font-size: 12px;
-	color: #5C6B60;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+	color: #8B908A;
+	font-weight: 500;
+	letter-spacing: 0;
 }
 
 .um-req {
-	color: #D96C52;
+	color: #2A3A32;
 }
 
 .um-input {
-	height: 40px;
-	background-color: #F2F7EC;
+	width: 100%;
+	height: 46px;
+	padding: 0 14px;
+	font-size: 14px;
+	color: #2A3A32;
+	background-color: #F2F2F0;
 	border-radius: 12px;
-	padding: 0 12px;
-	margin-top: 6px;
-	font-size: 13px;
-	color: #1F2B24;
-	font-family: HYSans;
+	box-sizing: border-box;
 }
 
 .um-ph {
-	font-size: 12px;
-	color: #B4BCAF;
-	font-family: HYSans;
+	color: #9AA096;
+	font-size: 14px;
 }
 
-/* 照片：未选时是虚线占位，选完显示预览 */
 .um-photo {
 	display: flex;
 	flex-direction: column;
-	margin-top: 6px;
-	border-radius: 12px;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 136px;
+	margin-top: 4px;
 	overflow: hidden;
+	background-color: #EFF2EC;
+	border: none;
+	border-radius: 14px;
+}
+
+.um-photo-img {
+	width: 100%;
+	height: 100%;
 }
 
 .um-photo-empty {
 	display: flex;
 	flex-direction: column;
-	height: 96px;
-	background-color: #F2F7EC;
-	border-width: 1px;
-	border-style: dashed;
-	border-color: #C6D9C8;
-	border-radius: 12px;
 	align-items: center;
-	justify-content: center;
 }
 
 .um-photo-ic {
-	width: 24px;
-	height: 24px;
+	width: 22px;
+	height: 22px;
+	opacity: 0.42;
+	filter: grayscale(1) brightness(0.4);
 }
 
 .um-photo-t {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 6px;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
+	margin-top: 8px;
+	font-size: 12.5px;
+	color: #6E7A70;
+	letter-spacing: 0;
 }
 
-.um-photo-img {
-	width: 100%;
-	height: 140px;
-	border-radius: 12px;
+.um-photo-tip {
+	display: block;
+	margin-top: 8px;
+	font-size: 11.5px;
+	color: #6E7A70;
+	letter-spacing: 0;
 }
 
 .um-loc-row {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-top: 6px;
+	margin-top: 4px;
 }
 
 .um-loc {
 	display: flex;
 	flex-direction: column;
-	flex: 1;
-	background-color: #F2F7EC;
-	border-radius: 12px;
-	padding: 10px 12px;
-}
-
-.um-loc-hint {
-	font-size: 10px;
-	color: #9AA394;
-	margin-top: 4px;
-	font-family: HYSans;
 }
 
 .um-loc-t {
-	font-size: 13px;
-	color: #1F2B24;
-	font-family: HYSans;
+	font-size: 14px;
+	color: #2A3A32;
+	font-weight: 600;
+	letter-spacing: 0;
 }
 
 .um-loc-coord {
-	font-size: 10px;
-	color: #9AA394;
+	margin-top: 5px;
+	font-size: 11.5px;
+	color: #8B908A;
+	letter-spacing: 0;
+}
+
+.um-loc-hint {
 	margin-top: 4px;
-	font-family: HYSans;
+	font-size: 11.5px;
+	color: #8B908A;
 }
 
 .um-textarea {
-	width: auto;
-	height: 64px;
-	background-color: #F2F7EC;
+	width: 100%;
+	height: 78px;
+	padding: 12px 14px;
+	font-size: 14px;
+	color: #2A3A32;
+	line-height: 1.6;
+	background-color: #F2F2F0;
 	border-radius: 12px;
-	padding: 10px 12px;
-	margin-top: 6px;
-	font-size: 13px;
-	color: #1F2B24;
-	font-family: HYSans;
+	box-sizing: border-box;
 }
 
 .um-submit {
 	display: flex;
-	flex-direction: column;
-	height: 46px;
-	border-radius: 23px;
-	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	margin-top: 14px;
-	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
-	transition: transform 0.12s ease, opacity 0.12s ease;
+	flex-shrink: 0;
+	height: 50px;
+	margin-top: 20px;
+	background-color: #2A3A32;
+	border-radius: 14px;
+}
+
+.um-submit-warn {
+	background-color: #2A3A32;
 }
 
 .um-submit-t {
 	font-size: 15px;
-	font-weight: bold;
 	color: #FFFFFF;
-	font-family: HYSansBold;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 700;
+	letter-spacing: 0.5px;
 }
 
-/* ---------- 识别结果态：AI 生成的那张树卡片 ---------- */
-
+/* 结果态 */
 .um-result {
 	display: flex;
-	flex-direction: column;
-	margin-top: 10px;
+	flex-direction: row;
+	padding-top: 14px;
 }
 
 .um-result-img {
-	width: 100%;
-	height: 170px;
-	border-radius: 16px;
-	background-color: #F3F9EF;
+	width: 84px;
+	height: 84px;
+	flex-shrink: 0;
+	background-color: #F1EDDF;
+	border: 1px solid rgba(34, 36, 31, 0.3);
 }
 
 .um-result-info {
 	display: flex;
 	flex-direction: column;
-	margin-top: 12px;
+	flex: 1;
+	padding-left: 12px;
 }
 
 .um-result-name {
-	font-size: 17px;
-	font-weight: bold;
-	color: #1F2B24;
-	font-family: HYSansBold;
+	font-size: 15px;
+	color: #2A3A32;
+	font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	line-height: 1.4;
 }
 
 .um-result-species-row {
@@ -254,65 +265,53 @@
 }
 
 .um-result-label {
-	font-size: 11px;
-	color: #9AA394;
-	letter-spacing: 0.4px;
-	font-family: HYSans;
-	margin-right: 8px;
+	font-size: 11.5px;
+	color: #8B908A;
+	letter-spacing: 0;
 }
 
 .um-result-species {
-	font-size: 20px;
-	font-weight: bold;
-	color: #245A41;
-	font-family: HYSansBold;
+	font-size: 13px;
+	color: #2A3A32;
+	font-weight: 600;
+	letter-spacing: 0;
 }
 
 .um-result-meta {
 	font-size: 12px;
-	color: #5C6B60;
-	margin-top: 6px;
-	font-family: HYSans;
+	color: #8B908A;
+	letter-spacing: 0;
 }
 
 .um-result-hint {
-	font-size: 11px;
-	color: #9AA394;
-	margin-top: 6px;
-	line-height: 17px;
-	font-family: HYSans;
+	font-size: 11.5px;
+	color: #8B908A;
+	line-height: 1.6;
 }
 
 .um-result-done {
-	font-size: 11px;
-	color: #3E7D5C;
-	margin-top: 8px;
-	font-family: HYSans;
+	height: 46px;
+	line-height: 46px;
+	font-size: 14px;
+	color: #FFFFFF;
+	font-weight: 700;
+	background-color: #2A3A32;
+	border-radius: 14px;
+	text-align: center;
 }
 
 .um-result-fail {
+	height: 46px;
+	line-height: 46px;
 	font-size: 13px;
-	color: #C0392B;
-	margin-top: 8px;
-	line-height: 19px;
-	font-family: HYSans;
+	color: #6E7A70;
+	background-color: #F2F2F0;
+	border-radius: 14px;
+	text-align: center;
 }
 
-.um-submit-warn {
-	background-color: #B4553F;
-	background-image: none;
-}
-
-.um-photo-tip {
-	font-size: 10px;
-	color: #B4BCAF;
-	margin-top: 6px;
-	letter-spacing: 0.3px;
-	font-family: HYSans;
-}
-
-/* 组件默认样式隔离：按压反馈类需在组件内再声明一份 */
+/* 组件样式隔离：按压反馈在组件内再声明一份 */
 .hv-press {
-	transform: scale(0.97);
-	opacity: 0.92;
+	opacity: 0.78;
+	transform: translateY(2px);
 }
