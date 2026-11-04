@@ -301,10 +301,12 @@ Page({
     })
   },
 
-  doExchange() {
-    const r = store.exchange(this.data.currentGoods.itemId)
+  async doExchange() {
+    // 云端模式下 exchange() 返回 Promise，库存与护林币由 actions 云函数事务扣减
+    const r = await store.exchange(this.data.currentGoods.itemId)
     if (!r.ok) {
-      toast(r.msg)
+      toast(r.msg || '兑换失败')
+      this.refresh()
       return
     }
     this.setData({
@@ -381,6 +383,14 @@ Page({
 
     const that = this
     const finish = function (avatarUrl) {
+      if (store.isCloud()) {
+        store.cloudUpdateProfile({ nickname: nick, avatar: avatarUrl, bio: bio }).then(function (r) {
+          that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl, heroLine2: bio })
+          toast(r && r.ok ? '改好了' : ((r && r.msg) || '保存失败'))
+          that.refresh()
+        })
+        return
+      }
       store.updateUser({ nickname: nick, avatar: avatarUrl, bio: bio })
       that.setData({ sheetMode: '', nickname: nick, avatar: avatarUrl, heroLine2: bio })
       toast('改好了')

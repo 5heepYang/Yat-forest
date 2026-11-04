@@ -1,0 +1,603 @@
+/**
+ * actions 云函数：所有"要写库"的操作都走这里
+ *
+ * 为什么要它：原来认养、浇水、兑换、打卡都由客户端直接改数据库，为了能认养别人播种的树，
+ * trees / goods 只能放开成"所有用户可读写"，等于谁都能改。收权的前提是把写操作搬到服务端。
+ *
+ * 设计原则（和客户端 store 的本地实现一一对应，逻辑要保持同步）：
+ *   1. 身份只认 cloud.getWXContext().OPENID，不看客户端传的 userId
+ *   2. 一切数值以服务端库里为准，客户端传的积分/币一律不信
+ *   3. 校验不过返回 { ok:false, msg, user, tree }，同时带回服务端真值让客户端纠正
+ *   4. AI 判定也在这里发起（调 task-ai），客户端拿不到"可以伪造的通过结果"
+ *   5. 成功返回 { ok:true, user, tree|goods|record|logs } 供客户端覆盖内存
+ *
+ * 部署：右键 cloudfunctions/actions → 上传并部署：云端安装依赖
+ * 依赖：wx-server-sdk（云端安装）
+ */
+const cloud = require('wx-server-sdk')
+
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+
+const db = cloud.database()
+const _ = db.command
+
+/** 数值口径，与 common/theme.js 保持一致 */
+const COST = {
+  adopt: 300,
+  water: 30,
+  fertilize: 50
+}
+const GAIN = {
+  water: 25,
+  fertilize: 40
+}
+const COIN = {
+  water: 2,
+  fertilize: 5
+}
+const GROWTH_CAP = 1000
+const LEVEL_STEP = 300
+
+/* ------------------------------------------------------------------ */
+/* 小工具                                                              */
+/* ------------------------------------------------------------------ */
+
+function today() {
+  const d = new Date(Date.now() + 8 * 3600 * 1000) // 云函数是 UTC，按北京时间算
+  const p = function (n) { return n < 10 ? '0' + n : String(n) }
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate())
+}
+
+function levelOf(score) {
+  let lv = 1 + Math.floor(score / LEVEL_STEP)
+  if (lv > 4) lv = 4
+  if (lv < 1) lv = 1
+  return lv
+}
+
+function code() {
+  return 'SYSU-' + Math.floor(100000 + Math.random() * 899999)
+}
+
+/** 当前用户的 users 文档（没有就报错，让客户端先登录/建档） */
+async function myDoc(openid) {
+  const res = await db.collection('users').where({ _openid: openid }).limit(1).get()
+  return res.data && res.data[0] ? res.data[0] : null
+}
+
+async function findTree(treeId) {
+  const res = await db.collection('trees').where({ treeId: treeId }).limit(1).get()
+  return res.data && res.data[0] ? res.data[0] : null
+}
+
+/** 统一的失败返回：带上服务端真值，客户端据此纠正本地内存 */
+async function fail(openid, msg, extra) {
+  const me = await myDoc(openid).catch(function () { return null })
+  return Object.assign({ ok: false, msg: msg, user: pubUser(me) }, extra || {})
+}
+
+/** users 文档转给客户端的形状（去掉 _id/_openid 这类元数据） */
+function pubUser(doc) {
+  if (!doc) return null
+  const u = Object.assign({}, doc)
+  delete u._id
+  delete u._openid
+  return u
+}
+
+function pubTree(doc) {
+  if (!doc) return null
+  const t = Object.assign({}, doc)
+  delete t._id
+  delete t._openid
+  return t
+}
+
+/** 调 task-ai 做 AI 判定；云函数互调不受客户端额度影响 */
+async function askAi(payload) {
+  try {
+    const res = await cloud.callFunction({ name: 'task-ai', data: payload })
+    const r = res && res.result
+    return r || null
+  } catch (e) {
+    console.warn('[actions] 调 task-ai 失败，走本地兜底', e && e.message)
+    return null
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 各个 action                                                         */
+/* ------------------------------------------------------------------ */
+
+/** 认养：扣积分 + 设归属（事务，防两个人同时抢同一棵） */
+async function adopt(openid, payload) {
+  const treeId = String(payload.treeId || '')
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+  if ((me.availablePoints || 0) < COST.adopt) {
+    return { ok: false, msg: '积分不足，去低碳日程做任务攒一点吧', user: pubUser(me) }
+  }
+
+  const tree = await findTree(treeId)
+  if (!tree) return { ok: false, msg: '这棵树不存在', user: pubUser(me) }
+  if (tree.ownerId && tree.ownerId !== me.userId) {
+    return { ok: false, msg: '这棵树已经有认养人了', user: pubUser(me), tree: pubTree(tree) }
+  }
+  if (tree.ownerId === me.userId) {
+    // 已经是自己的树：和客户端本地判定保持一致，提示而不是静默成功
+    return { ok: false, msg: '这棵树已经有认养人了', user: pubUser(me), tree: pubTree(tree) }
+  }
+  if (tree.reviewStatus === 'pending' || tree.status === 'pending') {
+    return { ok: false, msg: '这棵树还在审核中，通过后就能认养了', user: pubUser(me), tree: pubTree(tree) }
+  }
+  if (tree.reviewStatus === 'rejected' || tree.status === 'rejected') {
+    return { ok: false, msg: '这棵树没有通过审核，暂不可认养', user: pubUser(me), tree: pubTree(tree) }
+  }
+  if (tree.status === 'hazard') {
+    return { ok: false, msg: '该树正在隐患处理中，暂不可认养', user: pubUser(me), tree: pubTree(tree) }
+  }
+
+  const points = (me.availablePoints || 0) - COST.adopt
+  const growth = 30
+  await db.runTransaction(async function (t) {
+    const tDoc = await t.collection('trees').doc(tree._id).get()
+    if (tDoc.data.ownerId) {
+      const e = new Error('这棵树已经有认养人了')
+      e.friendly = true
+      throw e
+    }
+    await t.collection('trees').doc(tree._id).update({
+      data: { ownerId: me.userId, ownerName: me.nickname || '森友', level: 1, growthScore: growth }
+    })
+    await t.collection('users').doc(me._id).update({
+      data: {
+        availablePoints: points,
+        totalGrowthScore: (me.totalGrowthScore || 0) + growth,
+        adoptedTreeId: treeId
+      }
+    })
+  }).catch(function (e) {
+    if (e && e.friendly) return
+    throw e
+  })
+
+  const me2 = await myDoc(openid)
+  const tree2 = await findTree(treeId)
+  return { ok: true, user: pubUser(me2), tree: pubTree(tree2) }
+}
+
+/** 浇水 / 施肥：每天每棵各一次，扣积分加成长并给护林币 */
+async function care(openid, payload, kind) {
+  const treeId = String(payload.treeId || '')
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const tree = await findTree(treeId)
+  if (!tree) return { ok: false, msg: '这棵树不存在', user: pubUser(me) }
+  if (tree.ownerId !== me.userId) {
+    return { ok: false, msg: '这不是你认养的树', user: pubUser(me), tree: pubTree(tree) }
+  }
+
+  const cost = kind === 'water' ? COST.water : COST.fertilize
+  const gain = kind === 'water' ? GAIN.water : GAIN.fertilize
+  const coin = kind === 'water' ? COIN.water : COIN.fertilize
+  const field = kind === 'water' ? 'lastWaterAt' : 'lastFertAt'
+  const td = today()
+
+  if (tree[field] === td) {
+    return {
+      ok: false,
+      msg: kind === 'water' ? '今天已经浇过水了，明天再来' : '今天已经施过肥了，明天再来',
+      user: pubUser(me),
+      tree: pubTree(tree)
+    }
+  }
+  if ((me.availablePoints || 0) < cost) {
+    return { ok: false, msg: '积分不足，去低碳日程攒一点吧', user: pubUser(me), tree: pubTree(tree) }
+  }
+  if ((tree.growthScore || 0) >= GROWTH_CAP) {
+    return { ok: false, msg: '这棵树已经长满啦', user: pubUser(me), tree: pubTree(tree) }
+  }
+
+  let g = (tree.growthScore || 0) + gain
+  if (g > GROWTH_CAP) g = GROWTH_CAP
+
+  await db.collection('trees').doc(tree._id).update({
+    data: { growthScore: g, level: levelOf(g), [field]: td }
+  })
+  await db.collection('users').doc(me._id).update({
+    data: {
+      availablePoints: (me.availablePoints || 0) - cost,
+      coins: (me.coins || 0) + coin,
+      totalGrowthScore: (me.totalGrowthScore || 0) + gain
+    }
+  })
+
+  const me2 = await myDoc(openid)
+  const tree2 = await findTree(treeId)
+  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), gain: gain, coin: coin }
+}
+
+/** 兑换：事务扣库存 + 扣护林币 + 写兑换记录 */
+async function exchange(openid, payload) {
+  const itemId = String(payload.itemId || '')
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const gRes = await db.collection('goods').where({ itemId: itemId }).limit(1).get()
+  const goods = gRes.data && gRes.data[0]
+  if (!goods) return { ok: false, msg: '商品不存在', user: pubUser(me) }
+  if ((goods.stock || 0) <= 0) return { ok: false, msg: '这件纪念品已经兑完了', user: pubUser(me) }
+  if ((me.coins || 0) < (goods.costCurrency || 0)) {
+    return { ok: false, msg: '护林币不够，去林地浇水做任务攒一点吧', user: pubUser(me) }
+  }
+
+  const codeText = code()
+  await db.runTransaction(async function (t) {
+    const g = await t.collection('goods').doc(goods._id).get()
+    if ((g.data.stock || 0) <= 0) {
+      const e = new Error('这件纪念品已经兑完了')
+      e.friendly = true
+      throw e
+    }
+    await t.collection('goods').doc(goods._id).update({ data: { stock: g.data.stock - 1 } })
+    await t.collection('users').doc(me._id).update({ data: { coins: (me.coins || 0) - goods.costCurrency } })
+  }).catch(function (e) {
+    if (e && e.friendly) return
+    throw e
+  })
+
+  await db.collection('records').add({ data: { text: goods.name + ' · ' + codeText } })
+
+  const me2 = await myDoc(openid)
+  const g2 = await db.collection('goods').doc(goods._id).get()
+  return {
+    ok: true,
+    user: pubUser(me2),
+    goods: pubGoods(g2.data),
+    code: codeText,
+    record: goods.name + ' · ' + codeText
+  }
+}
+
+function pubGoods(doc) {
+  if (!doc) return null
+  const g = Object.assign({}, doc)
+  delete g._id
+  delete g._openid
+  return g
+}
+
+/** 日程打卡：服务端发起 AI 凭证核验，通过才加分（客户端伪造不了核验结果） */
+async function completeTask(openid, payload) {
+  const taskId = String(payload.taskId || '')
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const tRes = await db.collection('tasks').where({ taskId: taskId, _openid: openid }).limit(1).get()
+  const task = tRes.data && tRes.data[0]
+  if (!task) return { ok: false, msg: '这条日程不存在', user: pubUser(me) }
+  if (task.done) return { ok: false, msg: '这条日程已经打卡了', user: pubUser(me) }
+
+  const proofText = String(payload.proofText || '')
+  const imageUrl = String(payload.imageUrl || '')
+  if (proofText === '' && imageUrl === '') {
+    return { ok: false, msg: '拍一张照片或写一句凭证再提交', user: pubUser(me) }
+  }
+
+  const r = await askAi({
+    action: 'verify',
+    title: task.title,
+    basePoints: task.basePoints,
+    proofText: proofText,
+    imageUrl: imageUrl
+  })
+  if (!r || r.fallback) {
+    return { ok: false, msg: 'AI 核验暂时不可用，稍后再试', user: pubUser(me) }
+  }
+  if (r.passed === false) {
+    return {
+      ok: false,
+      needProof: true,
+      msg: r.comment || '这张凭证还不足以证明低碳行为已经发生',
+      user: pubUser(me)
+    }
+  }
+
+  const carbon = Number(r.carbonSavedG) || 0
+  await db.collection('tasks').doc(task._id).update({
+    data: {
+      done: true,
+      carbonSavedG: carbon,
+      aiComment: r.comment || '',
+      proofImage: payload.proofImage || '',
+      proofText: proofText,
+      reviewStatus: 'approved'
+    }
+  })
+  await db.collection('users').doc(me._id).update({
+    data: {
+      availablePoints: (me.availablePoints || 0) + (task.basePoints || 0),
+      totalGrowthScore: (me.totalGrowthScore || 0) + (task.basePoints || 0)
+    }
+  })
+
+  const me2 = await myDoc(openid)
+  const t2 = await db.collection('tasks').doc(task._id).get()
+  return {
+    ok: true,
+    user: pubUser(me2),
+    task: pubTask(t2.data),
+    carbonSavedG: carbon,
+    comment: r.comment || '',
+    detail: r.detail || ''
+  }
+}
+
+function pubTask(doc) {
+  if (!doc) return null
+  const t = Object.assign({}, doc)
+  delete t._id
+  delete t._openid
+  return t
+}
+
+/** 新增树木：服务端先 AI 审核，通过才写库（客户端无法绕过审核） */
+async function addTree(openid, payload) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const name = String(payload.name || '').trim()
+  const species = String(payload.species || '').trim()
+  const age = String(payload.age || '').trim()
+  const image = String(payload.image || '')
+  const description = String(payload.description || '').trim()
+  const lat = Number(payload.lat)
+  const lng = Number(payload.lng)
+  const posX = Number(payload.posX)
+  const posY = Number(payload.posY)
+
+  if (name === '' || species === '') return { ok: false, msg: '名称或树种为空', user: pubUser(me) }
+  if (image === '') return { ok: false, msg: '请先上传现场照片', user: pubUser(me) }
+
+  const r = await askAi({
+    action: 'review',
+    name: name,
+    species: species,
+    age: age,
+    description: description,
+    imageUrl: String(payload.imageUrl || '')
+  })
+  const approved = !(r && r.passed === false)
+
+  const doc = {
+    treeId: 't_' + Date.now() + Math.floor(Math.random() * 1000),
+    name: name,
+    species: species,
+    age: age || '未知',
+    posX: posX,
+    posY: posY,
+    lat: lat,
+    lng: lng,
+    ownerId: '',
+    ownerName: '',
+    level: 0,
+    growthScore: 0,
+    status: approved ? 'normal' : 'pending',
+    hazardText: '',
+    reviewStatus: approved ? 'approved' : 'pending',
+    reviewNote: (r && r.reason) || '',
+    image: image,
+    description: description,
+    createdBy: me.userId,
+    _openid: openid
+  }
+
+  const add = await db.collection('trees').add({ data: doc })
+  doc._id = add._id
+  return {
+    ok: true,
+    tree: pubTree(doc),
+    approved: approved,
+    reason: (r && r.reason) || '',
+    detail: (r && r.detail) || ''
+  }
+}
+
+/** 隐患上报：服务端 AI 巡检，通过才写日志、发积分、把树标成隐患 */
+async function reportHazard(openid, payload) {
+  const treeId = String(payload.treeId || '')
+  const image = String(payload.image || '')
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+  if (image === '') return { ok: false, msg: '没有照片，请拍一张树木现场照片', user: pubUser(me) }
+
+  const tree = await findTree(treeId)
+  if (!tree) return { ok: false, msg: '这棵树不存在', user: pubUser(me) }
+
+  const r = await askAi({
+    action: 'hazard',
+    name: tree.name,
+    species: tree.species,
+    imageUrl: String(payload.imageUrl || '')
+  })
+  if (!r) return { ok: false, msg: 'AI 巡检暂时不可用，稍后再试', user: pubUser(me) }
+  if (r.reject) return { ok: false, msg: r.reason || '照片里看不到树木', user: pubUser(me) }
+  if (!r.level) return { ok: false, msg: 'AI 未能给出巡检结论，稍后再试', user: pubUser(me) }
+
+  const reward = Number(r.reward) || 100
+  const logId = 'log_' + Date.now()
+  await db.collection('tree_logs').add({
+    data: {
+      logId: logId,
+      treeId: treeId,
+      kind: 'hazard',
+      imageUrl: image,
+      description: '巡检上报：' + tree.name,
+      aiAnalysis: '【' + r.level + '预警】' + (r.analysis || ''),
+      rewardPoints: reward,
+      createdAt: new Date().toISOString().substring(0, 16).replace('T', ' '),
+      _openid: openid
+    }
+  })
+  await db.collection('users').doc(me._id).update({
+    data: {
+      availablePoints: (me.availablePoints || 0) + reward,
+      totalGrowthScore: (me.totalGrowthScore || 0) + reward
+    }
+  })
+  // 树的状态只有创建者能改（权限收紧后客户端改不了，这里由云函数代劳）
+  await db.collection('trees').doc(tree._id).update({
+    data: { status: 'hazard', hazardText: r.analysis || '' }
+  }).catch(function (e) { console.warn('[actions] 更新树状态失败', e && e.message) })
+
+  const me2 = await myDoc(openid)
+  const tree2 = await findTree(treeId)
+  return {
+    ok: true,
+    user: pubUser(me2),
+    tree: pubTree(tree2),
+    hazard: { level: r.level, analysis: r.analysis || '', advice: r.advice || '', reward: reward }
+  }
+}
+
+/** 上传生长实拍：服务端 AI 审核通过才记录 + 加成长 + 发护林币 */
+async function addGrowthLog(openid, payload) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const tree = await findTree(String(payload.treeId || ''))
+  if (!tree) return { ok: false, msg: '这棵树不存在', user: pubUser(me) }
+  if (tree.ownerId !== me.userId) return { ok: false, msg: '这不是你认养的树', user: pubUser(me) }
+  if (String(payload.image || '') === '') return { ok: false, msg: '请先拍照', user: pubUser(me) }
+
+  const r = await askAi({
+    action: 'review',
+    name: tree.name,
+    species: tree.species,
+    age: tree.age,
+    description: String(payload.description || '生长实拍'),
+    imageUrl: String(payload.imageUrl || '')
+  })
+  if (r && r.passed === false) {
+    return { ok: false, msg: r.reason || '照片里看不出这棵树', user: pubUser(me) }
+  }
+
+  const logId = 'log_' + Date.now()
+  const gain = 30
+  let g = (tree.growthScore || 0) + gain
+  if (g > GROWTH_CAP) g = GROWTH_CAP
+
+  await db.collection('tree_logs').add({
+    data: {
+      logId: logId,
+      treeId: tree.treeId,
+      kind: 'growth',
+      imageUrl: String(payload.image || ''),
+      description: String(payload.description || '生长实拍'),
+      aiAnalysis: '',
+      rewardPoints: 0,
+      createdAt: new Date().toISOString().substring(0, 16).replace('T', ' '),
+      _openid: openid
+    }
+  })
+  await db.collection('trees').doc(tree._id).update({ data: { growthScore: g, level: levelOf(g) } })
+  await db.collection('users').doc(me._id).update({
+    data: {
+      totalGrowthScore: (me.totalGrowthScore || 0) + gain,
+      coins: (me.coins || 0) + 50
+    }
+  })
+
+  const me2 = await myDoc(openid)
+  const tree2 = await findTree(tree.treeId)
+  return { ok: true, user: pubUser(me2), tree: pubTree(tree2), logId: logId, gain: gain, coin: 50 }
+}
+
+/** 新增日程：AI 分析低碳实现方式也放服务端，保证 basePoints 不是客户端随便填的 */
+async function createTask(openid, payload) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const title = String(payload.title || '').trim()
+  const slot = String(payload.slot || '09:00')
+  if (title === '') return { ok: false, msg: '先写一件今天要做的事', user: pubUser(me) }
+
+  const r = await askAi({ action: 'plan', title: title })
+  const desc = (r && r.desc) || '选择绿色低碳方式完成这件事 · 少排约 60 g CO₂e'
+  let points = Number(r && r.basePoints) || 20
+  if (points < 20) points = 20
+  if (points > 50) points = 50
+
+  const doc = {
+    taskId: 'task_' + Date.now() + Math.floor(Math.random() * 1000),
+    userId: me.userId,
+    date: today(),
+    slot: slot,
+    title: title,
+    desc: desc,
+    basePoints: points,
+    done: false,
+    carbonSavedG: 0,
+    aiComment: '',
+    proofImage: '',
+    proofText: '',
+    reviewStatus: '',
+    _openid: openid
+  }
+  const add = await db.collection('tasks').add({ data: doc })
+  doc._id = add._id
+  return { ok: true, user: pubUser(me), task: pubTask(doc) }
+}
+
+/** 改资料（昵称 / 签名 / 碳目标） */
+async function updateProfile(openid, payload) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+
+  const patch = {}
+  if (typeof payload.nickname === 'string') {
+    const nick = payload.nickname.trim()
+    if (nick === '') return { ok: false, msg: '先写个名字吧', user: pubUser(me) }
+    patch.nickname = nick.slice(0, 12)
+  }
+  if (typeof payload.bio === 'string') patch.bio = payload.bio.slice(0, 40)
+  if (payload.carbonGoal !== undefined) {
+    const g = Number(payload.carbonGoal)
+    if (g > 0) patch.carbonGoal = g
+  }
+  if (!Object.keys(patch).length) return { ok: true, user: pubUser(me) }
+
+  await db.collection('users').doc(me._id).update({ data: patch })
+  const me2 = await myDoc(openid)
+  return { ok: true, user: pubUser(me2) }
+}
+
+/* ------------------------------------------------------------------ */
+/* 入口                                                                */
+/* ------------------------------------------------------------------ */
+
+exports.main = async function (event) {
+  const openid = cloud.getWXContext().OPENID || ''
+  if (!openid) return { ok: false, msg: '拿不到用户身份（不是从小程序调用的？）' }
+
+  const action = String(event.action || '')
+  const payload = event.payload || {}
+
+  try {
+    if (action === 'adopt') return await adopt(openid, payload)
+    if (action === 'water') return await care(openid, payload, 'water')
+    if (action === 'fertilize') return await care(openid, payload, 'fertilize')
+    if (action === 'exchange') return await exchange(openid, payload)
+    if (action === 'completeTask') return await completeTask(openid, payload)
+    if (action === 'addTree') return await addTree(openid, payload)
+    if (action === 'reportHazard') return await reportHazard(openid, payload)
+    if (action === 'addGrowthLog') return await addGrowthLog(openid, payload)
+    if (action === 'createTask') return await createTask(openid, payload)
+    if (action === 'updateProfile') return await updateProfile(openid, payload)
+    return { ok: false, msg: '未知 action: ' + action }
+  } catch (e) {
+    console.error('[actions] 执行失败', action, e && e.message)
+    return await fail(openid, '服务器开小差了，稍后再试')
+  }
+}

@@ -471,6 +471,25 @@ Page({
     }
     const visionUrl = await toPublicUrl(stored)
 
+    // 云端模式：巡检 + 记账 + 改树状态都在 actions 云函数里完成
+    if (store.isCloud()) {
+      const r = await store.cloudReportHazard({
+        treeId: sel.treeId,
+        image: stored,
+        imageUrl: visionUrl
+      })
+      wx.hideLoading()
+      if (!r.ok) {
+        toast(r.msg || '上报失败')
+        return
+      }
+      this.selectedTreeId = ''
+      this.setData({ showCard: false })
+      this.refresh()
+      toast('工单已推送总务处 · +' + ((r.hazard && r.hazard.reward) || 0) + ' 积分')
+      return
+    }
+
     aiAnalyzeHazard(sel.name, sel.species, visionUrl, (r) => {
       wx.hideLoading()
       if (r && r.reject) {
@@ -544,11 +563,11 @@ Page({
       confirmText: '确认认养',
       cancelText: '再想想',
       confirmColor: '#4E8A6B',
-      success: (res) => {
+      success: async (res) => {
         if (!res.confirm) return
 
-        // 积分不足 / 已被他人认养等情况由 store 统一校验，返回提示语
-        const err = store.adoptTree(sel.treeId)
+        // 积分不足 / 已被他人认养等情况由 store 统一校验；云端模式下由 actions 云函数权威判定
+        const err = await store.adoptTree(sel.treeId)
         if (err !== '') {
           toast(err)
           return
@@ -682,7 +701,44 @@ Page({
     }
     wx.hideLoading()
 
-    // 3) AI 审核
+    // 3) 云端模式：审核与写库都在 actions 云函数里完成，客户端无法绕过
+    if (store.isCloud()) {
+      wx.showLoading({ title: 'AI 审核中', mask: true })
+      const r = await store.cloudAddTree({
+        name: f.name,
+        species: f.species,
+        age: f.age,
+        image: image,
+        imageUrl: visionUrl,
+        description: f.description,
+        lat: loc.latitude,
+        lng: loc.longitude,
+        posX: pos.posX,
+        posY: pos.posY
+      })
+      wx.hideLoading()
+      this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
+      this.refresh()
+
+      if (!r.ok) {
+        toast(r.msg || '提交失败')
+        return
+      }
+      if (r.approved) {
+        toast('AI 审核通过，已上地图')
+      } else {
+        wx.showModal({
+          title: 'AI 审核未通过',
+          content: (r.reason || '照片或信息与树木不符') + '\n\n已转人工复核，管理员通过后仍会出现在地图上。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#4E8A6B'
+        })
+      }
+      return
+    }
+
+    // 本地模式：客户端 AI 审核 + 本地写库
     wx.showLoading({ title: 'AI 审核中', mask: true })
     const verdict = await new Promise((resolve) => {
       aiReviewTree({

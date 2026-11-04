@@ -1,0 +1,9 @@
+{
+  "name": "actions",
+  "version": "1.0.0",
+  "description": "所有写库操作的权威执行者（认养/浇水/兑换/打卡/上报/新增）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -234,7 +234,7 @@ Page({
     this.setData({ addSlot: e.detail.value })
   },
 
-  confirmAdd() {
+  async confirmAdd() {
     const title = (this.data.addTitle || '').trim()
     const slot = this.data.addSlot
 
@@ -244,6 +244,21 @@ Page({
     }
     if (!slot) {
       toast('选一个时间')
+      return
+    }
+
+    // 云端模式：AI 低碳分析与写库都在 actions 云函数里完成
+    if (store.isCloud()) {
+      wx.showLoading({ title: 'AI 分析中', mask: true })
+      const r = await store.cloudCreateTask({ title: title, slot: slot })
+      wx.hideLoading()
+      if (!r.ok) {
+        toast(r.msg || '添加失败')
+        return
+      }
+      this.setData({ sheetMode: '', addTitle: '' })
+      this.refresh()
+      toast('已添加 · AI 已给出低碳方案')
       return
     }
 
@@ -422,6 +437,42 @@ Page({
     this.setData({ sheetMode: 'loading' })
     this.startDots()
 
+    // 云端模式：凭证核验与加分都在 actions 云函数里做，客户端拿不到可伪造的通过结果
+    if (store.isCloud()) {
+      const that2 = this
+      store.cloudCompleteTask({
+        taskId: task.taskId,
+        proofText: proofText,
+        imageUrl: this.data.proofUrl,
+        proofImage: this.data.proofThumb
+      }).then(function (r) {
+        if (!that2._alive || seq !== that2.verifySeq || that2.data.sheetMode !== 'loading') return
+        that2.stopDots()
+        if (r.ok) {
+          that2._cloudDone = true
+          that2.setData({
+            result: {
+              carbonSavedG: (r.carbonSavedG || 0).toFixed(0),
+              comment: r.comment || '',
+              detail: r.detail || ''
+            },
+            sheetMode: 'result'
+          })
+          return
+        }
+        if (r.needProof) {
+          that2.setData({
+            result: { carbonSavedG: '0', comment: r.msg || '凭证未通过', detail: '' },
+            sheetMode: 'reject'
+          })
+          return
+        }
+        that2.setData({ sheetMode: 'task' })
+        toast(r.msg || '核验失败')
+      })
+      return
+    }
+
     aiVerifyProof(task.title, task.basePoints, proofText, this.data.proofUrl, function (r) {
       that.verifying = false
       // 回调作废守卫：弹窗已关 / 已切别的任务 / 页面已销毁，一律丢弃旧结果
@@ -465,6 +516,16 @@ Page({
 
   claim() {
     const task = this.data.current
+
+    // 云端模式：核验时云函数已经写好库、加过分，这里只收尾
+    if (this._cloudDone) {
+      this._cloudDone = false
+      this.setData({ sheetMode: '', proofThumb: '', proofText: '', proofUrl: '' })
+      this.refresh()
+      toast('+' + task.basePoints.toFixed(0) + ' 积分已到账')
+      return
+    }
+
     const err = store.completeTask(task.taskId, Number(this.data.result.carbonSavedG), this.data.result.comment, {
       proofImage: this.data.proofThumb,
       proofText: (this.data.proofText || '').trim()

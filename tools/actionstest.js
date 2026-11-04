@@ -1,0 +1,352 @@
+/**
+ * actions 云函数逻辑测试（内存假数据库，不联网、不部署）
+ *
+ * 用法：在小程序根目录执行  node tools/actionstest.js
+ *
+ * 为什么需要：actions 是所有写库操作的权威执行者，但它跑在云端，
+ * 本地点不到。这里用内存数据库 + 假的 wx-server-sdk 把它 require 进来直接跑，
+ * 覆盖认养、浇水每日一次、兑换扣库存、打卡 AI 拒绝、新增树审核、隐患拒绝等分支。
+ */
+
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+const Module = require('module')
+
+/* ------------------------------------------------------------------ */
+/* 内存数据库                                                          */
+/* ------------------------------------------------------------------ */
+
+const db = {
+  users: [
+    {
+      _id: 'u_doc_1',
+      _openid: 'openid_A',
+      userId: 'u_001',
+      nickname: '中大护林员小李',
+      avatar: '/static/illus/avatar.png',
+      availablePoints: 1000,
+      coins: 300,
+      totalGrowthScore: 500,
+      days: 108,
+      adoptedTreeId: 't_101'
+    },
+    {
+      _id: 'u_doc_2',
+      _openid: 'openid_B',
+      userId: 'u_018',
+      nickname: '另一个森友',
+      availablePoints: 50,
+      coins: 0,
+      totalGrowthScore: 10,
+      adoptedTreeId: ''
+    }
+  ],
+  trees: [
+    {
+      _id: 't_doc_1',
+      _openid: 'openid_B',
+      treeId: 't_101',
+      name: '逸仙大道 08 号 · 大王椰',
+      species: '大王椰',
+      ownerId: 'u_001',
+      ownerName: '中大护林员小李',
+      level: 1,
+      growthScore: 30,
+      status: 'normal',
+      reviewStatus: 'approved',
+      createdBy: 'u_001'
+    },
+    {
+      _id: 't_doc_2',
+      _openid: 'openid_B',
+      treeId: 't_200',
+      name: '图书馆西侧 · 柠檬桉',
+      species: '柠檬桉',
+      ownerId: '',
+      ownerName: '',
+      level: 0,
+      growthScore: 0,
+      status: 'normal',
+      reviewStatus: 'approved',
+      createdBy: 'u_018'
+    },
+    {
+      _id: 't_doc_3',
+      _openid: 'openid_B',
+      treeId: 't_201',
+      name: '待审核的树',
+      species: '樟树',
+      ownerId: '',
+      level: 0,
+      growthScore: 0,
+      status: 'pending',
+      reviewStatus: 'pending',
+      createdBy: 'u_018'
+    }
+  ],
+  tasks: [
+    {
+      _id: 'task_doc_1',
+      _openid: 'openid_A',
+      taskId: 'task_201',
+      title: '骑共享单车去图书馆',
+      basePoints: 40,
+      done: false,
+      date: '2026-11-04'
+    }
+  ],
+  goods: [
+    { _id: 'g_doc_1', itemId: 's_301', name: '中大古树帆布袋', costCurrency: 120, stock: 25 },
+    { _id: 'g_doc_2', itemId: 's_302', name: '校巴搪瓷杯', costCurrency: 80, stock: 0 }
+  ],
+  tree_logs: [],
+  records: []
+}
+
+let _idSeq = 100
+function nextId() {
+  _idSeq++
+  return 'doc_' + _idSeq
+}
+
+function matchCond(doc, cond) {
+  return Object.keys(cond).every(function (k) { return doc[k] === cond[k] })
+}
+
+function makeQuery(name, cond) {
+  let limitN = 100
+  return {
+    where: function (c) { return makeQuery(name, Object.assign({}, cond, c)) },
+    limit: function (n) { limitN = n; return this },
+    get: async function () {
+      const rows = (db[name] || []).filter(function (d) { return matchCond(d, cond) }).slice(0, limitN)
+      return { data: JSON.parse(JSON.stringify(rows)) }
+    },
+    doc: function (id) {
+      return {
+        get: async function () {
+          const d = (db[name] || []).find(function (x) { return x._id === id })
+          if (!d) throw new Error('doc not found')
+          return { data: JSON.parse(JSON.stringify(d)) }
+        },
+        update: async function (arg) {
+          const d = (db[name] || []).find(function (x) { return x._id === id })
+          if (!d) throw new Error('doc not found')
+          Object.assign(d, arg.data)
+          return { stats: { updated: 1 } }
+        }
+      }
+    },
+    add: async function (arg) {
+      const doc = Object.assign({ _id: nextId() }, arg.data)
+      db[name] = db[name] || []
+      db[name].push(doc)
+      return { _id: doc._id }
+    }
+  }
+}
+
+const fakeDb = {
+  command: { neq: function (v) { return { $ne: v } } },
+  collection: function (name) { return makeQuery(name, {}) },
+  runTransaction: async function (fn) {
+    const t = {
+      collection: function (name) {
+        return {
+          doc: function (id) {
+            return {
+              get: async function () {
+                const d = (db[name] || []).find(function (x) { return x._id === id })
+                if (!d) throw new Error('doc not found')
+                return { data: JSON.parse(JSON.stringify(d)) }
+              },
+              update: async function (arg) {
+                const d = (db[name] || []).find(function (x) { return x._id === id })
+                if (!d) throw new Error('doc not found')
+                Object.assign(d, arg.data)
+              }
+            }
+          }
+        }
+      }
+    }
+    return fn(t)
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 假的 wx-server-sdk                                                  */
+/* ------------------------------------------------------------------ */
+
+let openid = 'openid_A'
+let aiResponder = function () { return { passed: true, carbonSavedG: 120, comment: 'OK', detail: '', level: '中危', analysis: '枯枝', advice: '修剪', reward: 100, desc: '骑行 · 少排约 120 g', basePoints: 40 } }
+
+const sdk = {
+  DYNAMIC_CURRENT_ENV: 'test-env',
+  init: function () {},
+  database: function () { return fakeDb },
+  getWXContext: function () { return { OPENID: openid } },
+  callFunction: async function (arg) {
+    return { result: aiResponder(arg && arg.data) }
+  }
+}
+
+const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tcbstub-'))
+const stubFile = path.join(stubDir, 'wx-server-sdk.js')
+fs.writeFileSync(stubFile, 'module.exports = global.__TCB_FAKE_SDK__\n')
+global.__TCB_FAKE_SDK__ = sdk
+
+const origResolve = Module._resolveFilename
+Module._resolveFilename = function (request, parent, isMain, opts) {
+  if (request === 'wx-server-sdk') return stubFile
+  return origResolve.call(this, request, parent, isMain, opts)
+}
+
+const actionsPath = path.join(__dirname, '..', 'cloudfunctions', 'actions', 'index.js')
+const actions = require(actionsPath)
+
+/* ------------------------------------------------------------------ */
+/* 断言                                                                */
+/* ------------------------------------------------------------------ */
+
+let pass = 0
+let failCount = 0
+function check(label, cond, detail) {
+  if (cond) { pass++; console.log('  PASS  ' + label) }
+  else { failCount++; console.log('  FAIL  ' + label + '  ' + (detail == null ? '' : detail)) }
+}
+function userDoc(openid2) {
+  return db.users.find(function (u) { return u._openid === openid2 })
+}
+function treeDoc(treeId) {
+  return db.trees.find(function (t) { return t.treeId === treeId })
+}
+
+;(async () => {
+  console.log('===== 认养 =====')
+  let r = await actions.main({ action: 'adopt', payload: { treeId: 't_200' } })
+  check('无主树认养成功', r.ok === true, r.msg)
+  check('积分扣 300', userDoc('openid_A').availablePoints === 700, userDoc('openid_A').availablePoints)
+  check('树归属变成我', treeDoc('t_200').ownerId === 'u_001', treeDoc('t_200').ownerId)
+
+  r = await actions.main({ action: 'adopt', payload: { treeId: 't_200' } })
+  check('已认养的树不能再认养', r.ok === false, r.msg)
+
+  r = await actions.main({ action: 'adopt', payload: { treeId: 't_201' } })
+  check('待审核的树不能认养', r.ok === false && r.msg.indexOf('审核') >= 0, r.msg)
+
+  r = await actions.main({ action: 'adopt', payload: { treeId: 'nope' } })
+  check('不存在的树被拒', r.ok === false, r.msg)
+
+  console.log('===== 浇水 / 施肥（每天各一次）=====')
+  r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
+  check('首次浇水成功', r.ok === true, r.msg)
+  check('加了成长值', treeDoc('t_101').growthScore > 30, treeDoc('t_101').growthScore)
+  check('发了护林币 +2', userDoc('openid_A').coins === 302, userDoc('openid_A').coins)
+
+  r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
+  check('同一天再浇水被拒', r.ok === false && r.msg.indexOf('今天已经浇过水') >= 0, r.msg)
+
+  r = await actions.main({ action: 'fertilize', payload: { treeId: 't_200' } })
+  check('施肥成功', r.ok === true, r.msg)
+
+  r = await actions.main({ action: 'water', payload: { treeId: 't_201' } })
+  check('别人的树不能浇水', r.ok === false && r.msg.indexOf('不是你认养') >= 0, r.msg)
+
+  console.log('===== 兑换（扣库存 + 扣币）=====')
+  const coinsBefore = userDoc('openid_A').coins
+  const stockBefore = db.goods[0].stock
+  r = await actions.main({ action: 'exchange', payload: { itemId: 's_301' } })
+  check('兑换成功', r.ok === true, r.msg)
+  check('库存 -1', db.goods[0].stock === stockBefore - 1, db.goods[0].stock + ' / ' + stockBefore)
+  check('护林币扣掉 120', userDoc('openid_A').coins === coinsBefore - 120, userDoc('openid_A').coins + ' / ' + coinsBefore)
+  check('返回凭证码', /^SYSU-\d{6}$/.test(r.code || ''), r.code)
+  check('返回兑换记录文案', !!r.record && r.record.indexOf('帆布袋') >= 0, r.record)
+
+  r = await actions.main({ action: 'exchange', payload: { itemId: 's_302' } })
+  check('库存 0 的商品兑不了', r.ok === false && r.msg.indexOf('兑完') >= 0, r.msg)
+
+  console.log('===== 日程打卡（服务端核验）=====')
+  aiResponder = function (d) {
+    if (d.action === 'verify') return { passed: true, carbonSavedG: 150, comment: '骑行棒', detail: 'ok' }
+    return {}
+  }
+  const ptsBeforeTask = userDoc('openid_A').availablePoints
+  r = await actions.main({ action: 'completeTask', payload: { taskId: 'task_201', proofText: '骑到图书馆了' } })
+  check('核验通过并打卡', r.ok === true, r.msg)
+  check('日程标为已完成', db.tasks[0].done === true)
+  check('积分到账 +40', userDoc('openid_A').availablePoints === ptsBeforeTask + 40,
+    userDoc('openid_A').availablePoints + ' / ' + ptsBeforeTask)
+
+  aiResponder = function () { return { passed: false, comment: '这张图看不出骑行' } }
+  db.tasks[0].done = false
+  r = await actions.main({ action: 'completeTask', payload: { taskId: 'task_201', proofText: '随便写点' } })
+  check('AI 判不通过则驳回', r.ok === false && r.needProof === true, JSON.stringify(r))
+
+  r = await actions.main({ action: 'completeTask', payload: { taskId: 'task_201' } })
+  check('空凭证直接拒绝', r.ok === false, r.msg)
+
+  console.log('===== 新增树木（服务端审核）=====')
+  aiResponder = function () { return { passed: true, reason: '是树' } }
+  r = await actions.main({ action: 'addTree', payload: { name: '东湖岸边 · 水杉', species: '水杉', age: '20', image: 'cloud://x.jpg', imageUrl: 'https://x.jpg', lat: 23.1, lng: 113.3, posX: 60, posY: 40 } })
+  check('审核通过直接上地图', r.ok === true && r.approved === true, JSON.stringify(r).slice(0, 80))
+  check('树写进库了', !!treeDoc(r.tree.treeId))
+
+  aiResponder = function () { return { passed: false, reason: '照片里没有树' } }
+  r = await actions.main({ action: 'addTree', payload: { name: '假树', species: '樟树', image: 'cloud://y.jpg', imageUrl: 'https://y.jpg', lat: 1, lng: 1, posX: 1, posY: 1 } })
+  check('审核不通过转 pending', r.ok === true && r.approved === false && r.tree.reviewStatus === 'pending', JSON.stringify(r).slice(0, 80))
+
+  r = await actions.main({ action: 'addTree', payload: { name: '', species: '' } })
+  check('缺字段被拒', r.ok === false, r.msg)
+
+  console.log('===== 隐患上报（拒绝非树木照片）=====')
+  aiResponder = function () { return { reject: true, reason: '图片为数学题截图，无树木' } }
+  const ptsBefore = userDoc('openid_A').availablePoints
+  r = await actions.main({ action: 'reportHazard', payload: { treeId: 't_101', image: 'cloud://z.jpg', imageUrl: 'https://z.jpg' } })
+  check('非树木照片被拒', r.ok === false && r.msg.indexOf('数学题') >= 0, r.msg)
+  check('拒绝时不给积分', userDoc('openid_A').availablePoints === ptsBefore)
+
+  aiResponder = function () { return { level: '高危', analysis: '枯枝悬垂', advice: '清枝', reward: 150 } }
+  r = await actions.main({ action: 'reportHazard', payload: { treeId: 't_101', image: 'cloud://z.jpg', imageUrl: 'https://z.jpg' } })
+  check('通过后写工单', r.ok === true && !!r.hazard, r.msg)
+  check('积分 +150', userDoc('openid_A').availablePoints === ptsBefore + 150, userDoc('openid_A').availablePoints)
+  check('树标成隐患态', treeDoc('t_101').status === 'hazard', treeDoc('t_101').status)
+
+  r = await actions.main({ action: 'reportHazard', payload: { treeId: 't_101', image: '' } })
+  check('没照片直接拒', r.ok === false && r.msg.indexOf('照片') >= 0, r.msg)
+
+  console.log('===== 新增日程（服务端 AI 分析）=====')
+  aiResponder = function (d) {
+    if (d.action === 'plan') return { desc: '骑行去上课 · 少排约 200 g CO₂e', basePoints: 40 }
+    return {}
+  }
+  r = await actions.main({ action: 'createTask', payload: { title: '去教学楼上上课', slot: '14:00' } })
+  check('日程创建成功', r.ok === true && !!r.task, r.msg)
+  check('AI 分析结果写进去了', r.task.desc.indexOf('骑行') >= 0, r.task.desc)
+  check('积分在合法区间', r.task.basePoints >= 20 && r.task.basePoints <= 50, r.task.basePoints)
+
+  r = await actions.main({ action: 'createTask', payload: { title: '' } })
+  check('空标题被拒', r.ok === false, r.msg)
+
+  console.log('===== 改资料 =====')
+  r = await actions.main({ action: 'updateProfile', payload: { nickname: '新名字' } })
+  check('昵称已更新', r.ok === true && userDoc('openid_A').nickname === '新名字', r.msg)
+  r = await actions.main({ action: 'updateProfile', payload: { nickname: '   ' } })
+  check('空昵称被拒', r.ok === false, r.msg)
+
+  console.log('===== 身份与未知 action =====')
+  openid = ''
+  r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
+  check('拿不到 openid 直接拒', r.ok === false && r.msg.indexOf('身份') >= 0, r.msg)
+  openid = 'openid_A'
+  r = await actions.main({ action: 'nonsense' })
+  check('未知 action 有兜底', r.ok === false && r.msg.indexOf('未知') >= 0, r.msg)
+
+  fs.rmSync(stubDir, { recursive: true, force: true })
+  console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
+  process.exit(failCount === 0 ? 0 : 1)
+})().catch(function (e) {
+  console.error('测试异常', e)
+  process.exit(1)
+})

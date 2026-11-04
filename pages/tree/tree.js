@@ -466,10 +466,11 @@ Page({
     this.performFertilize()
   },
 
-  performWater() {
+  async performWater() {
     const t = store.myTree()
     const lvBefore = t.level
-    const err = store.water(t.treeId)
+    // 云端模式下 water() 返回 Promise，等云函数确认后再提示
+    const err = await store.water(t.treeId)
     if (err) return toast(err)
 
     if (t.growthScore > GROWTH_CAP) t.growthScore = GROWTH_CAP
@@ -488,10 +489,10 @@ Page({
     this.playGain(String(WATER_GAIN))
   },
 
-  performFertilize() {
+  async performFertilize() {
     const t = store.myTree()
     const lvBefore = t.level
-    const err = store.fertilize(t.treeId)
+    const err = await store.fertilize(t.treeId)
     if (err) return toast(err)
 
     if (t.growthScore > GROWTH_CAP) t.growthScore = GROWTH_CAP
@@ -583,9 +584,76 @@ Page({
     wx.chooseImage({
       count: 1,
       success(res) {
-        that.afterUpload(res.tempFilePaths[0] || '/static/illus/stage3.png', '线下实拍：今天又长高了一点点')
+        that.reviewPhotoAndUpload(res.tempFilePaths[0], '线下实拍：今天又长高了一点点')
       }
     })
+  },
+
+  /**
+   * 上传生长实拍：先过 AI 审核，通过才记入时光轴并给护林币。
+   * 云端模式整条链路（上传 + AI + 记账）都在 actions 云函数里完成。
+   */
+  async reviewPhotoAndUpload(image, desc) {
+    const t = store.myTree()
+    if (!t.treeId) return toast('先认养一棵树吧')
+
+    wx.showLoading({ title: 'AI 审核中', mask: true })
+    let up = image
+    try {
+      up = await db.uploadImage(image)
+    } catch (e) {
+      console.warn('[tree] 实拍照片上传失败，用本地路径', e)
+    }
+    const visionUrl = await toPublicUrl(up)
+
+    if (store.isCloud()) {
+      const r = await store.cloudAddGrowthLog({
+        treeId: t.treeId,
+        image: up,
+        imageUrl: visionUrl,
+        description: desc
+      })
+      wx.hideLoading()
+      if (!r.ok) {
+        wx.showModal({
+          title: 'AI 审核未通过',
+          content: (r.msg || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
+          showCancel: false,
+          confirmText: '重拍',
+          confirmColor: '#4E8A6B'
+        })
+        return
+      }
+      this.kit.photos.push({
+        logId: r.logId,
+        stage: t.growthScore < LEVEL_STEP ? '幼芽' : (t.growthScore < LEVEL_STEP * 2 ? '新叶' : '枝繁'),
+        monthText: monthText(todayStr())
+      })
+      saveKit(this.kt)
+      this.setData({ sheetMode: '' })
+      this.refresh()
+      toast('已记入时光轴 · 护林币 +' + (r.coin || 0))
+      return
+    }
+
+    // 本地模式（测试号）：客户端 AI 审核 + 本地记账
+    const verdict = await new Promise((resolve) => {
+      aiReviewTree({
+        name: t.name, species: t.species, age: t.age, description: desc, imageUrl: visionUrl
+      }, resolve)
+    })
+    wx.hideLoading()
+    if (verdict.passed === false) {
+      wx.showModal({
+        title: 'AI 审核未通过',
+        content: (verdict.reason || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
+        showCancel: false,
+        confirmText: '重拍',
+        confirmColor: '#4E8A6B'
+      })
+      return
+    }
+    this.afterUpload(up, desc)
   },
 
   afterUpload(image, desc) {
@@ -697,9 +765,26 @@ Page({
     })
   },
 
-  submitHazard() {
+  async submitHazard() {
     const h = this.data.hazard
     const t = store.myTree()
+
+    // 云端模式：写库与 AI 复检都由 actions 云函数做，客户端只传照片
+    if (store.isCloud()) {
+      wx.showLoading({ title: '提交中', mask: true })
+      const r = await store.cloudReportHazard({
+        treeId: t.treeId,
+        image: this.data.hazardImage,
+        imageUrl: await toPublicUrl(this.data.hazardImage)
+      })
+      wx.hideLoading()
+      if (!r.ok) return toast(r.msg || '上报失败')
+      this.setData({ sheetMode: '' })
+      this.refresh()
+      toast('工单已推送总务处 · +' + ((r.hazard && r.hazard.reward) || 0) + ' 积分')
+      return
+    }
+
     const err = store.reportHazard(
       { level: h.level, ticket: h.ticket, analysis: h.analysis, advice: h.advice, reward: Number(h.reward) },
       '线下巡检拍照：' + t.name,

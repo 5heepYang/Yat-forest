@@ -15,6 +15,7 @@ const { ADOPT_COST, WATER_COST, WATER_GAIN, FERT_COST, FERT_GAIN, COIN_WATER, CO
 const { stamp } = require('./util')
 const { ADMIN_IDS } = require('./config')
 const db = require('./db')
+const ai = require('./ai')
 
 /** 全局唯一状态。直接改这里的字段，改完调 persist([...])。 */
 const state = {
@@ -126,6 +127,38 @@ function ready() {
  */
 function synced() {
   return syncedPromise
+}
+
+/* ---------- AI 类写操作的云端入口（本地模式由页面走原逻辑） ---------- */
+
+/** 新增树木：云函数内部做 AI 审核再写库 */
+function cloudAddTree(info) {
+  return cloudCall('addTree', info)
+}
+
+/** 隐患上报：云函数内部做 AI 巡检再记账 */
+function cloudReportHazard(info) {
+  return cloudCall('reportHazard', info)
+}
+
+/** 上传生长实拍：云函数内部做 AI 审核再加成长与护林币 */
+function cloudAddGrowthLog(info) {
+  return cloudCall('addGrowthLog', info)
+}
+
+/** 日程打卡：云函数内部做 AI 凭证核验再加分 */
+function cloudCompleteTask(info) {
+  return cloudCall('completeTask', info)
+}
+
+/** 新增日程：云函数内部做 AI 低碳分析再写库 */
+function cloudCreateTask(info) {
+  return cloudCall('createTask', info)
+}
+
+/** 改资料（昵称/签名/碳目标） */
+function cloudUpdateProfile(info) {
+  return cloudCall('updateProfile', info)
 }
 
 /**
@@ -407,6 +440,91 @@ function reviewTree(treeId, pass) {
   return ''
 }
 
+/* ------------------------------------------------------------------ */
+/* 云端写入通道（actions 云函数）                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 云端权威写库：所有"要落库"的操作都发给 actions 云函数执行。
+ *
+ * 客户端仍然先本地乐观执行一遍（界面立刻响应），云函数返回的权威结果再覆盖回来；
+ * 云函数拒绝时（余额不足/已认养/AI 不通过），覆盖回来的真值天然把乐观修改纠正掉，
+ * 不需要手工回滚。
+ *
+ * 云函数没部署 / 网络失败时不会崩：返回 { offline:true }，客户端行为退回改造前（只写本地）。
+ */
+function isCloud() {
+  return db.getMode() === db.MODE_CLOUD
+}
+
+function mergeUser(u) {
+  if (!u) return
+  Object.assign(state.user, u)
+  if (typeof state.adoptedTreeId !== 'string') state.adoptedTreeId = ''
+}
+
+function mergeTree(t) {
+  if (!t || !t.treeId) return
+  const cur = treeById(t.treeId)
+  if (cur) {
+    Object.assign(cur, t)
+    return
+  }
+  state.trees.push(t)
+}
+
+function mergeGoods(g) {
+  if (!g || !g.itemId) return
+  let i = 0
+  while (i < state.goods.length) {
+    if (state.goods[i].itemId === g.itemId) {
+      Object.assign(state.goods[i], g)
+      return
+    }
+    i++
+  }
+}
+
+function mergeTask(t) {
+  if (!t || !t.taskId) return
+  let i = 0
+  while (i < state.tasks.length) {
+    if (state.tasks[i].taskId === t.taskId) {
+      Object.assign(state.tasks[i], t)
+      return
+    }
+    i++
+  }
+  state.tasks.push(t)
+}
+
+function addRecord(text) {
+  if (text && state.records.indexOf(text) < 0) state.records.push(text)
+}
+
+function cloudCall(action, payload) {
+  if (!isCloud()) return Promise.resolve({ ok: false, offline: true, msg: '本地模式' })
+  if (!wx.cloud || !wx.cloud.callFunction) {
+    return Promise.resolve({ ok: false, offline: true, msg: '云能力不可用' })
+  }
+  return wx.cloud.callFunction({
+    name: 'actions',
+    data: { action: action, payload: payload || {} }
+  }).then(function (res) {
+    const r = (res && res.result) || {}
+    mergeUser(r.user)
+    if (r.tree) mergeTree(r.tree)
+    if (r.goods) mergeGoods(r.goods)
+    if (r.task) mergeTask(r.task)
+    if (r.record) addRecord(r.record)
+    return r
+  }).catch(function (e) {
+    console.warn('[store] actions 云函数不可用（未部署或断网），本次只写本地', e && e.message)
+    return { ok: false, offline: true, msg: '云端未连接，数据只保存在本机' }
+  })
+}
+
+/** 认养：云端模式下返回 Promise<string>（'' 表示成功），本地模式返回字符串 */
 function adoptTree(id) {
   const t = treeById(id)
   if (t === null) {
@@ -435,7 +553,11 @@ function adoptTree(id) {
   state.adoptedTreeId = id
   state.user.totalGrowthScore = state.user.totalGrowthScore + 30
   persist(['trees', 'users'])
-  return ''
+
+  if (!isCloud()) return ''
+  return cloudCall('adopt', { treeId: id }).then(function (r) {
+    return r.ok ? '' : (r.msg || '认养失败')
+  })
 }
 
 function water(treeId) {
@@ -464,7 +586,11 @@ function water(treeId) {
   }
   t.lastWaterAt = td
   persist(['trees', 'users'])
-  return ''
+
+  if (!isCloud()) return ''
+  return cloudCall('water', { treeId: t.treeId }).then(function (r) {
+    return r.ok ? '' : (r.msg || '浇水失败')
+  })
 }
 
 function fertilize(treeId) {
@@ -491,7 +617,11 @@ function fertilize(treeId) {
   }
   t.lastFertAt = tdF
   persist(['trees', 'users'])
-  return ''
+
+  if (!isCloud()) return ''
+  return cloudCall('fertilize', { treeId: t.treeId }).then(function (r) {
+    return r.ok ? '' : (r.msg || '施肥失败')
+  })
 }
 
 function completeTask(taskId, carbon, comment, extra) {
@@ -586,6 +716,12 @@ function exchange(itemId) {
       const code = 'SYSU-' + Math.floor(100000 + Math.random() * 899999).toFixed(0)
       state.records.push(g.name + ' · ' + code)
       persist(['goods', 'users', 'records'])
+
+      if (isCloud()) {
+        return cloudCall('exchange', { itemId: itemId }).then(function (r) {
+          return { ok: !!r.ok, code: r.code || '', msg: r.msg || '' }
+        })
+      }
       return { ok: true, code: code, msg: '' }
     }
     i++
@@ -683,6 +819,8 @@ module.exports = {
   state,
   ready,
   synced,
+  isCloud,
+  cloudAddTree, cloudReportHazard, cloudAddGrowthLog, cloudCompleteTask, cloudCreateTask, cloudUpdateProfile,
   persist,
 
   treeById, myTree, myTrees, selectTree, careTarget,

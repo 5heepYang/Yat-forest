@@ -478,7 +478,16 @@ function save(state, only) {
     return Promise.resolve(true)
   }
 
-  const snap = snapshotOf(state, only)
+  // trees / goods 是公共集合，改由 actions 云函数以管理员身份写入；
+  // 客户端不再直连写，既能收回集合写权限，也避免"客户端改了但云端没改"的不一致。
+  // 注意：首次播种走 pullCloud 的独立路径，不受这里影响。
+  let keys = only
+  if (keys) {
+    keys = keys.filter(function (k) { return k !== 'trees' && k !== 'goods' })
+    if (!keys.length) return Promise.resolve(true)
+  }
+
+  const snap = snapshotOf(state, keys)
   const uid = (state && state.user && state.user.userId) || 'me'
 
   writeChain = writeChain
