@@ -527,8 +527,18 @@ Page({
     // 诊断：把云端眼里的 openid 显示出来。同一微信号每次进入应完全一致，
     // 变了就说明扫码的账号在变，而不是注册逻辑的锅
     const that = this
+    // 10 秒兜底：callFunction 被挂起（最常见是工具开着"云函数本地调试"，
+    // 真机的调用被路由到电脑本地连不通）时明确提示，别让人对着"获取中"干等
+    let timedOut = false
+    const timer = setTimeout(function () {
+      timedOut = true
+      if (that._alive) {
+        that.setData({ myOpenid: '获取超时：云端没响应。检查工具是否开着「云函数本地调试」，关掉后重新进入' })
+      }
+    }, 10000)
     store.cloudWhoami().then(function (r) {
-      if (!that._alive) return
+      clearTimeout(timer)
+      if (timedOut || !that._alive) return
       if (r && r.ok) {
         that.setData({ myOpenid: r.openid })
       } else {
