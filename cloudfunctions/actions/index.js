@@ -65,7 +65,17 @@ async function myDoc(openid) {
   return res.data && res.data[0] ? res.data[0] : null
 }
 
+/**
+ * 按 treeId 找树。trees 文档的 _id 就是 treeId（见 common/db.js canonicalId），
+ * 走主键查询天然有索引，不用给 treeId 单独建索引；
+ * 查不到再退回 where，兼容 canonicalId 生效前写入的老数据。
+ */
 async function findTree(treeId) {
+  if (!treeId) return null
+  try {
+    const r = await db.collection('trees').doc(treeId).get()
+    if (r && r.data) return r.data
+  } catch (e) { /* 老数据 _id 不是 treeId，走下面的 where */ }
   const res = await db.collection('trees').where({ treeId: treeId }).limit(1).get()
   return res.data && res.data[0] ? res.data[0] : null
 }
@@ -224,8 +234,16 @@ async function exchange(openid, payload) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
 
-  const gRes = await db.collection('goods').where({ itemId: itemId }).limit(1).get()
-  const goods = gRes.data && gRes.data[0]
+  // goods 的 _id 就是 itemId，先走主键；老数据退回 where
+  let goods = null
+  try {
+    const gDoc = await db.collection('goods').doc(itemId).get()
+    goods = gDoc && gDoc.data ? gDoc.data : null
+  } catch (e) { /* ignore */ }
+  if (!goods) {
+    const gRes = await db.collection('goods').where({ itemId: itemId }).limit(1).get()
+    goods = gRes.data && gRes.data[0]
+  }
   if (!goods) return { ok: false, msg: '商品不存在', user: pubUser(me) }
   if ((goods.stock || 0) <= 0) return { ok: false, msg: '这件纪念品已经兑完了', user: pubUser(me) }
   if ((me.coins || 0) < (goods.costCurrency || 0)) {
@@ -274,8 +292,17 @@ async function completeTask(openid, payload) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
 
-  const tRes = await db.collection('tasks').where({ taskId: taskId, _openid: openid }).limit(1).get()
-  const task = tRes.data && tRes.data[0]
+  // tasks 的 _id 是 `${userId}_${taskId}`，先按主键查；老数据退回 where
+  let task = null
+  const taskDocId = (me.userId || '') + '_' + taskId
+  try {
+    const tDoc = await db.collection('tasks').doc(taskDocId).get()
+    if (tDoc && tDoc.data && tDoc.data._openid === openid) task = tDoc.data
+  } catch (e) { /* ignore */ }
+  if (!task) {
+    const tRes = await db.collection('tasks').where({ taskId: taskId, _openid: openid }).limit(1).get()
+    task = tRes.data && tRes.data[0]
+  }
   if (!task) return { ok: false, msg: '这条日程不存在', user: pubUser(me) }
   if (task.done) return { ok: false, msg: '这条日程已经打卡了', user: pubUser(me) }
 

@@ -565,17 +565,25 @@ function fetchUserDoc(userId) {
   if (mode !== MODE_CLOUD || !userId) {
     return Promise.resolve(null)
   }
-  return cloudDb.collection('users')
-    .where({ userId: userId })
-    .limit(1)
-    .get()
+  // users 文档的 _id 就是 userId（见 canonicalId），按主键查天然走索引，
+  // 不需要为 userId 额外建索引；查不到再退回 where 兼容迁移前的老文档
+  return cloudDb.collection('users').doc(userId).get()
     .then(function (res) {
-      const d = res.data && res.data[0]
-      return d ? copyDoc(d) : null
+      return res && res.data ? copyDoc(res.data) : null
     })
-    .catch(function (e) {
-      console.warn('[db] 跨用户档案查询失败（检查 users 集合 read 权限）', e)
-      return null
+    .catch(function () {
+      return cloudDb.collection('users')
+        .where({ userId: userId })
+        .limit(1)
+        .get()
+        .then(function (r2) {
+          const d = r2.data && r2.data[0]
+          return d ? copyDoc(d) : null
+        })
+        .catch(function (e) {
+          console.warn('[db] 跨用户档案查询失败（检查 users 集合 read 权限）', e)
+          return null
+        })
     })
 }
 
