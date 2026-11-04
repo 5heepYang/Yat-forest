@@ -717,6 +717,15 @@ exports.main = async function (event) {
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)
+    // 诊断类 action 把真实错误吐回去，别再一律"服务器开小差了"
+    if (action === 'migrateUsers' || action === 'cleanBrokenTreeImages') {
+      return {
+        ok: false,
+        msg: '执行失败：' + ((e && (e.errMsg || e.message)) || String(e)),
+        errCode: (e && e.errCode) || '',
+        stack: String((e && e.stack) || '').slice(0, 300)
+      }
+    }
     return await fail(openid, '服务器开小差了，稍后再试')
   }
 }
