@@ -449,6 +449,46 @@
 	font-family: HYSans;
 }
 
+/* 核验对象：让用户看清楚 AI 核的是"做法"而不是"去干嘛" */
+.verify-row {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 10px;
+	padding: 8px 12px;
+	border-radius: 12px;
+	background-color: #F3F9EF;
+}
+
+.verify-lb {
+	font-size: 10px;
+	color: #9AA394;
+	font-family: HYSans;
+	margin-right: 8px;
+}
+
+.verify-val {
+	font-size: 13px;
+	font-weight: bold;
+	color: #2E6B4F;
+	font-family: HYSansBold;
+}
+
+.loading-slow {
+	font-size: 11px;
+	color: #C08A3E;
+	margin-top: 8px;
+	font-family: HYSans;
+}
+
+.verify-evidence {
+	font-size: 10px;
+	color: #4E8A6B;
+	margin-top: 6px;
+	line-height: 15px;
+	font-family: HYSans;
+}
+
 /* 添加日程表单 */
 .sheet-field {
 	display: flex;

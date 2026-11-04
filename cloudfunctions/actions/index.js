@@ -45,6 +45,9 @@ const LEVEL_STEP = 300
  */
 const ADMIN_IDS = ['u_001']
 
+/** 每天日程上限：与 pages/task/task.js 的 TASK_MAX 保持一致 */
+const TASK_MAX = 10
+
 /* ------------------------------------------------------------------ */
 /* 小工具                                                              */
 /* ------------------------------------------------------------------ */
@@ -332,6 +335,8 @@ async function completeTask(openid, payload) {
   const r = await askAi({
     action: 'verify',
     title: task.title,
+    // 方案里写着"步行去上课"这种具体做法，核验对象是它，不是"上课"这个目的
+    desc: task.desc || '',
     basePoints: task.basePoints,
     proofText: proofText,
     imageUrl: imageUrl
@@ -343,7 +348,9 @@ async function completeTask(openid, payload) {
     return {
       ok: false,
       needProof: true,
-      msg: r.comment || '这张凭证还不足以证明低碳行为已经发生',
+      msg: r.comment || '这张凭证还证明不了这个做法',
+      detail: r.detail || '',
+      mode: r.mode || '',
       user: pubUser(me)
     }
   }
@@ -356,6 +363,9 @@ async function completeTask(openid, payload) {
       aiComment: r.comment || '',
       proofImage: payload.proofImage || '',
       proofText: proofText,
+      // 记下"核验的是哪个做法"，时光轴/复查时能说清楚凭什么通过
+      verifyMode: r.mode || '',
+      evidence: r.evidence || '',
       reviewStatus: 'approved'
     }
   })
@@ -374,7 +384,9 @@ async function completeTask(openid, payload) {
     task: pubTask(t2.data),
     carbonSavedG: carbon,
     comment: r.comment || '',
-    detail: r.detail || ''
+    detail: r.detail || '',
+    mode: r.mode || '',
+    evidence: r.evidence || ''
   }
 }
 
@@ -587,6 +599,20 @@ async function createTask(openid, payload) {
   const title = String(payload.title || '').trim()
   const slot = String(payload.slot || '09:00')
   if (title === '') return { ok: false, msg: '先写一件今天要做的事', user: pubUser(me) }
+
+  // 上限 10 条：一天排十件事已经够多了，再多也没人核得动。
+  // 客户端也拦一次（为了即时提示），这里才是真正的关卡。
+  const cnt = await db.collection('tasks')
+    .where({ _openid: openid, date: today() })
+    .count()
+    .catch(function () { return { total: 0 } })
+  if ((cnt && cnt.total) >= TASK_MAX) {
+    return {
+      ok: false,
+      msg: '今天的日程最多 ' + TASK_MAX + ' 条，先完成或删掉一条再加',
+      user: pubUser(me)
+    }
+  }
 
   const r = await askAi({ action: 'plan', title: title })
   const desc = (r && r.desc) || '选择绿色低碳方式完成这件事 · 少排约 60 g CO₂e'

@@ -73,7 +73,7 @@
 		<view class="sheet">
 			<view wx:if="{{sheetMode == 'add'}}">
 				<text class="sheet-title">添加今日日程</text>
-				<text class="sheet-sub">写下要做的事，AI 帮你规划低碳做法</text>
+				<text class="sheet-sub">写下要做的事，AI 帮你规划低碳做法 · 今日已排 {{todayCount}}/{{taskMax}}</text>
 				<view class="sheet-field">
 					<text class="field-lb">要做的事</text>
 					<input class="field-input" value="{{addTitle}}" maxlength="30" placeholder="如：去教学楼上课" bindinput="onAddTitle"></input>
@@ -93,7 +93,7 @@
 				<text class="sheet-title">{{current.title}}</text>
 				<text class="sheet-sub">{{current.slot}} · {{current.desc}}</text>
 				<view class="hint-box">
-					<text class="hint-t">上传凭证照片（乘车码截图 / 空盘 / 骑行记录），AI 会自动核验真实性与减碳量。</text>
+					<text class="hint-t">这条的低碳做法是「{{verifyTarget || '低碳出行'}}」，AI 核验的就是它，不是「{{current.title}}」这件事。凭证要能看出做法本身：步行/骑行给 Keep、步数、地图导航这种带距离和时长的截图；光盘给空盘；乘车给乘车码。</text>
 				</view>
 				<image wx:if="{{proofThumb != ''}}" class="proof-thumb" src="{{proofThumb}}" mode="aspectFill"></image>
 				<view class="proof-row">
@@ -114,8 +114,9 @@
 			</view>
 
 			<view wx:if="{{sheetMode == 'loading'}}" class="loading-box">
-				<text class="loading-t">AI 多模态核验中{{dots}}</text>
-				<text class="loading-s">正在识别凭证场景并核算碳排放</text>
+				<text class="loading-t">正在核验「{{verifyTarget}}」{{dots}}</text>
+				<text class="loading-s">看凭证里的距离、时长、场景是否对得上这个做法</text>
+				<text wx:if="{{verifySlow}}" class="loading-slow">AI 还在看图，比平时慢一点，别关窗口</text>
 			</view>
 
 			<view wx:if="{{sheetMode == 'result'}}">
@@ -129,6 +130,11 @@
 				<view class="hint-box">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
+				<view class="verify-row">
+					<text class="verify-lb">核验对象</text>
+					<text class="verify-val">{{result.mode || verifyTarget}}</text>
+				</view>
+				<text wx:if="{{result.evidence}}" class="verify-evidence">依据：{{result.evidence}}</text>
 				<text class="result-detail">{{result.detail}}</text>
 				<view class="sheet-btn sheet-btn-main" bindtap="claim">
 					<text class="sheet-btn-t sheet-btn-t-white">领取 {{currentPoints}} 积分</text>
@@ -144,7 +150,11 @@
 				<view class="hint-box">
 					<text class="hint-t">{{result.comment}}</text>
 				</view>
-				<text class="result-detail">{{result.detail}}</text>
+				<view class="verify-row">
+					<text class="verify-lb">核验对象</text>
+					<text class="verify-val">{{result.mode || verifyTarget}}</text>
+				</view>
+				<text class="result-detail">{{result.detail || '换一张能看出这个做法的凭证，比如带距离和时长的运动记录。'}}</text>
 				<view class="sheet-btn sheet-btn-main" bindtap="retryProof">
 					<text class="sheet-btn-t sheet-btn-t-white">换一张凭证重试</text>
 				</view>

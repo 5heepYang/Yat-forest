@@ -68,7 +68,14 @@ function code4() {
 }
 
 /** AI 多模态凭证核验：云调度优先（Qwen-VL 识图），失败回退本地模拟 */
-function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
+/**
+ * 凭证核验。task 传整个任务对象：核验对象是「低碳方案里的做法」，
+ * 不是标题（标题是"上课"，方案才是"步行去上课"，要核验的是有没有步行）。
+ */
+function aiVerifyProof(task, proofText, imageUrl, cb) {
+  const taskTitle = (task && task.title) || ''
+  const desc = (task && task.desc) || ''
+  const basePoints = Number((task && task.basePoints) || 20)
   // 图片可达性守卫：cloud:// 视觉模型取不到；超长 dataURL（base64 约 45KB+）会超 callFunction
   // 入参限制，两者都剥离成空图（有文字凭证时云端仍可走文本核验）
   var img = imageUrl || ''
@@ -81,6 +88,7 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
     callTaskAi({
       action: 'verify',
       title: taskTitle,
+      desc: desc,
       basePoints: basePoints,
       proofText: proofText || '',
       imageUrl: img
@@ -88,9 +96,11 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
       if (r && r.passed && Number(r.carbonSavedG) > 0) {
         cb({
           passed: true,
+          mode: r.mode || '',
+          evidence: r.evidence || '',
           carbonSavedG: Number(r.carbonSavedG),
           comment: r.comment || '',
-          detail: '云端核验：' + (r.detail || '视觉模型凭证判定通过')
+          detail: r.detail || '视觉模型判定凭证与做法吻合'
         })
         return
       }
@@ -98,38 +108,56 @@ function aiVerifyProof(taskTitle, basePoints, proofText, imageUrl, cb) {
         // 云端明确判定不通过：透传驳回，让用户换凭证重拍，不再假装通过
         cb({
           passed: false,
+          mode: r.mode || '',
+          evidence: r.evidence || '',
           carbonSavedG: 0,
-          comment: r.comment || '这张凭证还不足以证明低碳行为已经发生',
-          detail: '云端核验：' + (r.detail || '凭证未通过判定')
+          comment: r.comment || '这张凭证还证明不了这个做法',
+          detail: r.detail || ''
         })
         return
       }
       // 云端没给出明确结论（字段缺失/为空）：退回本地判定，保证流程不断
-      localVerify(taskTitle, basePoints, proofText, cb)
+      localVerify(taskTitle + ' ' + desc, basePoints, proofText, cb)
     }, function (reason) {
       console.warn('[ai] verify 云端降级：', reason)
-      localVerify(taskTitle, basePoints, proofText, cb)
+      localVerify(taskTitle + ' ' + desc, basePoints, proofText, cb)
     })
     return
   }
-  localVerify(taskTitle, basePoints, proofText, cb)
+  localVerify(taskTitle + ' ' + desc, basePoints, proofText, cb)
 }
 
 /** 本地模拟：恒通过 + 随机减碳量（离线兜底，也是测试号的正式实现） */
-function localVerify(taskTitle, basePoints, proofText, cb) {
+function localVerify(text, basePoints, proofText, cb) {
   setTimeout(function () {
     const carbon = basePoints * 2 + Math.floor(Math.random() * 40)
-    let detail = '视觉核验：图像场景与「' + taskTitle + '」匹配度 96%，凭证要素完整'
+    const mode = guessMode(text)
+    let detail = '本地规则核验：凭证要素完整，做法判定为「' + (mode || '低碳出行') + '」'
     if (proofText) {
-      detail = detail + '；文字凭证「' + proofText + '」已交叉验证通过'
+      detail = detail + '；文字凭证「' + proofText + '」已交叉验证'
     }
     cb({
       passed: true,
+      mode: mode,
+      evidence: '本地模式不做图像识别',
       carbonSavedG: carbon,
       comment: pick(PROOF_COMMENTS),
       detail: detail
     })
   }, 1400)
+}
+
+/** 从标题+方案里认出"要核验的做法"，用于本地模式和核验中提示 */
+function guessMode(text) {
+  const s = String(text || '')
+  if (/骑行|单车|自行车/.test(s)) return '骑行'
+  if (/地铁/.test(s)) return '地铁'
+  if (/公交|巴士/.test(s)) return '公交'
+  if (/步行|走路|走去/.test(s)) return '步行'
+  if (/光盘|空盘/.test(s)) return '光盘行动'
+  if (/自带杯|自带水杯/.test(s)) return '自带杯'
+  if (/无纸|电子|线上/.test(s)) return '无纸化'
+  return ''
 }
 
 /** AI 日程低碳规划：云调度优先，失败回退关键词模拟。签名不变，页面零改动 */
@@ -329,4 +357,4 @@ function aiTreeSpirit(question, cb) {
   }, 1000)
 }
 
-module.exports = { aiVerifyProof, aiPlanTask, aiReviewTree, aiAnalyzeHazard, aiAdvice, aiTreeSpirit }
+module.exports = { aiVerifyProof, aiPlanTask, aiReviewTree, aiAnalyzeHazard, aiAdvice, aiTreeSpirit, guessMode }

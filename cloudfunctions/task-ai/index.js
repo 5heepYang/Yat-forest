@@ -275,9 +275,17 @@ async function handleReview(event) {
   }
 }
 
-/** action=verify：凭证核验（有图走视觉模型，只有文字走文本模型） */
+/**
+ * action=verify：凭证核验（有图走视觉模型，只有文字走文本模型）
+ *
+ * 关键设计：**核验对象是"低碳方案里的具体做法"，不是日程标题本身。**
+ * 标题是"上课"，方案是"步行去上课" → 要核验的是"有没有步行过去"，
+ * 凭证应该是 Keep / 步数 / 地图导航这类带距离和时长的截图，
+ * 而不是一张教室照片。
+ */
 async function handleVerify(event) {
   const title = String(event.title || '').trim()
+  const desc = String(event.desc || '').trim()
   const proofText = String(event.proofText || '').trim()
   const imageUrl = String(event.imageUrl || '').trim()
   const basePoints = Number(event.basePoints) || 20
@@ -287,10 +295,26 @@ async function handleVerify(event) {
   }
 
   const requirement =
-    '核验这份凭证能否证明低碳行为「' + title + '」已发生。' +
-    (proofText !== '' ? '文字凭证：' + proofText + '。' : '') +
-    '减碳量按行为强度估算（参考：公交/步行约 100-200g，骑行约 80-150g，光盘约 60-120g，其他 40-100g）。' +
-    '只输出 JSON，格式 {"passed":true或false,"carbonSavedG":克数,"comment":"趣味评语不超过30字"}。'
+    '你在核验一条校园低碳打卡。\n' +
+    '日程标题：' + title + '\n' +
+    '低碳方案（含具体做法）：' + (desc || '没有方案，按标题里能看出的出行/用餐方式判断') + '\n' +
+    (proofText !== '' ? '用户写的文字凭证：' + proofText + '\n' : '') +
+    '\n核验规则：\n' +
+    '1) 先确定核验对象：要核验的是方案里的**具体做法**（步行 / 骑行 / 公交 / 地铁 / 光盘 / 自带杯 / 无纸化…），' +
+    '不是"上课""开会"这类目的。标题只说明你为什么出门，不能拿来当核验标准。\n' +
+    '2) 再判断凭证能不能证明这个做法真的发生了：\n' +
+    '   - 运动/出行类截图（Keep、悦跑圈、手机步数、地图导航、乘车码、地铁进出站记录）：看距离、时长、速度是否吻合。' +
+    '步行约 4~6 km/h，骑行约 12~20 km/h，跑步约 7~12 km/h；' +
+    '如果数据明显不合理（例如 5 分钟走了 8 公里却说是步行），判否。\n' +
+    '   - 餐饮类：光盘要看餐盘是否吃干净，自带杯要看是不是一次性杯。\n' +
+    '   - 凭证和做法对不上（方案说步行，截的却是外卖单、购物记录、教室黑板）→ 判否。\n' +
+    '   - 时间、地点和日程吻合是加分项，但不强求。\n' +
+    '3) 凭证信息不足以下结论时判否，并在 evidence 里说清缺什么（例如"截图没有距离或时长"）。\n' +
+    '4) 通过时按行为强度估算减碳量（参考：步行 100-200g、骑行 80-150g、公交地铁 150-300g、' +
+    '光盘 60-120g、自带杯 40-90g），上限 ' + CARBON_CAP + '。\n' +
+    '只输出 JSON，格式 ' +
+    '{"passed":true或false,"mode":"核验到的具体做法","evidence":"凭证里支撑判断的关键信息，不超过30字",' +
+    '"carbonSavedG":克数,"comment":"给用户看的一句话，不超过30字","detail":"判断依据，不超过50字"}。'
 
   let content
   if (imageUrl !== '') {
@@ -298,14 +322,14 @@ async function handleVerify(event) {
       {
         role: 'user',
         content: [
-          { type: 'text', text: requirement + ' 请重点核对图片内容与低碳行为是否匹配。' },
+          { type: 'text', text: requirement },
           { type: 'image_url', image_url: { url: imageUrl } }
         ]
       }
     ])
   } else {
     content = await callModel(TEXT_MODEL, [
-      { role: 'system', content: '你是校园低碳凭证审核员，判断文字凭证是否合理可信。' },
+      { role: 'system', content: '你是校园低碳凭证审核员，判断文字凭证能否证明低碳方案里的做法已经发生。' },
       { role: 'user', content: requirement }
     ])
   }
@@ -313,15 +337,34 @@ async function handleVerify(event) {
   const r = extractJson(content)
   // passed 严格判定：只认布尔 true 或字符串 "true"，缺字段/类型漂移一律不通过
   const passed = r.passed === true || r.passed === 'true'
+  const mode = String(r.mode || guessMode(title + ' ' + desc)).slice(0, 12)
+  const evidence = String(r.evidence || '').slice(0, 40)
   return {
     passed: passed,
-    carbonSavedG: Math.max(10, Math.min(CARBON_CAP, Number(r.carbonSavedG) || basePoints * 2)),
-    comment: String(r.comment || '凭证核验通过，继续保持！').slice(0, 50),
-    detail: '云端核验：' + (passed
-      ? (imageUrl !== '' ? '图像与行为匹配' : '文字凭证可信')
-      : '凭证未通过判定') +
-      (proofText !== '' ? '，文字凭证「' + proofText + '」已交叉验证' : '')
+    mode: mode,
+    evidence: evidence,
+    // 判否时减碳量必须是 0：模型常吐 0，而 0 是 falsy，会被下面的兜底算法撑成 basePoints*2
+    carbonSavedG: passed
+      ? Math.max(10, Math.min(CARBON_CAP, Number(r.carbonSavedG) || basePoints * 2))
+      : 0,
+    comment: String(r.comment || (passed ? '凭证核验通过，继续保持！' : '这张凭证还证明不了这个做法')).slice(0, 50),
+    detail: '核验对象：' + (mode || '低碳做法') + '（不是「' + title + '」这件事本身）' +
+      (evidence !== '' ? '；依据：' + evidence : '') +
+      (imageUrl === '' ? '；无图片，仅按文字判断' : '')
   }
+}
+
+/** 模型没给做法时，按文字兜底猜一个，只用于前端展示「正在核验什么」 */
+function guessMode(text) {
+  const s = String(text || '')
+  if (/骑行|单车|自行车/.test(s)) return '骑行'
+  if (/地铁/.test(s)) return '地铁'
+  if (/公交|巴士/.test(s)) return '公交'
+  if (/步行|走路|走去/.test(s)) return '步行'
+  if (/光盘|空盘/.test(s)) return '光盘行动'
+  if (/自带杯|自带水杯/.test(s)) return '自带杯'
+  if (/无纸|电子|线上/.test(s)) return '无纸化'
+  return ''
 }
 
 exports.main = async function (event) {

@@ -162,6 +162,10 @@ function makeQuery(name, cond) {
         }
       }
     },
+    count: async function () {
+      const rows = (db[name] || []).filter(function (d) { return matchCond(d, cond) })
+      return { total: rows.length }
+    },
     add: async function (arg) {
       const doc = Object.assign({ _id: nextId() }, arg.data)
       db[name] = db[name] || []
@@ -393,9 +397,49 @@ function treeDoc(treeId) {
   check('日程创建成功', r.ok === true && !!r.task, r.msg)
   check('AI 分析结果写进去了', r.task.desc.indexOf('骑行') >= 0, r.task.desc)
   check('积分在合法区间', r.task.basePoints >= 20 && r.task.basePoints <= 50, r.task.basePoints)
+  const plannedTaskId = r.task.taskId
 
   r = await actions.main({ action: 'createTask', payload: { title: '' } })
   check('空标题被拒', r.ok === false, r.msg)
+
+  console.log('===== 核验对象是做法，不是标题 =====')
+  aiResponder = function (d) {
+    if (d.action === 'verify') {
+      return { passed: true, mode: '骑行', evidence: '3.2 km / 14 分钟', carbonSavedG: 120, comment: '骑行不错', detail: 'ok' }
+    }
+    return {}
+  }
+  let verifyReq = null
+  const origResponder = aiResponder
+  aiResponder = function (d) {
+    if (d.action === 'verify') verifyReq = d
+    return origResponder(d)
+  }
+  r = await actions.main({ action: 'completeTask', payload: { taskId: plannedTaskId, proofText: '骑到教学楼 3.2 公里' } })
+  check('核验通过并加分', r.ok === true && r.carbonSavedG === 120, JSON.stringify(r).slice(0, 80))
+  check('低碳方案一起发给 AI（否则只能核"上课"）',
+    !!verifyReq && String(verifyReq.desc || '').indexOf('骑行') >= 0, verifyReq && verifyReq.desc)
+  check('返回核验到的做法', r.mode === '骑行', r.mode)
+  check('返回凭证依据', !!r.evidence, r.evidence)
+  check('做法与依据落库', (function () {
+    const d = db.tasks.find(function (t) { return t.taskId === plannedTaskId })
+    return !!d && d.verifyMode === '骑行' && d.evidence === '3.2 km / 14 分钟'
+  })(), JSON.stringify(db.tasks.find(function (t) { return t.taskId === plannedTaskId })).slice(0, 100))
+
+  console.log('===== 每日日程上限 10 条 =====')
+  aiResponder = function (d) {
+    if (d.action === 'plan') return { desc: '步行去上课 · 少排约 200 g CO₂e', basePoints: 30 }
+    return {}
+  }
+  let createdCount = 0
+  let blocked = null
+  for (let k = 0; k < 12; k++) {
+    const rr = await actions.main({ action: 'createTask', payload: { title: '占位日程' + k, slot: '09:00' } })
+    if (rr.ok) createdCount++
+    else { blocked = rr; break }
+  }
+  check('排到 10 条就拦住', !!blocked && blocked.msg.indexOf('最多') >= 0, blocked && blocked.msg)
+  check('没有超过 10 条', createdCount <= 10, createdCount)
 
   console.log('===== 老数据迁移（users._id -> userId）=====')
   // 模拟历史数据：_id 是随机串而不是 userId

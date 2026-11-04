@@ -1,5 +1,8 @@
 const store = require('../../common/store')
-const { aiVerifyProof, aiAdvice, aiPlanTask } = require('../../common/ai')
+const { aiVerifyProof, aiAdvice, aiPlanTask, guessMode } = require('../../common/ai')
+
+/** 每天日程上限：与 cloudfunctions/actions 的 TASK_MAX 保持一致 */
+const TASK_MAX = 10
 const { today } = require('../../common/mock')
 const db = require('../../common/db')
 const { fmt, todayText, toast } = require('../../common/util')
@@ -106,7 +109,12 @@ Page({
     proofText: '',
     proofUrl: '',
     dots: '',
-    result: { carbonSavedG: '0', comment: '', detail: '' },
+    // 这次到底在核验什么（"步行"而不是"上课"），loading 时告诉用户
+    verifyTarget: '',
+    verifySlow: false,
+    todayCount: 0,
+    taskMax: TASK_MAX,
+    result: { carbonSavedG: '0', comment: '', detail: '', mode: '', evidence: '' },
     advice: ''
   },
 
@@ -116,6 +124,7 @@ Page({
     this._alive = true   // 页面存活标记：销毁后异步回调不再 setData
     this.verifySeq = 0   // 核验令牌：关闭弹窗/切换任务后旧回调作废
     this.verifying = false // 提交防双击
+    this.proofUploading = false // 照片还在上传/换链接，期间不允许提交
     this.setData({
       dateLine: todayText(),
       current: emptyTask(),
@@ -193,7 +202,9 @@ Page({
       barStyle: 'width:' + pct.toFixed(0) + '%',
       groups: groups,
       weekBars: buildWeekBars(todayG),
-      streakText: buildStreakText(st.tasks)
+      streakText: buildStreakText(st.tasks),
+      todayCount: list.length,
+      taskMax: TASK_MAX
     })
   },
 
@@ -247,6 +258,19 @@ Page({
       return
     }
 
+    // 上限 10 条：云函数里也有同一道校验，这里只是让提示即时一点
+    const td = today()
+    let count = 0
+    let ci = 0
+    while (ci < store.state.tasks.length) {
+      if (store.state.tasks[ci].date === td) count++
+      ci++
+    }
+    if (count >= TASK_MAX) {
+      toast('今天的日程已经排满 ' + TASK_MAX + ' 条，先完成或删掉一条')
+      return
+    }
+
     // 云端模式：AI 低碳分析与写库都在 actions 云函数里完成
     if (store.isCloud()) {
       wx.showLoading({ title: 'AI 分析中', mask: true })
@@ -288,14 +312,22 @@ Page({
   startDots() {
     const that = this
     this.stopDots()
-    this.setData({ dots: '' })
+    this.setData({ dots: '', verifySlow: false })
     this.dotTimer = setInterval(function () {
       const cur = that.data.dots
       that.setData({ dots: cur.length >= 3 ? '' : cur + '.' })
     }, 300)
+    // 8 秒还没回来就说一句，别让人对着"核验中"干等，以为卡死了
+    this.slowTimer = setTimeout(function () {
+      if (that.data.sheetMode === 'loading') that.setData({ verifySlow: true })
+    }, 8000)
   },
 
   stopDots() {
+    if (this.slowTimer) {
+      clearTimeout(this.slowTimer)
+      this.slowTimer = 0
+    }
     if (this.dotTimer) {
       clearInterval(this.dotTimer)
       this.dotTimer = 0
@@ -342,6 +374,8 @@ Page({
       proofThumb: t.proofImage || '',
       proofText: t.proofText || '',
       proofUrl: '',
+      // 打开就说清楚核验对象，用户才知道该准备什么凭证
+      verifyTarget: guessMode((t.title || '') + ' ' + (t.desc || '')) || '低碳做法',
       sheetMode: 'task'
     })
   },
@@ -369,6 +403,7 @@ Page({
       sourceType: source,
       success: function (res) {
         const raw = res.tempFilePaths[0]
+        that.proofUploading = true
         wx.compressImage({
           src: raw,
           quality: 'low',
@@ -386,42 +421,75 @@ Page({
 
   uploadProof(filePath) {
     const that = this
+    this.proofUploading = true
     db.uploadImage(filePath)
       .then(function (url) {
         store.updateTask(that.data.current.taskId, { proofImage: url })
-        that.setData({ proofThumb: url })
-        // 云调度视觉模型需要公网可读的图片地址：
-        // 云端 fileID 换临时 https 链接（失败则置空，避免把 cloud:// 塞给视觉模型）；本地 dataURL 直接可用
-        if (url.indexOf('cloud://') === 0 && wx.cloud && wx.cloud.getTempFileURL) {
-          wx.cloud.getTempFileURL({
-            fileList: [url],
-            success: function (res) {
-              const f = res.fileList && res.fileList[0]
-              that.setData({ proofUrl: f && f.tempFileURL ? f.tempFileURL : '' })
-            },
-            fail: function () {
-              that.setData({ proofUrl: '' })
-            }
-          })
-        } else {
-          that.setData({ proofUrl: url })
-        }
+        that.setData({ proofThumb: url, proofUrl: '' })
+        // 视觉模型只能读公网地址：fileID 换成临时 https；本地 dataURL 直接可用
+        return that.tempUrlOfImage(url).then(function (u) {
+          that.setData({ proofUrl: u })
+          that.proofUploading = false
+        })
       })
       .catch(function () {
+        that.proofUploading = false
         toast('凭证上传失败，重试一次')
       })
   },
 
-  startVerify() {
+  /**
+   * fileID → 公网可读的临时 https。
+   *
+   * 之前只在选图那一刻换一次，换失败或中途重开弹层就永久丢了，
+   * 提交时 imageUrl 为空 → 云函数判定"没有凭证" → 用户看到"再拍一张"，
+   * 明明传了图却说没传，就是这个原因。
+   */
+  tempUrlOfImage(url) {
+    return new Promise(function (resolve) {
+      const src = String(url || '')
+      if (src === '') return resolve('')
+      if (src.indexOf('cloud://') !== 0) return resolve(src)
+      if (!wx.cloud || !wx.cloud.getTempFileURL) return resolve('')
+      wx.cloud.getTempFileURL({
+        fileList: [src],
+        success: function (res) {
+          const f = res.fileList && res.fileList[0]
+          resolve(f && f.tempFileURL ? f.tempFileURL : '')
+        },
+        fail: function () { resolve('') }
+      })
+    })
+  },
+
+  async startVerify() {
     const that = this
     const task = this.data.current
     if (this.verifying || !task || !task.taskId) {
       return
     }
+    if (this.proofUploading) {
+      toast('照片还在上传，等一秒再提交')
+      return
+    }
+
     const proofText = (this.data.proofText || '').trim()
-    // 空凭证拦截：图、公网链接、文字三者皆空不允许提交（P0-2）
+    // 空凭证拦截：图、公网链接、文字三者皆空不允许提交
     if (proofText === '' && (this.data.proofUrl || '') === '' && (this.data.proofThumb || '') === '') {
       toast('拍一张照片或写一句凭证再提交')
+      return
+    }
+
+    // 重开弹层时 proofUrl 会被清空，提交前补一次；补不出来就别把空图发给云函数
+    let imageUrl = this.data.proofUrl || ''
+    if (imageUrl === '' && this.data.proofThumb) {
+      wx.showLoading({ title: '准备照片', mask: true })
+      imageUrl = await this.tempUrlOfImage(this.data.proofThumb)
+      wx.hideLoading()
+      if (imageUrl !== '') this.setData({ proofUrl: imageUrl })
+    }
+    if (this.data.proofThumb && imageUrl === '') {
+      toast('照片没加载成功，重新选一张再提交')
       return
     }
 
@@ -430,11 +498,14 @@ Page({
       store.updateTask(task.taskId, { proofText: proofText })
     }
 
+    // 核验对象是方案里的做法（步行/骑行/光盘…），不是标题本身
+    const target = guessMode((task.title || '') + ' ' + (task.desc || '')) || '低碳做法'
+
     this.verifySeq = this.verifySeq + 1
     const seq = this.verifySeq
     this.verifying = true
 
-    this.setData({ sheetMode: 'loading' })
+    this.setData({ sheetMode: 'loading', verifyTarget: target })
     this.startDots()
 
     // 云端模式：凭证核验与加分都在 actions 云函数里做，客户端拿不到可伪造的通过结果
@@ -443,9 +514,10 @@ Page({
       store.cloudCompleteTask({
         taskId: task.taskId,
         proofText: proofText,
-        imageUrl: this.data.proofUrl,
+        imageUrl: imageUrl,
         proofImage: this.data.proofThumb
       }).then(function (r) {
+        that2.verifying = false
         if (!that2._alive || seq !== that2.verifySeq || that2.data.sheetMode !== 'loading') return
         that2.stopDots()
         if (r.ok) {
@@ -454,7 +526,9 @@ Page({
             result: {
               carbonSavedG: (r.carbonSavedG || 0).toFixed(0),
               comment: r.comment || '',
-              detail: r.detail || ''
+              detail: r.detail || '',
+              mode: r.mode || target,
+              evidence: r.evidence || ''
             },
             sheetMode: 'result'
           })
@@ -462,18 +536,31 @@ Page({
         }
         if (r.needProof) {
           that2.setData({
-            result: { carbonSavedG: '0', comment: r.msg || '凭证未通过', detail: '' },
+            result: {
+              carbonSavedG: '0',
+              comment: r.msg || '这张凭证还证明不了这个做法',
+              detail: r.detail || '',
+              mode: r.mode || target,
+              evidence: ''
+            },
             sheetMode: 'reject'
           })
           return
         }
         that2.setData({ sheetMode: 'task' })
         toast(r.msg || '核验失败')
+      }).catch(function () {
+        // 网络抖动/云函数超时：必须复位，否则下次提交会被 verifying 挡住、点了没反应
+        that2.verifying = false
+        if (!that2._alive || seq !== that2.verifySeq) return
+        that2.stopDots()
+        that2.setData({ sheetMode: 'task' })
+        toast('核验没成功，网络或云函数超时，再点一次提交')
       })
       return
     }
 
-    aiVerifyProof(task.title, task.basePoints, proofText, this.data.proofUrl, function (r) {
+    aiVerifyProof(task, proofText, imageUrl, function (r) {
       that.verifying = false
       // 回调作废守卫：弹窗已关 / 已切别的任务 / 页面已销毁，一律丢弃旧结果
       if (!that._alive || seq !== that.verifySeq || that.data.sheetMode !== 'loading') {
@@ -485,8 +572,10 @@ Page({
         that.setData({
           result: {
             carbonSavedG: '0',
-            comment: r.comment || '这张凭证还不足以证明低碳行为已经发生',
-            detail: r.detail || ''
+            comment: r.comment || '这张凭证还证明不了这个做法',
+            detail: r.detail || '',
+            mode: r.mode || target,
+            evidence: ''
           },
           sheetMode: 'reject'
         })
@@ -496,7 +585,9 @@ Page({
         result: {
           carbonSavedG: r.carbonSavedG.toFixed(0),
           comment: r.comment,
-          detail: r.detail
+          detail: r.detail,
+          mode: r.mode || target,
+          evidence: r.evidence || ''
         },
         sheetMode: 'result'
       })
