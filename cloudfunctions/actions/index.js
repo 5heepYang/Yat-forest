@@ -958,6 +958,7 @@ exports.main = async function (event) {
     if (action === 'migrateUsers') return await migrateUsers(openid)
     if (action === 'cleanBrokenTreeImages') return await cleanBrokenTreeImages(openid)
     if (action === 'resetDemoData') return await resetDemoData(openid)
+    if (action === 'whoami') return { ok: true, openid: openid }
     if (action === 'wipeData') return await wipeData(openid)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {

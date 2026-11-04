@@ -226,7 +226,8 @@ Page({
       // 只有演示管理员能看到「重置演示数据」入口（真正的权限校验在云函数里）
       isAdmin: store.isAdmin(),
       // 调试用：报 userId 用（加白名单时需要）
-      myUserId: st.user.userId
+      myUserId: st.user.userId,
+      myOpenid: ''
     })
 
     this.fixAvatar()
@@ -519,7 +520,15 @@ Page({
 
   /** 关于弹层：积分/成长值/护林币的获得与使用说明 */
   openAbout() {
-    this.setData({ sheetMode: 'about' })
+    this.setData({ sheetMode: 'about', myOpenid: '' })
+    // 诊断：把云端眼里的 openid 显示出来。同一微信号每次进入应完全一致，
+    // 变了就说明扫码的账号在变，而不是注册逻辑的锅
+    const that = this
+    store.cloudWhoami().then(function (r) {
+      if (r && r.ok && that._alive) {
+        that.setData({ myOpenid: r.openid })
+      }
+    })
   },
 
   /** 兑换记录弹层：逐条展示商品名 + 凭证码 */

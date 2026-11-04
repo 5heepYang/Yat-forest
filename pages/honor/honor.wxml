@@ -245,6 +245,7 @@
 				<!-- 调试用：让用户能报出自己的 userId，配管理员白名单 -->
 				<view class="dev-userid" bindtap="onCopyUserId">
 					<text class="dev-userid-t">我的ID：{{myUserId}} · 点击复制</text>
+					<text class="dev-userid-t">openid：{{myOpenid || '获取中…'}}（每次进入应一致）</text>
 				</view>
 
 				<!-- 回到"一个用户也没有"：树和商品保留，只清用户层。

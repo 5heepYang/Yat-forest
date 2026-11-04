@@ -172,6 +172,15 @@ function cloudWipeData() {
   return cloudCall('wipeData', {})
 }
 
+/**
+ * 问云端"我是谁"：返回当前 openid。
+ * 诊断用——同一个微信号每次进入 openid 应该完全一致；
+ * 如果每次预览都变，说明扫码的微信/账号在变，而不是注册逻辑的锅。
+ */
+function cloudWhoami() {
+  return cloudCall('whoami', {})
+}
+
 /** 隐患上报：云函数内部做 AI 巡检再记账 */
 function cloudReportHazard(info) {
   return cloudCall('reportHazard', info)
@@ -889,6 +898,7 @@ module.exports = {
   cloudAddTree, cloudReportHazard, cloudAddGrowthLog, cloudCompleteTask, cloudCreateTask, cloudUpdateProfile,
   cloudResetDemoData,
   cloudWipeData,
+  cloudWhoami,
   persist,
 
   treeById, myTree, myTrees, selectTree, careTarget,

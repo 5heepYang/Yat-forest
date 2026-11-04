@@ -541,6 +541,11 @@ function treeDoc(treeId) {
   check('商品完全不动', db.goods[0].stock === stockBeforeWipe, db.goods[0].stock)
   check('users 全删（含自己）', db.users.length === 0, db.users.length)
 
+  console.log('===== whoami 诊断 =====')
+  openid = 'openid_A'  // wipeData 段把 openid 切到了 B，这里切回来
+  r = await actions.main({ action: 'whoami' })
+  check('whoami 返回调用者 openid', r.ok === true && r.openid === 'openid_A', JSON.stringify(r))
+
   console.log('===== 身份与未知 action =====')
   openid = ''
   r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
