@@ -19,6 +19,7 @@ const db = require('../../common/db')
 const { toast, stamp, toPublicUrl, resolveCloudUrl } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
 const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
+const { speciesArt } = require('../../common/speciesArt')
 
 const KIT_KEY = 'tree_kit_v1'
 const GROWTH_CAP = 1000
@@ -162,7 +163,7 @@ Page({
   data: {
     navSubtitle: '',
     myTrees: [],
-    tree: { name: '', species: '', age: '', level: '0', growthScore: '0' },
+    tree: { name: '', species: '', age: '', level: '0', growthScore: '0', art: '/static/illus/species/generic-tree.png' },
     levelTitle: '',
     nextNeed: '',
     growthBarStyle: 'width:0%',
@@ -384,7 +385,9 @@ Page({
         species: t.species,
         age: t.age,
         level: t.level.toFixed(0),
-        growthScore: t.growthScore.toFixed(0)
+        growthScore: t.growthScore.toFixed(0),
+        // 展示图按树种来：大王椰是椰子、香樟是圆冠阔叶、水杉是塔形…
+        art: speciesArt(t.species)
       },
       levelTitle: levelTitle(t.level),
       nextNeed: nextNeed,
@@ -490,7 +493,7 @@ Page({
   },
 
   onHazardImgError() {
-    this.setData({ hazardImage: '/static/illus/palm.png' })
+    this.setData({ hazardImage: speciesArt(store.myTree().species) })
   },
 
   /* ---------- 多树切换 ---------- */
@@ -769,7 +772,7 @@ Page({
   },
 
   useSampleHazard() {
-    this.startHazard('/static/illus/palm.png')
+    this.startHazard(speciesArt(store.myTree().species))
   },
 
   pickHazardPhoto() {
@@ -777,7 +780,7 @@ Page({
     wx.chooseImage({
       count: 1,
       success(res) {
-        that.startHazard(res.tempFilePaths[0] || '/static/illus/palm.png')
+        that.startHazard(res.tempFilePaths[0] || speciesArt(store.myTree().species))
       }
     })
   },

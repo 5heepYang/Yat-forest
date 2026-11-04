@@ -11,6 +11,18 @@
         "type": "folder"
       },
       {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": ".workbuddy",
+        "type": "folder"
+      },
+      {
+        "value": "generated-images",
+        "type": "folder"
+      },
+      {
         "value": "README.md",
         "type": "file"
       }

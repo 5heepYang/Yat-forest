@@ -742,7 +742,7 @@ function reportHazard(r, desc, image, treeId) {
     logId: db.newId('log'),
     treeId: t.treeId,
     kind: 'hazard',
-    imageUrl: image || '/static/illus/palm.png',
+    imageUrl: image || '/static/illus/species/generic-tree.png',
     description: desc,
     aiAnalysis: '【' + r.level + '预警】' + r.analysis,
     rewardPoints: r.reward,

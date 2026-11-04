@@ -6,7 +6,11 @@
  */
 const { posToLatLng } = require('./geo')
 
-const DEFAULT_TREE_IMG = '/static/illus/palm.png'
+/**
+ * 中性兜底图：树上没有真实照片、树种也认不出来时用它。
+ * 以前这里是 palm.png（大王椰），导致所有树都长成了椰子树 —— 别再改回去。
+ */
+const DEFAULT_TREE_IMG = '/static/illus/species/generic-tree.png'
 
 function mockUser() {
   return {
@@ -41,7 +45,7 @@ function emptyTree() {
     treeId: '', name: '', species: '', posX: 0, posY: 0, lat: 0, lng: 0,
     ownerId: '', ownerName: '', level: 0, growthScore: 0,
     status: 'normal', hazardText: '', age: '', distance: 0,
-    reviewStatus: 'approved', image: DEFAULT_TREE_IMG, createdBy: ''
+    reviewStatus: 'approved', image: '', createdBy: ''
   }
 }
 
@@ -134,7 +138,7 @@ function mockTrees() {
       lat: g.lat,
       lng: g.lng,
       reviewStatus: 'approved',
-      image: DEFAULT_TREE_IMG,
+      image: '',
       createdBy: 'u_001'
     })
   })

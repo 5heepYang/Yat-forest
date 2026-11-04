@@ -18,3 +18,6 @@ MinerU_markdown_*.md
 /640.jpg
 /640 (2).jpg
 /23423423.jpg
+
+# 插画原始大图（已压缩到 static/illus/species/，原图不入库也不进包）
+generated-images/

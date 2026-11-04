@@ -2,6 +2,7 @@ const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
 const { fmt, toast, resolveCloudUrl } = require('../../common/util')
+const { speciesArt, treeCover } = require('../../common/speciesArt')
 
 function badgeClass(b) {
   if (!b.unlocked) return 'badge-circle badge-off'
@@ -28,7 +29,8 @@ function decorateTrees(list) {
     return {
       treeId: t.treeId,
       name: t.name,
-      img: safeImg(t.image, '/static/illus/palm.png'),
+      img: safeImg(treeCover(t), speciesArt(t.species)),
+      species: t.species,
       rawImg: t.image || '',
       level: t.level.toFixed(0),
       growth: t.growthScore.toFixed(0)
@@ -302,7 +304,7 @@ Page({
     const list = this.data.treeList
     if (!list || !list[i]) return
     const patch = {}
-    patch['treeList[' + i + '].img'] = '/static/illus/palm.png'
+    patch['treeList[' + i + '].img'] = speciesArt(list[i].species)
     this.setData(patch)
   },
 

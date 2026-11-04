@@ -33,7 +33,7 @@
 			</view>
 
 			<view class="stage">
-				<image class="stage-img" src="/static/illus/palm.png"></image>
+				<image class="stage-img" src="{{tree.art}}" mode="aspectFit"></image>
 				<view class="weather-pill" bindtap="onSpirit">
 					<text class="weather-t">{{spiritLine}}</text>
 				</view>

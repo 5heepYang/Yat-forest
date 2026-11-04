@@ -6,6 +6,7 @@ const { ADOPT_COST } = require('../../common/theme')
 const { toast, toPublicUrl } = require('../../common/util')
 const db = require('../../common/db')
 const { getTrees } = require('./services/treeService')
+const { treeCover } = require('../../common/speciesArt')
 
 /** 「附近可认养」的统计半径（米） */
 const NEAR_RADIUS = 500
@@ -110,7 +111,7 @@ function decorateSelected(t) {
     age: t.age,
     status: t.status,
     ownerId: t.ownerId,
-    coverImg: t.image || '/static/illus/palm.png',
+    coverImg: treeCover(t),
     ownerText: t.ownerId === '' ? '暂无认养人' : (t.ownerId === me ? t.ownerName + '（我）' : t.ownerName),
     growthScore: t.growthScore,
     levelText: t.level > 0 ? 'Lv.' + t.level : '未养成',
@@ -533,7 +534,14 @@ Page({
         // 认养成功：刷新地图 marker（变金色"我"字 pin），详情卡片就地更新为"我认养的"
         this.refresh()
         this.setData({ sel: decorateSelected(store.treeById(sel.treeId)) })
+
+        // 认养完直接进林地页看这棵树：先切成"当前养护树"，
+        // 否则多树时林地页会停在上一次选中的那棵（跟上面"点我的树"分支同一套做法）
+        store.selectTree(sel.treeId)
         toast('认养成功，剩余 ' + store.state.user.availablePoints.toFixed(0) + ' 积分')
+        setTimeout(function () {
+          wx.reLaunch({ url: '/pages/tree/tree' })
+        }, 800)
       },
       complete: () => {
         this.adopting = false
