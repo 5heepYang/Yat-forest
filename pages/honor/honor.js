@@ -74,6 +74,19 @@ Page({
     avatarSheet: ''
   },
 
+  /**
+   * 头像若是 cloud://（上传头像时传到了云存储），换成 https 临时地址再渲染。
+   * <image> 直接吃 cloud:// 会走客户端换链接，存储权限受限时会加载失败。
+   */
+  fixAvatar() {
+    const that = this
+    const a = this.data.avatar
+    if (!a || String(a).indexOf('cloud://') !== 0) return
+    resolveCloudUrl(a).then(function (u) {
+      if (u && u !== a) that.setData({ avatar: u })
+    })
+  },
+
   /** 树卡图片若是 cloud://，换成 https 临时地址（权限受限时由云函数代取） */
   fixTreeImages() {
     const list = this.data.treeList || []
@@ -200,6 +213,7 @@ Page({
       topGoods: goods
     })
 
+    this.fixAvatar()
     this.fixTreeImages()
   },
 
@@ -261,6 +275,7 @@ Page({
         treeList: decorateTrees(tm.list)
       })
 
+      that.fixAvatar()
       that.fixTreeImages()
     })
   },
