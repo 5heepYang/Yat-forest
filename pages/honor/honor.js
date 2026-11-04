@@ -118,9 +118,14 @@ Page({
   onLoad(options) {
     const app = getApp()
     const g = (app && app.globalData) || {}
+    this._alive = true   // 页面存活标记：异步回调（openid 获取等）用，销毁后不再 setData
     this.setData({ statusBarHeight: g.statusBarHeight || 20 })
     // 地图页点「查看认养人」进来会带 userId：访客模式，只看不改
     this.visUserId = (options && options.userId) || ''
+  },
+
+  onUnload() {
+    this._alive = false
   },
 
   async onShow() {
