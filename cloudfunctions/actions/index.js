@@ -643,6 +643,7 @@ exports.main = async function (event) {
     if (action === 'createTask') return await createTask(openid, payload)
     if (action === 'updateProfile') return await updateProfile(openid, payload)
     if (action === 'getTempUrl') return await getTempUrl(openid, payload)
+    if (action === 'migrateUsers') return await migrateUsers(openid)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)
