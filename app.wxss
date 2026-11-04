@@ -19,6 +19,34 @@ page {
 }
 
 /* ------------------------------------------------------------------ */
+/* 护林币胶囊（林地页赚币现场 / 个人页补给站共用）                      */
+/* ------------------------------------------------------------------ */
+
+.coin-pill {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 26px;
+	border-radius: 13px;
+	background-color: #FFF6E4;
+	padding-left: 9px;
+	padding-right: 12px;
+}
+
+.coin-ico {
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+}
+
+.coin-t {
+	font-size: 11px;
+	font-weight: bold;
+	color: #E0A93F;
+	font-family: HYSansBold;
+}
+
+/* ------------------------------------------------------------------ */
 /* 底部弹层通用件（配合 components/sheet 使用，页面里直接写 class 即可） */
 /* ------------------------------------------------------------------ */
 
@@ -72,6 +100,12 @@ page {
 
 .sheet-btn-t-deep {
   color: #2E6B4F;
+}
+
+/* 底部弹层标题/副标题强制纵向排布（text 默认 inline，会把两行拼到一起） */
+.sheet-title,
+.sheet-sub {
+	display: block;
 }
 
 /* 表单行：新增树木 / 新增日程这类弹窗里用 */

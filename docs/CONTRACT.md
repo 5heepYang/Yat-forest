@@ -26,14 +26,17 @@
 
 | 集合 | 归属 | 说明 |
 | --- | --- | --- |
-| `users` | **每人一条** | 按 `_openid` 隔离；首次进入查不到自己的文档会自动注册（静默登录） |
+| `users` | **每人一条** | 按 `_openid` 隔离（微信服务端自动注入，无法伪造）；首次进入查不到自己的文档会自动注册（静默登录） |
 | `tasks` | **每人一套** | 新用户自动复制一份模板日程，打卡互不影响 |
 | `tree_logs` | **每人一套** | 成长日志 / 隐患上报记录 |
 | `records` | **每人一套** | 兑换记录 |
 | `trees` | 全局共享 | 大家看同一片林子；`ownerId` 标记认养人 |
 | `goods` | 全局共享 | 库存大家一起扣 |
 
-登录不需要 `wx.login`/授权弹窗——云开发在写入时自动注入 `_openid`，`db.js` 里用 `where({_openid: '{openid}'})` 就能取到"我的"数据。用户唯一要主动做的：在个人页点昵称改名。
+**登录是微信 openid 静默制**（`pages/login` 一键进入）：不同微信 = 不同账号，
+数据自动隔离；同一微信换设备 = 同一账号，数据跟着走。本地标记在 `common/auth.js`，
+个人页有退出登录入口。改名换头像在个人页资料弹层（点昵称）。
+测试号下是本机单账号（没有 openid），首次登录自动重置成干净新号（每台设备只做一次）。
 
 ### users（用户）
 
@@ -127,6 +130,7 @@
 | `stock` | number | 库存 |
 | `image` | string | 图片 |
 | `desc` | string | 描述 |
+| `goodsV` | number | 商品数据版本号。**换图/换名时在 mock.js 里 +1**，启动时版本对不上会自动整组刷新（缓存和云端都会跟着换新，不影响兑换扣的库存） |
 
 ### records（兑换记录）
 
@@ -154,6 +158,8 @@ store.myTree()               // 我认养的那棵树
 store.treeById(id)           // 按 id 找树
 store.myTreeCount()          // 我认养了几棵
 store.unownedCount()         // 待认养数量
+store.myTreeCount()          // 我认养了几棵
+store.badgeState()           // 勋章点亮状态（数据驱动，见下方判定规则）
 store.todayPoints()          // 今日已得碳积分
 store.todayCarbon()          // 今日已减碳克数
 store.doneCount()            // 今日完成任务数
@@ -178,17 +184,31 @@ store.addTask(task)                    // 加日程
 store.updateUser(patch)                // 改用户字段（加 coins、改昵称等）
 ```
 
+### 勋章判定规则（数据驱动，`badgeState()` 每次展示时现算）
+
+`mockBadges()` 只当定义表用，里面的 `unlocked` 字段**已废弃**：
+
+| badgeId | 名称 | 点亮条件 |
+| --- | --- | --- |
+| `b_01` | 低碳先锋 | 已完成任务累计减碳 ≥ 1000 g |
+| `b_02` | 椰林排雷兵 | 上报过 ≥ 1 次隐患（tree_logs 里 kind=hazard） |
+| `b_03` | 首棵认养人 | 认养过 ≥ 1 棵树 |
+| `b_04` | 百日护林员 | `user.days` ≥ 100 |
+| `b_05` `b_06` | 光盘达人 / 早八守护者 | 暂无数据源，恒未解锁（接了任务系统后补） |
+
 ### 图片 / id（`common/db.js`）
 
 ```js
 const db = require('../../common/db')
 
 await db.uploadImage(tempFilePath)  // 返回可直接放进 <image src> 的地址
+await db.fetchUserDoc(userId)       // 跨用户查档案（进别人主页用），查不到返回 null
 db.newId('log')                     // 生成唯一 id
 db.getMode()                        // 'local' | 'cloud'，调试用
 ```
 
 > `uploadImage` 在测试号下走 base64 存 Storage，正式环境走云存储。**页面代码完全一样**。
+> `fetchUserDoc` 只有云端模式会真查库（要 users 集合 read 权限放开）；返回 null 时页面用 `trees` 上的 `ownerName` 等冗余字段拼兜底档案。
 
 ---
 
@@ -275,7 +295,8 @@ onWater() {
 
 | 集合 | 上线态规则 | 原因 |
 | --- | --- | --- |
-| `users` `tasks` `tree_logs` `records` | `{"read": "doc._openid == auth.openid", "write": "doc._openid == auth.openid"}` | 个人数据，只许本人读写 |
+| `users` | `{"read": true, "write": "doc._openid == auth.openid"}` | 个人数据，但**读要放开**：地图页进别人主页需要跨用户查档案（`db.fetchUserDoc`）。写仍锁本人 |
+| `tasks` `tree_logs` `records` | `{"read": "doc._openid == auth.openid", "write": "doc._openid == auth.openid"}` | 个人数据，只许本人读写 |
 | `trees` `goods` | `{"read": "auth != null", "write": true}` | 公共林地/库存，所有人都要能认养、扣库存。**锁成"只写自己的"会让别人认养不了树** |
 
 > 应用层隔离（`db.js` 的 `PERSONAL` 表 + `where({_openid: '{openid}'})`）始终生效，权限规则只是数据库层的第二道锁。
@@ -293,7 +314,7 @@ onWater() {
 | 队员 B（日程） | `pages/task/**` | 其他页面 |
 | 队员 C（林地） | `pages/tree/**` | 其他页面 |
 | 队员 D（个人页） | `pages/honor/**` | 其他页面 |
-| 队长 | `common/**`、`components/**`、`app.*` | — |
+| 队长 | `common/**`、`components/**`、`app.*`、`pages/login/**` | — |
 
 页面里要用的公共能力（弹窗、坐标、上传）都已经在 `components/` 和 `common/` 里，**需要新东西先在群里说，不要各自复制一份**。
 
@@ -307,7 +328,9 @@ onWater() {
 | 地图加号新增树 | `pages/map` | `store.addTree()`，`reviewStatus: 'pending'` |
 | 树木人工审核 | `pages/honor`（管理员入口） | `store.updateTree(id, { reviewStatus: 'approved' })` |
 | 定位 + 附近可认养 | `pages/map` | `geo.getCurrentLocation()` + `geo.nearbyTrees()` |
-| 看别人的个人主页 | `pages/map` | `trees.ownerId` + `users.nickname/avatar/bio` |
+| 看别人的个人主页 | `pages/map` → `pages/honor?userId=xxx` | `trees.ownerId` + `db.fetchUserDoc()`（访客模式：只看不改、不显示补给站） |
+| 微信一键登录 / 退出登录 | `pages/login`、`pages/honor`（退出入口） | `common/auth.js` 本地登录标记；身份靠微信 openid 静默建档（云端自动按 `_openid` 隔离），本地首登一次性 `resetForNewUser()` |
+| 养护赚护林币 | `pages/tree` | `store.water()/fertilize()` 内部发币：浇水 +2、施肥 +5（`theme.js` 的 `COIN_WATER/COIN_FERT`） |
 | 树上上报异常 | `pages/map` | `store.reportHazard()` |
 | 新增日程 + AI 分析 | `pages/task` | `store.addTask()`，`ai.js` 里加分析函数 |
 | 上传凭证核验 | `pages/task` | `db.uploadImage()` → `tasks.proofImage` |
@@ -318,5 +341,7 @@ onWater() {
 | 护林币货币 | `pages/tree` / `honor` | `user.coins`、`goods.costCurrency` |
 | 补给站兑换 | `pages/honor` | `store.exchange()` |
 | 个人主页卡片 | `pages/honor` | `users.nickname/avatar/bio/coins` |
+| 勋章馆（全部勋章 + 获取条件） | `pages/honor` | `store.badgeState()`（判定规则见上） |
+| 兑换记录列表 / 生涯累计减碳 | `pages/honor` | `records`（字符串拆 ` · ` 展示）、`tasks.carbonSavedG` 求和 |
 
 新增字段一律：**先改本文件，再改代码，字段名英文小驼峰。**

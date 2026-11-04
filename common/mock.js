@@ -13,6 +13,7 @@ function mockUser() {
     userId: 'u_001',
     nickname: '中大护林员小李',
     avatar: '/static/illus/avatar.png',
+    bio: '',                  // 个人签名（个人页资料弹层编辑）
     availablePoints: 520,     // 碳积分（日程页赚）
     coins: 120,               // 护林币（林地页赚，个人页花）
     totalGrowthScore: 1850,
@@ -180,18 +181,19 @@ function mockTasks() {
 }
 
 function mockGoods() {
+  // goodsV：商品数据版本号。改商品（换图/换名）时 +1，store 启动时检测到旧版会自动整组刷新
   return [
     {
-      itemId: 's_301', name: '中大古树帆布袋', costCurrency: 120, stock: 25,
-      image: '/static/illus/bag.png', desc: '古树年轮印花 · 限量 25 份'
+      itemId: 's_301', name: '中大纪念钥匙扣', costCurrency: 120, stock: 25, goodsV: 2,
+      image: '/static/illus/goods-keychain.jpg', desc: '校园绿意随身带 · 限量 25 份'
     },
     {
-      itemId: 's_302', name: '校巴搪瓷杯', costCurrency: 80, stock: 12,
-      image: '/static/illus/cup.png', desc: '森系插画 · 附树种科普卡'
+      itemId: 's_302', name: '校园卡套', costCurrency: 80, stock: 12, goodsV: 2,
+      image: '/static/illus/goods-cardholder.jpg', desc: '森系插画 · 吃饭刷卡都好看'
     },
     {
-      itemId: 's_303', name: '实木树牌挂名权', costCurrency: 300, stock: 5,
-      image: '/static/illus/stage3.png', desc: '把名字挂在你认养的树上'
+      itemId: 's_303', name: '森友小挂件', costCurrency: 300, stock: 5, goodsV: 2,
+      image: '/static/illus/goods-pendant.jpg', desc: '挂在书包上的一片小森林'
     }
   ]
 }

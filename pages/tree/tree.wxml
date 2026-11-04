@@ -50,6 +50,14 @@
 				<view class="gbar-in" style="{{growthBarStyle}}"></view>
 			</view>
 
+			<view class="coin-row">
+				<view class="coin-pill">
+					<image class="coin-ico" src="/static/ui/badge-medal.png"></image>
+					<text class="coin-t">护林币 ×{{coinsText}}</text>
+				</view>
+				<text class="coin-hint">浇水 +2 · 施肥 +5，可在「我的」页换周边</text>
+			</view>
+
 			<view class="act-row">
 				<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onWater">
 					<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
