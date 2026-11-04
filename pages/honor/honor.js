@@ -15,12 +15,21 @@ function goodsBoxClass(itemId) {
 }
 
 /** 树列表卡片用的展示字段（wxml 不能调函数，这里算好） */
+/** 首帧不要直接吃 cloud://：渲染层会先尝试加载并失败，留下一条红字。
+ *  先用本地占位图，拿到 https 后再替换（后续 fixTreeImages / fixAvatar 负责）。 */
+function safeImg(url, fallback) {
+  const s = String(url || '')
+  if (s === '' ) return fallback
+  return s.indexOf('cloud://') === 0 ? fallback : s
+}
+
 function decorateTrees(list) {
   return list.map(function (t) {
     return {
       treeId: t.treeId,
       name: t.name,
-      img: t.image || '/static/illus/palm.png',
+      img: safeImg(t.image, '/static/illus/palm.png'),
+      rawImg: t.image || '',
       level: t.level.toFixed(0),
       growth: t.growthScore.toFixed(0)
     }
@@ -80,7 +89,7 @@ Page({
    */
   fixAvatar() {
     const that = this
-    const a = this.data.avatar
+    const a = this.data.rawAvatar || this.data.avatar
     if (!a || String(a).indexOf('cloud://') !== 0) return
     resolveCloudUrl(a).then(function (u) {
       if (u && u !== a) that.setData({ avatar: u })
@@ -92,7 +101,7 @@ Page({
     const list = this.data.treeList || []
     const that = this
     list.forEach(function (it, i) {
-      const src = it.img
+      const src = it.rawImg || it.img
       if (!src || String(src).indexOf('cloud://') !== 0) return
       resolveCloudUrl(src).then(function (u) {
         if (!u || u === src) return
@@ -192,7 +201,8 @@ Page({
       viewing: false,
       days: st.user.days.toFixed(0),
       nickname: st.user.nickname,
-      avatar: st.user.avatar,
+      avatar: safeImg(st.user.avatar, '/static/illus/avatar.png'),
+      rawAvatar: st.user.avatar || '',
       heroLine1: 'Lv.' + t.level.toFixed(0) + ' 护林人' + (titleBadge !== '' ? ' · ' + titleBadge : ''),
       heroLine2: bio !== '' ? bio : '已点亮 ' + unlocked.toFixed(0) + ' / ' + st.badges.length.toFixed(0) + ' 枚勋章',
       stats: [
@@ -261,7 +271,8 @@ Page({
       that.setData({
         viewing: true,
         nickname: nickname,
-        avatar: avatar,
+        avatar: safeImg(avatar, '/static/illus/avatar.png'),
+        rawAvatar: avatar,
         heroLine1: 'Lv.' + tm.maxLevel.toFixed(0) + ' 护林人',
         heroLine2: bio !== '' ? bio : '已点亮 ' + badgeCount.toFixed(0) + ' / ' + st.badges.length.toFixed(0) + ' 枚勋章',
         stats: [

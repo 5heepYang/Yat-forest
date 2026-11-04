@@ -305,9 +305,12 @@ Page({
         }
         if (!dayText) dayText = legacyMonth(log.createdAt)
         if (!stage) stage = allPhotos.length === 0 ? '枝繁' : (allPhotos.length === 1 ? '新叶' : '幼芽')
+        const rawImg = log.imageUrl || ''
         allPhotos.unshift({
           logId: log.logId,
-          imageUrl: log.imageUrl,
+          // 首帧别直接吃 cloud://（渲染层会失败并报错），先占位，稍后 fixPhotoImages 换成 https
+          imageUrl: rawImg.indexOf('cloud://') === 0 ? '/static/illus/stage2.png' : (rawImg || '/static/illus/stage2.png'),
+          rawUrl: rawImg,
           label: dayText + ' · ' + stage,
           desc: log.description
         })
@@ -449,7 +452,7 @@ Page({
     const that = this
     function fix(listKey, list) {
       ;(list || []).forEach(function (it, i) {
-        const src = it.imageUrl
+        const src = it.rawUrl || it.imageUrl
         if (!src || String(src).indexOf('cloud://') !== 0) return
         resolveCloudUrl(src).then(function (u) {
           if (!u || u === src) return
