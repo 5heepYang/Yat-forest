@@ -62,19 +62,61 @@ function toPublicUrl(url) {
       return
     }
     if (!wx.cloud || !wx.cloud.getTempFileURL) {
-      resolve('')
+      viaCloudFunction(s, resolve)
       return
     }
     wx.cloud.getTempFileURL({
       fileList: [s],
       success: function (res) {
         const f = res.fileList && res.fileList[0]
-        resolve(f && f.tempFileURL ? f.tempFileURL : '')
+        if (f && f.tempFileURL) {
+          resolve(f.tempFileURL)
+          return
+        }
+        // 云存储权限是"仅创建者可读写"时，别人的文件客户端取不到，
+        // 让云函数以管理员身份代取（actions.getTempUrl）
+        viaCloudFunction(s, resolve)
       },
       fail: function () {
-        resolve('')
+        viaCloudFunction(s, resolve)
       }
     })
+  })
+}
+
+/** 兜底：让 actions 云函数代取临时链接；云函数不可用就给空串让调用方降级 */
+function viaCloudFunction(fileID, resolve) {
+  if (!wx.cloud || !wx.cloud.callFunction) {
+    resolve('')
+    return
+  }
+  wx.cloud.callFunction({
+    name: 'actions',
+    data: { action: 'getTempUrl', payload: { fileID: fileID } }
+  }).then(function (res) {
+    const r = (res && res.result) || {}
+    resolve(r.ok && r.url ? r.url : '')
+  }).catch(function () {
+    resolve('')
+  })
+}
+
+/**
+ * 把 cloud:// 换成 <image> 能直接用的 https 地址（带 90 分钟缓存）。
+ * 云存储权限受限时由 actions 云函数代取，所以即使权限没放开，别人的图也能显示。
+ */
+const urlCache = {}
+function resolveCloudUrl(url) {
+  const s = String(url || '')
+  if (s.indexOf('cloud://') !== 0) return Promise.resolve(s)
+  const hit = urlCache[s]
+  if (hit && hit.expire > Date.now()) return Promise.resolve(hit.url)
+  return toPublicUrl(s).then(function (u) {
+    if (u && u.indexOf('http') === 0) {
+      urlCache[s] = { url: u, expire: Date.now() + 90 * 60 * 1000 }
+      return u
+    }
+    return s
   })
 }
 
@@ -86,4 +128,4 @@ function toast(msg) {
   })
 }
 
-module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl }
+module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl, resolveCloudUrl }

@@ -16,7 +16,7 @@
 const store = require('../../common/store')
 const { aiAnalyzeHazard, aiTreeSpirit, aiReviewTree } = require('../../common/ai')
 const db = require('../../common/db')
-const { toast, stamp, toPublicUrl } = require('../../common/util')
+const { toast, stamp, toPublicUrl, resolveCloudUrl } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
 const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
 
@@ -416,6 +416,8 @@ Page({
         + ' · 每天各一次',
       photoPeriod: kit.tasks.photo.periodDays
     })
+
+    this.fixPhotoImages()
   },
 
   /**
@@ -440,7 +442,32 @@ Page({
     })
   },
 
-  /* ---------- 图片加载失败兜底 ---------- */
+  /* ---------- 图片地址修正 / 加载失败兜底 ---------- */
+
+  /** 时光轴里的 cloud:// 换成 https（云存储权限受限时由云函数代取） */
+  fixPhotoImages() {
+    const that = this
+    function fix(listKey, list) {
+      ;(list || []).forEach(function (it, i) {
+        const src = it.imageUrl
+        if (!src || String(src).indexOf('cloud://') !== 0) return
+        resolveCloudUrl(src).then(function (u) {
+          if (!u || u === src) return
+          const patch = {}
+          patch[listKey + '[' + i + '].imageUrl'] = u
+          that.setData(patch)
+        })
+      })
+    }
+    fix('photos', this.data.photos)
+    fix('allPhotos', this.data.allPhotos)
+    if (String(this.data.hazardImage || '').indexOf('cloud://') === 0) {
+      resolveCloudUrl(this.data.hazardImage).then(function (u) {
+        if (u) that.setData({ hazardImage: u })
+      })
+    }
+  },
+
 
   /** 时光轴缩略图失败 → 换成内置示意图，避免空白块 */
   onPhotoError(e) {
@@ -766,7 +793,8 @@ Page({
       console.warn('[tree] 隐患照片上传失败，用本地路径', e)
     }
     const visionUrl = await toPublicUrl(stored)
-    this.setData({ hazardImage: stored })
+    // 预览用本地临时图（<image> 直接能显示），云端 fileID 留着提交时用
+    this.hazardUpload = stored
 
     aiAnalyzeHazard(t.name, t.species, visionUrl, function (r) {
       that.stopDots()
@@ -797,8 +825,8 @@ Page({
       wx.showLoading({ title: '提交中', mask: true })
       const r = await store.cloudReportHazard({
         treeId: t.treeId,
-        image: this.data.hazardImage,
-        imageUrl: await toPublicUrl(this.data.hazardImage)
+        image: this.hazardUpload || this.data.hazardImage,
+        imageUrl: await toPublicUrl(this.hazardUpload || this.data.hazardImage)
       })
       wx.hideLoading()
       if (!r.ok) return toast(r.msg || '上报失败')
@@ -811,7 +839,7 @@ Page({
     const err = store.reportHazard(
       { level: h.level, ticket: h.ticket, analysis: h.analysis, advice: h.advice, reward: Number(h.reward) },
       '线下巡检拍照：' + t.name,
-      this.data.hazardImage
+      this.hazardUpload || this.data.hazardImage
     )
     if (err) return toast(err)
 

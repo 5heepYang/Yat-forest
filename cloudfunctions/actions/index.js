@@ -577,6 +577,26 @@ async function createTask(openid, payload) {
   return { ok: true, user: pubUser(me), task: pubTask(doc) }
 }
 
+/**
+ * 取图片的临时访问链接。
+ *
+ * 用途：云存储权限若是"仅创建者可读写"，客户端 getTempFileURL 拿不到别人的文件，
+ * 图片就裂了。云函数是管理员身份，不受这个限制，可以代取。
+ * 前端只在客户端取不到时才走这里，正常情况不会产生额外调用。
+ */
+async function getTempUrl(openid, payload) {
+  const fileID = String(payload.fileID || '')
+  if (fileID.indexOf('cloud://') !== 0) return { ok: false, msg: '不是云存储文件' }
+  try {
+    const res = await cloud.getTempFileURL({ fileList: [fileID] })
+    const f = res.fileList && res.fileList[0]
+    if (f && f.tempFileURL) return { ok: true, url: f.tempFileURL }
+    return { ok: false, msg: (f && f.errMsg) || '取链接失败' }
+  } catch (e) {
+    return { ok: false, msg: (e && e.message) || '取链接失败' }
+  }
+}
+
 /** 改资料（昵称 / 签名 / 碳目标） */
 async function updateProfile(openid, payload) {
   const me = await myDoc(openid)
@@ -622,6 +642,7 @@ exports.main = async function (event) {
     if (action === 'addGrowthLog') return await addGrowthLog(openid, payload)
     if (action === 'createTask') return await createTask(openid, payload)
     if (action === 'updateProfile') return await updateProfile(openid, payload)
+    if (action === 'getTempUrl') return await getTempUrl(openid, payload)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)

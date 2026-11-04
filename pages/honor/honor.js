@@ -1,7 +1,7 @@
 const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
-const { fmt, toast } = require('../../common/util')
+const { fmt, toast, resolveCloudUrl } = require('../../common/util')
 
 function badgeClass(b) {
   if (!b.unlocked) return 'badge-circle badge-off'
@@ -72,6 +72,22 @@ Page({
     nicknameInput: '',
     bioInput: '',
     avatarSheet: ''
+  },
+
+  /** 树卡图片若是 cloud://，换成 https 临时地址（权限受限时由云函数代取） */
+  fixTreeImages() {
+    const list = this.data.treeList || []
+    const that = this
+    list.forEach(function (it, i) {
+      const src = it.img
+      if (!src || String(src).indexOf('cloud://') !== 0) return
+      resolveCloudUrl(src).then(function (u) {
+        if (!u || u === src) return
+        const patch = {}
+        patch['treeList[' + i + '].img'] = u
+        that.setData(patch)
+      })
+    })
   },
 
   onLoad(options) {
@@ -183,6 +199,8 @@ Page({
       recordList: recordList,
       topGoods: goods
     })
+
+    this.fixTreeImages()
   },
 
   /**
@@ -242,6 +260,8 @@ Page({
         topBadges: badges,
         treeList: decorateTrees(tm.list)
       })
+
+      that.fixTreeImages()
     })
   },
 
