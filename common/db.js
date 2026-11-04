@@ -30,6 +30,8 @@ const CLOUD_ENV = 'jchan-d6g7u9or6ce1d060c'
 let mode = MODE_LOCAL
 let cloudDb = null
 let inited = false
+/** 本次会话的 openid（由 actions.whoami 取回）。空串 = 未取得，退回 '{openid}' 占位写法 */
+let myOpenid = ''
 
 /* ------------------------------------------------------------------ */
 /* 模式判断                                                            */
@@ -168,8 +170,10 @@ function fetchAll(name, personal) {
   function page(skip) {
     let q = cloudDb.collection(name)
     if (personal) {
-      // '{openid}' 是云开发的通配写法，服务端会替换成当前用户的 openid
-      q = q.where({ _openid: '{openid}' })
+      // 优先用真实 openid 显式过滤（whoami 从云函数 getWXContext 取回，最可靠）。
+      // 原来依赖 '{openid}' 占位符由服务端替换，但在部分环境/权限组合下不替换，
+      // 会导致每次进入都查不到旧档案、反复注册新号——2026-11-04 实测踩坑。
+      q = q.where({ _openid: myOpenid || '{openid}' })
     }
     return q.orderBy('_id', 'asc')
       .skip(skip)
@@ -328,6 +332,39 @@ function copyDoc(d) {
 }
 
 function pullCloud() {
+  // 先向云端确认自己的 openid（云函数 getWXContext 最可靠），
+  // 后面个人集合的查询用真实值显式过滤，不依赖 '{openid}' 占位符替换
+  return ensureOpenid().then(function () {
+    return pullCloudInner()
+  })
+}
+
+/** 向云端取自己的 openid，取不到时退回占位写法（不阻塞启动） */
+function ensureOpenid() {
+  if (myOpenid) return Promise.resolve(myOpenid)
+  try {
+    return wx.cloud.callFunction({ name: 'actions', data: { action: 'whoami' } })
+      .then(function (res) {
+        const r = (res && res.result) || {}
+        myOpenid = (r && r.ok && r.openid) || ''
+        if (!myOpenid) {
+          console.warn('[db] whoami 未取得 openid：', r && (r.msg || r.detail))
+        }
+        return myOpenid
+      })
+      .catch(function (e) {
+        console.warn('[db] whoami 调用失败，退回 {openid} 占位写法', e && (e.errMsg || e.message))
+        myOpenid = ''
+        return ''
+      })
+  } catch (e) {
+    console.warn('[db] whoami 调用异常', e && e.message)
+    myOpenid = ''
+    return Promise.resolve('')
+  }
+}
+
+function pullCloudInner() {
   return Promise.all([
     fetchAll('users', true),
     fetchAll('trees', false),
@@ -356,6 +393,8 @@ function pullCloud() {
     let me = users[0]
     if (!me) {
       me = newUser()
+      console.warn('[db] 未查到我的档案，注册新号（openid 前 10 位：' + myOpenid.slice(0, 10) + '）。' +
+        '若这不是首次进入，说明按 openid 查档案失败，把这条日志发给开发者')
       jobs.push(['users', [me]])
       jobs.push(['tasks', personalTasks(me.userId)])
     } else if (!tasks.length) {
