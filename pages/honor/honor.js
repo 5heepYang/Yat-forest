@@ -265,16 +265,21 @@ Page({
         nickname = tm.list[0].ownerName || nickname
       }
 
-      const badges = st.badges.slice(0, 4).map(function (b, idx) {
-        const on = idx < badgeCount
-        return {
-          badgeId: b.badgeId,
-          name: b.name,
-          icon: b.icon,
-          unlocked: on,
-          cls: badgeClass({ badgeId: b.badgeId, unlocked: on })
-        }
-      })
+      // 只展示公开快照里已点亮的勋章（访客看不到未点亮的灰图标和完成条件）。
+      // 老档案没有 badgeIds 快照时显示 0 枚——不再用 badgeCount 按序号假点亮。
+      const badgeIds = (doc && Array.isArray(doc.badgeIds)) ? doc.badgeIds : []
+      const badges = st.badges
+        .filter(function (b) { return badgeIds.indexOf(b.badgeId) >= 0 })
+        .slice(0, 4)
+        .map(function (b) {
+          return {
+            badgeId: b.badgeId,
+            name: b.name,
+            icon: b.icon,
+            unlocked: true,
+            cls: badgeClass({ badgeId: b.badgeId, unlocked: true })
+          }
+        })
 
       that.setData({
         viewing: true,
@@ -282,15 +287,16 @@ Page({
         avatar: safeImg(avatar, '/static/illus/avatar.png'),
         rawAvatar: avatar,
         heroLine1: 'Lv.' + tm.maxLevel.toFixed(0) + ' 护林人',
-        heroLine2: bio !== '' ? bio : '已点亮 ' + badgeCount.toFixed(0) + ' / ' + st.badges.length.toFixed(0) + ' 枚勋章',
+        heroLine2: bio !== '' ? bio : '已点亮 ' + badgeIds.length.toFixed(0) + ' 枚勋章',
         stats: [
           { num: fmt(growth), unit: '', label: '累计成长值' },
           { num: tm.list.length.toFixed(0), unit: '棵', label: '在养的树' },
           daysStat
         ],
-        unlockedCount: badgeCount,
+        unlockedCount: badgeIds.length,
         badgeTotal: st.badges.length,
         topBadges: badges,
+        allBadges: [],
         treeList: decorateTrees(tm.list)
       })
 
@@ -506,8 +512,9 @@ Page({
     toast('已重置：清 ' + (r.removedTrees || 0) + ' 棵新增树，复原 ' + (r.resetTrees || 0) + ' 棵种子树')
   },
 
-  /** 勋章馆弹层：全部勋章 + 点亮状态 + 获取条件 */
+  /** 勋章馆弹层：全部勋章 + 点亮状态 + 获取条件（访客模式不开放） */
   openBadges() {
+    if (this.data.viewing) return
     setTabBarHidden(this, true)
     this.setData({ sheetMode: 'badges' })
   },

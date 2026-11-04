@@ -27,7 +27,7 @@ const ADMIN_IDS = ['u_001']
 const SUBSCRIBE_TEMPLATE_ID = 'rK51LC7yeND1qD9Pqy69EB1ZpLC5NH021ELBVZooF_I'
 
 /** 构建标记：改代码后手动更新。真机上据此判断跑的是不是最新版本 */
-const BUILD_TAG = 'v20261104-1503'
+const BUILD_TAG = 'v20261104-1945'
 
 module.exports = {
   ADMIN_IDS,

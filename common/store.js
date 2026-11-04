@@ -417,8 +417,11 @@ function myTreeCount() {
 
 /**
  * 勋章点亮状态（数据驱动，mockBadges 里的 unlocked 字段已废弃，只当定义表用）。
- * 每次展示前算一遍；顺带把 badgeCount 同步进内存（不单独落库，
- * 下次任何写操作带 users 一起存）。
+ *
+ * 每次展示前算一遍，同时把「已点亮的 badgeId 列表」冗余到 users 文档里：
+ * 勋章是从个人集合（tasks/tree_logs/trees）算出来的，别人按 openid 隔离读不到，
+ * 访客主页只能看公开的 users 档案，所以必须存一份公开快照。
+ * 只在勋章集合变化时写库，避免每次刷新都写一次。
  */
 function badgeState() {
   let carbon = 0
@@ -458,6 +461,17 @@ function badgeState() {
     i++
   }
   state.user.badgeCount = n
+
+  const ids = []
+  i = 0
+  while (i < list.length) {
+    if (list[i].unlocked) ids.push(list[i].badgeId)
+    i++
+  }
+  const prev = Array.isArray(state.user.badgeIds) ? state.user.badgeIds : []
+  const changed = prev.length !== ids.length || ids.some(function (id, k) { return prev[k] !== id })
+  state.user.badgeIds = ids
+  if (changed) persist(['users'])
   return list
 }
 
@@ -908,6 +922,7 @@ function resetForNewUser() {
   state.user.coins = 0
   state.user.totalGrowthScore = 0
   state.user.badgeCount = 0
+  state.user.badgeIds = []
   state.user.days = 1
   // 随机护林员编号开号，头像用默认；改名换头像在个人页（昵称可点 + 资料弹层）
   state.user.nickname = '护林员' + Math.floor(1000 + Math.random() * 9000)

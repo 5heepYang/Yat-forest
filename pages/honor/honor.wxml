@@ -37,8 +37,8 @@
 		</view>
 
 		<view class="sec-row badge-head">
-			<text class="sec-title">勋章墙 · 已点亮 {{unlockedCount}} / {{badgeTotal}}</text>
-			<text class="more-t" bindtap="openBadges">全部勋章 ›</text>
+			<text class="sec-title">{{viewing ? 'TA 的勋章 · 已点亮 ' + unlockedCount + ' 枚' : '勋章墙 · 已点亮 ' + unlockedCount + ' / ' + badgeTotal}}</text>
+			<text wx:if="{{!viewing}}" class="more-t" bindtap="openBadges">全部勋章 ›</text>
 		</view>
 
 		<view class="badge-row">
@@ -48,6 +48,9 @@
 				</view>
 				<text class="{{item.unlocked ? 'badge-name badge-name-on' : 'badge-name'}}">{{item.name}}</text>
 			</view>
+		</view>
+		<view wx:if="{{viewing && topBadges.length === 0}}" class="badge-empty">
+			<text class="badge-empty-t">TA 还没有点亮勋章</text>
 		</view>
 
 		<view class="sec-row">

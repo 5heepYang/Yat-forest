@@ -175,6 +175,26 @@ function ownerOf(treeId) {
   check('认养后归属自己', store.treeById(freshId).ownerId === store.state.user.userId,
     store.treeById(freshId).ownerId)
 
+  console.log('===== S9 勋章公开快照（访客主页要读它）=====')
+  const badgesNow = store.badgeState()
+  const lit = badgesNow.filter(function (b) { return b.unlocked }).map(function (b) { return b.badgeId })
+  check('badgeIds 与真实点亮一致',
+    JSON.stringify(store.state.user.badgeIds) === JSON.stringify(lit),
+    JSON.stringify(store.state.user.badgeIds) + ' / ' + JSON.stringify(lit))
+  check('badgeCount 等于快照长度', store.state.user.badgeCount === lit.length,
+    store.state.user.badgeCount + ' / ' + lit.length)
+
+  // 解锁"低碳先锋"（累计减碳 >= 1000g）后，快照要跟着变
+  store.state.tasks.push({
+    taskId: 'task_badge_test', date: '2026-11-04', done: true, carbonSavedG: 1200,
+    title: '减碳测试', desc: '', basePoints: 20
+  })
+  const badgesAfter = store.badgeState()
+  const litAfter = badgesAfter.filter(function (b) { return b.unlocked }).map(function (b) { return b.badgeId })
+  check('新点亮勋章进入快照', litAfter.indexOf('b_01') >= 0, JSON.stringify(litAfter))
+  check('快照随之更新', JSON.stringify(store.state.user.badgeIds) === JSON.stringify(litAfter),
+    JSON.stringify(store.state.user.badgeIds))
+
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
   process.exit(failCount === 0 ? 0 : 1)
 })().catch(function (e) {
