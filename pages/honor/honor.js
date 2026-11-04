@@ -2,6 +2,7 @@ const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
 const { fmt, toast, resolveCloudUrl } = require('../../common/util')
+const { BUILD_TAG } = require('../../common/config')
 const { speciesArt, treeCover } = require('../../common/speciesArt')
 
 function badgeClass(b) {
@@ -227,7 +228,8 @@ Page({
       isAdmin: store.isAdmin(),
       // 调试用：报 userId 用（加白名单时需要）
       myUserId: st.user.userId,
-      myOpenid: ''
+      myOpenid: '',
+      buildTag: BUILD_TAG
     })
 
     this.fixAvatar()
