@@ -525,8 +525,13 @@ Page({
     // 变了就说明扫码的账号在变，而不是注册逻辑的锅
     const that = this
     store.cloudWhoami().then(function (r) {
-      if (r && r.ok && that._alive) {
+      if (!that._alive) return
+      if (r && r.ok) {
         that.setData({ myOpenid: r.openid })
+      } else {
+        // 失败也要说清原因：最常见是 actions 没重传（没有 whoami 接口）
+        const why = (r && (r.msg || r.detail)) || '未知原因'
+        that.setData({ myOpenid: '获取失败：' + why })
       }
     })
   },
