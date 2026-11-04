@@ -5,7 +5,7 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(34, 48, 42, 0.35);
+	background-color: rgba(26, 36, 30, 0.40);
 	z-index: 15;
 	opacity: 0;
 	transition: opacity 0.24s ease;
@@ -26,7 +26,7 @@
 	background-color: #FFFFFF;
 	border-radius: 24px;
 	padding: 14px;
-	box-shadow: 0px 6px 20px rgba(46, 107, 79, 0.12);
+	box-shadow: 0px 6px 20px rgba(36, 90, 65, 0.12);
 	z-index: 20;
 	opacity: 0;
 	transform: translateY(48px);
@@ -91,7 +91,7 @@
 .tc-name {
 	font-size: 14px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -147,7 +147,7 @@
 	display: flex;
 	flex-direction: row;
 	margin-top: 14px;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 14px;
 	padding: 10px 0;
 }
@@ -168,7 +168,7 @@
 
 .tc-stat-value {
 	font-size: 12px;
-	color: #22302A;
+	color: #1F2B24;
 	margin-top: 4px;
 	font-family: HYSansBold;
 }
@@ -196,19 +196,21 @@
 .tc-btn {
 	display: flex;
 	flex-direction: column;
-	height: 50px;
-	border-radius: 25px;
+	height: 46px;
+	border-radius: 23px;
 	align-items: center;
 	justify-content: center;
 	margin-top: 13px;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .btn-main {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
 }
 
 .btn-soft {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .btn-mute {
@@ -226,7 +228,7 @@
 }
 
 .tc-btn-t-deep {
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 /* ---------- 上报异常（红色块） ---------- */
@@ -238,7 +240,7 @@
 	justify-content: center;
 	height: 42px;
 	border-radius: 12px;
-	background-color: #FDECEA;
+	background-color: #FBEDE8;
 	margin-top: 8px;
 }
 
@@ -246,7 +248,7 @@
 	width: 16px;
 	height: 16px;
 	border-radius: 8px;
-	background-color: #E05B4B;
+	background-color: #D96C52;
 	color: #FFFFFF;
 	font-size: 11px;
 	font-weight: bold;
@@ -277,4 +279,10 @@
 	font-size: 11px;
 	color: #7A9C86;
 	font-family: HYSans;
+}
+
+/* 组件默认样式隔离：按压反馈类需在组件内再声明一份 */
+.hv-press {
+	transform: scale(0.97);
+	opacity: 0.92;
 }

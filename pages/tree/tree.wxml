@@ -48,19 +48,19 @@
 
 			<view class="act-row">
 				<view class="act-col">
-					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onWater">
+					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onWater">
 						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '浇水'}}</text>
 					</view>
 					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{waterNote}}</text>
 				</view>
 				<view class="act-col">
-					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" bindtap="onFertilize">
+					<view class="act-btn {{atMax ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onFertilize">
 						<text class="act-t {{atMax ? 'act-t-off' : ''}}">{{atMax ? '已满级' : '施肥'}}</text>
 					</view>
 					<text class="act-note {{atMax ? 'act-t-off' : ''}}">{{fertNote}}</text>
 				</view>
 				<view class="act-col">
-					<view class="act-btn {{photoDone ? 'act-btn-off' : ''}}" bindtap="onPhotoAct">
+					<view class="act-btn {{photoDone ? 'act-btn-off' : ''}}" hover-class="hv-press" bindtap="onPhotoAct">
 						<text class="act-t {{photoDone ? 'act-t-off' : ''}}">生长实拍</text>
 					</view>
 					<text class="act-note {{photoDone ? 'act-t-off' : ''}}">{{photoNote}}</text>
@@ -79,7 +79,7 @@
 					<text class="ttitle {{item.done ? 'ttitle-done' : ''}}">{{item.title}}</text>
 				</view>
 				<view
-					class="tclaim {{item.claimable ? 'tclaim-on' : (item.claimed ? 'tclaim-off' : 'tclaim-wait')}}"
+					class="tclaim {{item.claimable ? 'tclaim-on' : (item.claimed ? 'tclaim-off' : 'tclaim-wait')}}" hover-class="hv-press"
 					catchtap="onClaim"
 					data-kind="{{item.kind}}"
 				>
@@ -176,10 +176,10 @@
 				<view class="hint-box">
 					<text class="hint-t">重点排查：大王椰枯叶悬垂、台风断枝、树干白蚁或红火蚁。上报成功可获得护林积分。</text>
 				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="useSampleHazard">
+				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="useSampleHazard">
 					<text class="sheet-btn-t sheet-btn-t-white">使用示例现场照片（演示）</text>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="pickHazardPhoto">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="pickHazardPhoto">
 					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
 				</view>
 			</view>
@@ -203,7 +203,7 @@
 				<view class="hint-box">
 					<text class="hint-t">建议处理：{{hazard.advice}}</text>
 				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="submitHazard">
+				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="submitHazard">
 					<text class="sheet-btn-t sheet-btn-t-white">提交后勤工单 · 领 {{hazard.reward}} 积分</text>
 				</view>
 			</view>
@@ -215,7 +215,7 @@
 				<view class="hint-box">
 					<text class="hint-t">{{photoPeriodSub}}，记录它的生长；系统会核对是不是同一棵树。</text>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="pickGrowthPhoto">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="pickGrowthPhoto">
 					<text class="sheet-btn-t sheet-btn-t-deep">拍照 / 从相册选</text>
 				</view>
 			</view>
@@ -233,7 +233,7 @@
 						</view>
 					</view>
 				</scroll-view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">关闭</text>
 				</view>
 			</view>

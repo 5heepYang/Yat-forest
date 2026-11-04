@@ -6,9 +6,19 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(30, 40, 33, 0.32);
+	background-color: rgba(26, 36, 30, 0.40);
 	justify-content: flex-end;
 	z-index: 100;
+	animation: maskIn 200ms ease both;
+}
+
+/* 组件内样式隔离：弹入动效与抓手在组件 wxss 里再声明一份，
+   不依赖 app.wxss 是否穿透到自定义组件 */
+@keyframes maskIn {
+	from { opacity: 0; }
+}
+@keyframes sheetUp {
+	from { transform: translateY(32px); opacity: 0; }
 }
 
 .sheet {
@@ -16,9 +26,21 @@
 	flex-direction: column;
 	background-color: #FFFFFF;
 	border-radius: 26px;
-	padding: 20px 18px 24px 18px;
+	padding: 20px 18px calc(24px + env(safe-area-inset-bottom)) 18px;
 	max-height: 82vh;
 	overflow-y: auto;
+	animation: sheetUp 260ms cubic-bezier(0.22, 0.9, 0.35, 1) both;
+}
+
+.sheet::before {
+	content: "";
+	display: block;
+	flex: none;
+	width: 36px;
+	height: 4px;
+	border-radius: 2px;
+	background-color: #DFE5DB;
+	margin: 0 auto 14px;
 }
 
 .sheet-head {
@@ -29,7 +51,7 @@
 .sheet-title {
 	font-size: 17px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 

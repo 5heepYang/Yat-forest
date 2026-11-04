@@ -11,7 +11,7 @@
 	border-radius: 18px;
 	padding: 18px 16px;
 	align-items: center;
-	box-shadow: 0px 4px 16px rgba(46, 107, 79, 0.12);
+	box-shadow: 0px 4px 16px rgba(36, 90, 65, 0.12);
 	z-index: 12;
 	animation: es-in 0.28s cubic-bezier(0.22, 0.9, 0.35, 1) both;
 }
@@ -35,7 +35,7 @@
 .es-t {
 	font-size: 14px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	margin-top: 8px;
 	font-family: HYSansBold;
 }
@@ -53,7 +53,9 @@
 	flex-direction: column;
 	height: 34px;
 	border-radius: 17px;
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 6px 14px rgba(62, 125, 92, 0.28);
+	transition: transform 0.12s ease, opacity 0.12s ease;
 	align-items: center;
 	justify-content: center;
 	padding-left: 16px;
@@ -67,4 +69,10 @@
 	font-weight: bold;
 	letter-spacing: 0.4px;
 	font-family: HYSansBold;
+}
+
+/* 组件默认样式隔离：按压反馈类需在组件内再声明一份 */
+.hv-press {
+	transform: scale(0.97);
+	opacity: 0.92;
 }

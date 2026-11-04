@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中大森友会 · 视觉升级设计稿 v6</title>
+<style>
+  :root {
+    --bg: #FAF7F0;
+    --card: #FFFFFF;
+    --ink: #1F2B24;
+    --deep: #245A41;
+    --primary: #3E7D5C;
+    --soft: #E9F2E4;
+    --mint: #F2F7EC;
+    --gold: #D99C2B;
+    --gold-bg: #FBF3DF;
+    --warn: #D96C52;
+    --warn-bg: #FBEDE8;
+    --muted: #7E8A80;
+    --faint: #AEB6AD;
+    --line: #E7ECE3;
+    --r-s: 10px; --r-m: 16px; --r-l: 22px;
+    --shadow-1: 0 1px 2px rgba(31,43,36,.04), 0 6px 18px rgba(46,107,79,.07);
+    --shadow-2: 0 2px 6px rgba(31,43,36,.06), 0 14px 34px rgba(46,107,79,.12);
+    --ease: cubic-bezier(.22,.9,.35,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #EFECE3;
+    font-family: "PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    color: var(--ink);
+    padding: 40px 32px 80px;
+  }
+  .doc { max-width: 1560px; margin: 0 auto; }
+
+  /* ---------- 文档头 ---------- */
+  .doc-head { margin-bottom: 36px; }
+  .doc-tag { display:inline-block; font-size:12px; font-weight:700; color:#fff; background:var(--primary); border-radius:999px; padding:4px 14px; letter-spacing:1px; }
+  .doc-head h1 { font-size:28px; margin-top:14px; letter-spacing:.5px; }
+  .doc-head p { font-size:13px; color:var(--muted); margin-top:8px; line-height:1.8; max-width:760px; }
+
+  h2.sec { font-size:18px; margin:52px 0 6px; display:flex; align-items:center; gap:10px; }
+  h2.sec::before { content:""; width:6px; height:20px; border-radius:3px; background:var(--primary); }
+  .sec-desc { font-size:12px; color:var(--muted); margin-bottom:20px; line-height:1.8; }
+
+  /* ---------- 设计令牌 ---------- */
+  .token-row { display:flex; gap:12px; flex-wrap:wrap; }
+  .swatch { width:118px; border-radius:var(--r-m); background:#fff; padding:10px; box-shadow:var(--shadow-1); }
+  .swatch .c { height:56px; border-radius:10px; }
+  .swatch .n { font-size:11px; font-weight:700; margin-top:8px; }
+  .swatch .v { font-size:10px; color:var(--faint); margin-top:2px; font-family:Consolas,monospace; }
+  .type-spec { background:#fff; border-radius:var(--r-l); box-shadow:var(--shadow-1); padding:24px 28px; margin-top:16px; }
+  .type-line { display:flex; align-items:baseline; gap:18px; padding:10px 0; border-bottom:1px dashed var(--line); }
+  .type-line:last-child { border-bottom:none; }
+  .type-meta { width:150px; flex:none; font-size:10px; color:var(--faint); font-family:Consolas,monospace; line-height:1.6; }
+  .radius-row { display:flex; gap:16px; margin-top:16px; }
+  .radius-demo { background:#fff; box-shadow:var(--shadow-1); width:120px; height:64px; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted); }
+
+  /* ---------- 手机壳 ---------- */
+  .phone-row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+  .phone-col { width:316px; }
+  .phone-cap { text-align:center; margin-top:12px; }
+  .phone-cap .t { font-size:13px; font-weight:700; }
+  .phone-cap .s { font-size:11px; color:var(--faint); margin-top:3px; }
+  .phone {
+    width:316px; height:640px; background:var(--bg);
+    border-radius:36px; border:6px solid #1F2B24; overflow:hidden; position:relative;
+    box-shadow: var(--shadow-2);
+    display:flex; flex-direction:column;
+  }
+  .p-status { height:30px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 20px; font-size:10px; font-weight:700; color:var(--ink); }
+  .p-status .cap-r { font-size:9px; letter-spacing:1px; }
+
+  /* 通用页面元素 */
+  .p-nav { padding:6px 20px 12px; }
+  .p-nav .t { font-size:22px; font-weight:800; color:var(--deep); letter-spacing:.5px; }
+  .p-nav .s { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:.5px; }
+  .p-body { flex:1; overflow:hidden; position:relative; padding:0 16px; }
+  .card { background:var(--card); border-radius:var(--r-l); box-shadow:var(--shadow-1); }
+  .sec-h { display:flex; align-items:center; justify-content:space-between; margin:16px 4px 8px; }
+  .sec-h .t { font-size:14px; font-weight:800; color:var(--deep); display:flex; align-items:center; gap:6px; }
+  .sec-h .t::before { content:""; width:4px; height:12px; border-radius:2px; background:var(--primary); opacity:.85; }
+  .sec-h .x { font-size:10.5px; color:var(--muted); }
+
+  /* tab bar */
+  .p-tabbar { flex:none; margin:8px 14px calc(10px + 4px); background:#fff; border-radius:999px; height:56px; box-shadow:0 -1px 2px rgba(31,43,36,.03), 0 10px 26px rgba(46,107,79,.14); display:flex; align-items:center; padding:0 6px; position:relative; }
+  .tb-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 0; border-radius:999px; position:relative; }
+  .tb-ico { width:20px; height:20px; border-radius:7px; }
+  .tb-item .lb { font-size:9px; color:var(--faint); font-weight:600; }
+  .tb-item.on { background:var(--soft); }
+  .tb-item.on .lb { color:var(--deep); font-weight:800; }
+
+  /* ================= 地图页 ================= */
+  .map-area { position:absolute; inset:0 16px 0 16px; bottom:0; border-radius:var(--r-l); background:linear-gradient(160deg,#E9F1D6,#DCEAC4 60%,#D3E4BB); overflow:hidden; }
+  .lake { position:absolute; right:-24px; top:38%; width:120px; height:88px; background:#C4DED8; border-radius:46% 54% 58% 42% / 52% 46% 54% 48%; }
+  .road { position:absolute; left:-10%; top:24%; width:130%; height:12px; background:#F4EFDD; transform:rotate(-7deg); border-radius:6px; }
+  .pin { position:absolute; width:14px; height:14px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); box-shadow:0 2px 5px rgba(31,43,36,.18); }
+  .pin::after { content:""; position:absolute; inset:3px; border-radius:50%; background:rgba(255,255,255,.85); }
+  .pin-free { background:var(--primary); }
+  .pin-mine { background:var(--gold); }
+  .pin-owned { background:#8FAF9B; }
+  .pin-hz { background:var(--warn); }
+  .map-f-search { position:absolute; left:12px; right:12px; top:12px; }
+  .f-search { background:#fff; border-radius:999px; height:38px; box-shadow:var(--shadow-1); display:flex; align-items:center; padding:0 14px; gap:8px; font-size:12px; color:var(--faint); }
+  .f-chips { display:flex; gap:8px; margin-top:10px; }
+  .f-chip { background:#fff; border-radius:999px; height:26px; padding:0 13px; display:flex; align-items:center; font-size:11px; color:var(--muted); box-shadow:var(--shadow-1); font-weight:600; }
+  .f-chip.on { background:var(--deep); color:#fff; }
+  .f-btns { position:absolute; right:12px; bottom:88px; display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+  .f-loc { width:38px; height:38px; border-radius:50%; background:#fff; box-shadow:var(--shadow-1); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--primary); }
+  .f-add { height:34px; border-radius:999px; background:var(--primary); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; padding:0 14px; gap:5px; box-shadow:0 6px 16px rgba(62,125,92,.35); }
+  .tree-detail { position:absolute; left:10px; right:10px; bottom:10px; background:#fff; border-radius:20px; box-shadow:var(--shadow-2); padding:14px; }
+  .td-top { display:flex; gap:12px; }
+  .td-thumb { width:56px; height:56px; border-radius:14px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .td-info { flex:1; }
+  .td-name { font-size:15px; font-weight:800; color:var(--ink); }
+  .td-meta { font-size:10.5px; color:var(--muted); margin-top:3px; }
+  .td-tag { display:inline-flex; margin-top:6px; background:var(--gold-bg); color:#8A6A3B; font-size:9.5px; font-weight:700; border-radius:999px; padding:3px 9px; }
+  .td-stats { display:flex; background:var(--mint); border-radius:12px; margin-top:12px; padding:9px 0; }
+  .td-stat { flex:1; text-align:center; }
+  .td-stat .k { font-size:9.5px; color:var(--muted); }
+  .td-stat .v { font-size:12.5px; font-weight:800; color:var(--ink); margin-top:2px; }
+  .td-cta { height:42px; border-radius:999px; background:var(--soft); color:var(--deep); font-size:13.5px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:12px; }
+  .td-link { text-align:center; font-size:10.5px; color:var(--muted); margin-top:9px; }
+  .td-link b { color:var(--warn); font-weight:700; }
+
+  /* ================= 日程页 ================= */
+  .energy-hero { background:linear-gradient(135deg,#2E6B4F,#3E7D5C 55%,#4E8F6C); border-radius:var(--r-l); padding:18px 18px 16px; color:#fff; position:relative; overflow:hidden; box-shadow:0 10px 24px rgba(46,107,79,.28); }
+  .energy-hero .leaf { position:absolute; right:-14px; top:-14px; font-size:74px; opacity:.14; transform:rotate(18deg); }
+  .eh-label { font-size:10.5px; opacity:.78; letter-spacing:1px; }
+  .eh-row { display:flex; align-items:flex-end; justify-content:space-between; margin-top:6px; }
+  .eh-num { font-size:44px; font-weight:800; line-height:1; letter-spacing:-1px; }
+  .eh-num i { font-style:normal; font-size:12px; font-weight:600; opacity:.7; margin-left:4px; letter-spacing:0; }
+  .eh-right { text-align:right; padding-bottom:4px; }
+  .eh-acc { font-size:14px; font-weight:800; }
+  .eh-acc-lb { font-size:9.5px; opacity:.65; margin-top:2px; }
+  .eh-bar { height:8px; border-radius:4px; background:rgba(255,255,255,.22); margin-top:14px; overflow:hidden; }
+  .eh-bar-in { width:64%; height:100%; border-radius:4px; background:linear-gradient(90deg,#F2C879,#EFC063); }
+  .eh-hint { font-size:9.5px; opacity:.66; margin-top:8px; }
+  .task-list { padding:6px 14px; }
+  .g-label { font-size:10px; color:var(--muted); letter-spacing:.6px; margin:10px 0 4px; font-weight:600; }
+  .t-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #F1F4EC; }
+  .t-row:last-child { border-bottom:none; }
+  .t-time { width:40px; font-size:10.5px; color:var(--faint); font-weight:600; }
+  .t-dot { width:7px; height:7px; border-radius:50%; background:var(--primary); flex:none; }
+  .t-dot.done { background:#CBDCC9; }
+  .t-main { flex:1; }
+  .t-title { font-size:13px; font-weight:700; }
+  .t-title.done { color:#9AA79C; text-decoration:line-through; text-decoration-color:#C6D2C6; }
+  .t-desc { font-size:10px; color:var(--muted); margin-top:3px; }
+  .t-pt { font-size:12px; font-weight:800; color:var(--primary); background:var(--soft); border-radius:999px; padding:3px 9px; flex:none; }
+  .t-pt.done { color:var(--muted); background:#F1F4EC; }
+  .week-card { padding:14px; }
+  .week-top { display:flex; justify-content:space-between; align-items:center; }
+  .streak { font-size:10px; color:var(--gold); background:var(--gold-bg); border-radius:999px; padding:3px 10px; font-weight:700; }
+  .bars { display:flex; align-items:flex-end; gap:9px; height:66px; margin-top:14px; }
+  .bar { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%; justify-content:flex-end; }
+  .bar .b { width:100%; border-radius:6px; background:#D8E8D2; }
+  .bar .b.mid { background:#9CC7AB; }
+  .bar .b.on { background:linear-gradient(180deg,#4E9A70,#3E7D5C); box-shadow:0 3px 8px rgba(62,125,92,.3); }
+  .bar .d { font-size:8.5px; color:var(--faint); }
+  .bar.on .d { color:var(--deep); font-weight:700; }
+  .ai-ask { margin-top:14px; background:#fff; border:1.5px dashed #BFD6C3; border-radius:var(--r-m); padding:13px 16px; display:flex; align-items:center; gap:10px; }
+  .ai-ask .ic { font-size:17px; }
+  .ai-ask .t { font-size:12.5px; font-weight:700; color:var(--deep); }
+  .ai-ask .s { font-size:9.5px; color:var(--muted); margin-top:2px; }
+
+  /* ================= 林地页 ================= */
+  .forest-hero { padding:16px; position:relative; overflow:hidden; }
+  .fh-top { display:flex; justify-content:space-between; align-items:center; }
+  .fh-name { font-size:16px; font-weight:800; }
+  .fh-meta { font-size:10.5px; color:var(--muted); margin-top:4px; }
+  .lv-pill { background:var(--soft); color:var(--deep); font-size:10px; font-weight:800; border-radius:999px; padding:5px 11px; }
+  .stage { height:132px; display:flex; align-items:center; justify-content:center; position:relative; margin-top:4px; }
+  .stage-halo { width:118px; height:118px; border-radius:50%; background:radial-gradient(circle at 50% 38%, #E4F1DA, #D3E7C4 70%, transparent 71%); display:flex; align-items:center; justify-content:center; font-size:64px; }
+  .weather { position:absolute; right:2px; top:8px; background:#fff; border-radius:999px; padding:5px 11px; font-size:9.5px; color:var(--muted); box-shadow:var(--shadow-1); }
+  .growth-row { display:flex; justify-content:space-between; align-items:baseline; margin-top:6px; }
+  .growth-lb { font-size:11px; font-weight:800; }
+  .growth-hint { font-size:9.5px; color:var(--muted); }
+  .gbar { height:8px; background:#EDF2E7; border-radius:4px; margin-top:8px; overflow:hidden; }
+  .gbar-in { width:62%; height:100%; border-radius:4px; background:linear-gradient(90deg,#5FA97F,#3E7D5C); }
+  .acts { display:flex; gap:9px; margin-top:14px; }
+  .act { flex:1; background:var(--mint); border-radius:var(--r-m); padding:11px 6px 9px; text-align:center; }
+  .act .ic { font-size:19px; }
+  .act .t { font-size:11.5px; font-weight:800; color:var(--deep); margin-top:5px; }
+  .act .n { font-size:8.5px; color:var(--muted); margin-top:3px; line-height:1.4; }
+  .kit-row { display:flex; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid #F1F4EC; }
+  .kit-row:last-child { border-bottom:none; }
+  .k-dot { width:8px; height:8px; border-radius:50%; background:var(--primary); flex:none; }
+  .k-t { flex:1; font-size:12.5px; font-weight:700; }
+  .k-claim { flex:none; background:linear-gradient(135deg,#E8B04B,#D99C2B); color:#fff; font-size:10.5px; font-weight:800; border-radius:999px; padding:6px 12px; box-shadow:0 4px 10px rgba(217,156,43,.35); }
+  .k-claim.off { background:#EDF2E7; color:var(--faint); box-shadow:none; }
+  .rank-row { display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:12px; }
+  .rank-row.mine { background:var(--mint); }
+  .r-no { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; background:#EEF2E9; color:var(--muted); flex:none; }
+  .r-no.g { background:linear-gradient(135deg,#F2CE8B,#E0AC4B); color:#7A5410; }
+  .r-no.s { background:#E2E7E0; color:#5E6B60; }
+  .r-no.b { background:#EDD6C4; color:#8A5A36; }
+  .r-main { flex:1; }
+  .r-name { font-size:12px; font-weight:800; }
+  .r-sub { font-size:9px; color:var(--muted); margin-top:2px; }
+  .r-lv { font-size:9px; font-weight:800; color:var(--primary); background:var(--soft); border-radius:999px; padding:3px 8px; }
+  .r-score { width:36px; text-align:right; font-size:10.5px; color:var(--muted); font-weight:700; }
+
+  /* ================= 我的页 ================= */
+  .me-hero { background:linear-gradient(160deg,#E9F2E4,#F4F8EE); margin:0 16px; border-radius:24px; padding:18px 16px 16px; }
+  .mh-sub { font-size:10px; color:#7E8C82; letter-spacing:.6px; }
+  .mh-row { display:flex; align-items:center; gap:13px; margin-top:12px; }
+  .mh-avatar { width:54px; height:54px; border-radius:50%; background:#fff; box-shadow:var(--shadow-1); display:flex; align-items:center; justify-content:center; font-size:26px; border:2.5px solid var(--gold-bg); }
+  .mh-name { font-size:18px; font-weight:800; color:var(--deep); }
+  .mh-line1 { font-size:10.5px; color:#3D5A48; font-weight:700; margin-top:3px; }
+  .mh-line2 { font-size:9.5px; color:#7E8C82; margin-top:2px; }
+  .mh-edit { margin-left:auto; font-size:10px; color:var(--primary); background:#fff; border-radius:999px; padding:6px 12px; font-weight:700; box-shadow:var(--shadow-1); }
+  .stats-card { margin:12px 16px 0; padding:14px 6px; display:flex; }
+  .st { flex:1; text-align:center; position:relative; }
+  .st+.st::before { content:""; position:absolute; left:0; top:6px; bottom:6px; width:1px; background:var(--line); }
+  .st .n { font-size:19px; font-weight:800; color:var(--deep); }
+  .st .n.gold { color:var(--gold); }
+  .st .l { font-size:9px; color:var(--muted); margin-top:4px; }
+  .badges { display:flex; gap:10px; margin:0 16px; }
+  .bd { flex:1; background:#fff; border-radius:var(--r-m); box-shadow:var(--shadow-1); padding:11px 4px 9px; text-align:center; }
+  .bd.off { opacity:.5; filter:grayscale(1); }
+  .bd .ic { font-size:22px; }
+  .bd .t { font-size:9px; color:var(--muted); margin-top:5px; font-weight:600; }
+  .tree-row { display:flex; align-items:center; gap:11px; padding:11px 13px; }
+  .tr-thumb { width:46px; height:46px; border-radius:13px; background:var(--mint); display:flex; align-items:center; justify-content:center; font-size:23px; flex:none; }
+  .tr-main { flex:1; }
+  .tr-name { font-size:12.5px; font-weight:800; }
+  .tr-sub { font-size:9.5px; color:var(--muted); margin-top:3px; }
+  .tr-go { font-size:10px; font-weight:800; color:var(--deep); background:var(--soft); border-radius:999px; padding:6px 12px; }
+  .goods { display:flex; gap:11px; margin:0 16px; }
+  .gd { flex:1; background:#fff; border-radius:var(--r-m); box-shadow:var(--shadow-1); padding:9px; }
+  .gd-img { height:74px; border-radius:11px; background:linear-gradient(150deg,#F6EFD8,#EFE4C2); display:flex; align-items:center; justify-content:center; font-size:30px; }
+  .gd.g2 .gd-img { background:linear-gradient(150deg,#E4F0D9,#D4E7C3); }
+  .gd-name { font-size:11.5px; font-weight:800; margin-top:8px; }
+  .gd-cost { font-size:9.5px; color:var(--gold); font-weight:700; margin-top:3px; }
+
+  /* ================= 弹窗 ================= */
+  .mask { position:absolute; inset:0; background:rgba(26,36,30,.4); display:flex; align-items:flex-end; z-index:5; border-radius:0; }
+  .sheet { width:100%; background:#fff; border-radius:24px 24px 0 0; padding:10px 18px 26px; animation:up .3s var(--ease); }
+  @keyframes up { from { transform:translateY(40px); opacity:.4; } to { transform:none; opacity:1; } }
+  .grab { width:36px; height:4px; border-radius:2px; background:#DFE5DB; margin:0 auto 12px; }
+  .sh-t { font-size:17px; font-weight:800; color:var(--ink); }
+  .sh-s { font-size:10.5px; color:var(--muted); margin-top:5px; }
+  .field { background:var(--mint); border-radius:13px; padding:11px 13px; margin-top:11px; display:flex; align-items:center; gap:10px; }
+  .field .lb { font-size:11px; color:var(--muted); flex:none; }
+  .field .v { font-size:13px; font-weight:700; color:var(--ink); }
+  .field .v.dim { color:var(--faint); font-weight:400; }
+  .btn-main { height:46px; border-radius:999px; background:linear-gradient(135deg,#4A8A66,#3E7D5C); color:#fff; font-size:14.5px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:14px; box-shadow:0 8px 18px rgba(62,125,92,.3); }
+  .btn-soft { height:46px; border-radius:999px; background:var(--soft); color:var(--deep); font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-top:11px; }
+  .result-badge { display:flex; justify-content:center; margin-top:6px; }
+  .rb { background:var(--soft); color:var(--primary); font-size:11px; font-weight:800; border-radius:999px; padding:6px 14px; }
+  .rb.warn { background:var(--warn-bg); color:var(--warn); }
+  .rb.gold { background:var(--gold-bg); color:var(--gold); }
+  .big-num { text-align:center; font-size:36px; font-weight:800; color:var(--deep); margin-top:10px; letter-spacing:-.5px; }
+  .big-num i { font-style:normal; font-size:12px; color:var(--muted); font-weight:600; margin-left:3px; }
+  .big-lb { text-align:center; font-size:10px; color:var(--muted); margin-top:3px; }
+  .code-box { background:var(--mint); border-radius:15px; padding:15px; text-align:center; margin-top:13px; border:1.5px dashed #C9DCC9; }
+  .code-lb { font-size:9.5px; color:var(--muted); letter-spacing:1px; }
+  .code-v { font-size:21px; font-weight:800; color:var(--deep); margin-top:5px; letter-spacing:2px; }
+  .hazard-img { height:96px; border-radius:13px; background:linear-gradient(150deg,#E8EFE0,#D8E4CC); margin-top:13px; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; overflow:hidden; }
+  .hazard-img .lv { position:absolute; left:9px; top:9px; background:rgba(217,108,82,.92); color:#fff; font-size:9.5px; font-weight:800; border-radius:999px; padding:3px 10px; }
+
+  /* ---------- 动效清单 ---------- */
+  .motion-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .mo-card { background:#fff; border-radius:var(--r-m); box-shadow:var(--shadow-1); padding:16px 18px; }
+  .mo-card .n { font-size:13px; font-weight:800; color:var(--deep); }
+  .mo-card .w { font-size:10px; color:var(--gold); font-weight:700; margin-left:8px; }
+  .mo-card .d { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.7; }
+  .mo-card .p { font-size:10px; color:var(--faint); margin-top:6px; font-family:Consolas,monospace; }
+
+  /* ---------- 实施范围 ---------- */
+  .impl { background:#fff; border-radius:var(--r-l); box-shadow:var(--shadow-1); padding:22px 26px; }
+  .impl table { width:100%; border-collapse:collapse; font-size:12px; }
+  .impl th { text-align:left; color:var(--muted); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--line); font-size:11px; }
+  .impl td { padding:9px 10px; border-bottom:1px solid #F3F5EF; vertical-align:top; line-height:1.6; }
+  .impl td.f { font-family:Consolas,monospace; font-size:11px; color:var(--deep); white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="doc-head">
+    <span class="doc-tag">DESIGN DRAFT · 待确认</span>
+    <h1>中大森友会 · 视觉升级设计稿 v6</h1>
+    <p>保持现有四页信息架构、功能与数据逻辑完全不动，只做视觉与动效层面的升级：统一设计令牌、重建字体层级、精修每张卡片与每个弹窗，并补齐必要的微动效。本稿所有内容均来自真实页面的真实文案与数据结构。</p>
+  </div>
+
+  <!-- ============ 1. 设计令牌 ============ -->
+  <h2 class="sec">01 · 设计令牌（Design Tokens）</h2>
+  <p class="sec-desc">在现有绿色系基础上微调：主绿加深一档提升对比度与"护林"质感，金色只用于护林币与成就，警示色统一为陶土红。全部收敛为下面这一套，替换散落在各 wxss 里的近似色。</p>
+  <div class="token-row">
+    <div class="swatch"><div class="c" style="background:#FAF7F0"></div><div class="n">页面底 · 暖纸白</div><div class="v">#FAF7F0</div></div>
+    <div class="swatch"><div class="c" style="background:#FFFFFF;box-shadow:inset 0 0 0 1px #eee"></div><div class="n">卡片 · 纯白</div><div class="v">#FFFFFF</div></div>
+    <div class="swatch"><div class="c" style="background:#245A41"></div><div class="n">深绿 · 标题/主文</div><div class="v">#245A41</div></div>
+    <div class="swatch"><div class="c" style="background:#3E7D5C"></div><div class="n">主绿 · 按钮/选中</div><div class="v">#3E7D5C</div></div>
+    <div class="swatch"><div class="c" style="background:#E9F2E4"></div><div class="n">浅绿面 · 胶囊底</div><div class="v">#E9F2E4</div></div>
+    <div class="swatch"><div class="c" style="background:#D99C2B"></div><div class="n">护林金 · 币/成就</div><div class="v">#D99C2B</div></div>
+    <div class="swatch"><div class="c" style="background:#D96C52"></div><div class="n">陶土红 · 隐患/警示</div><div class="v">#D96C52</div></div>
+    <div class="swatch"><div class="c" style="background:#1F2B24"></div><div class="n">墨绿黑 · 正文</div><div class="v">#1F2B24</div></div>
+  </div>
+  <div class="type-spec">
+    <div class="type-line"><div class="type-meta">Display 44px / 800<br>数字主视觉</div><div style="font-size:40px;font-weight:800;color:#245A41;letter-spacing:-1px;">68 <span style="font-size:12px;color:#7E8A80;font-weight:600">分</span></div></div>
+    <div class="type-line"><div class="type-meta">H1 22px / 800<br>页面标题</div><div style="font-size:22px;font-weight:800;color:#245A41;">森友地图</div></div>
+    <div class="type-line"><div class="type-meta">H2 16px / 800<br>卡片标题/弹窗标题</div><div style="font-size:16px;font-weight:800;">今日日程</div></div>
+    <div class="type-line"><div class="type-meta">Body 13px / 400-700<br>列表正文</div><div style="font-size:13px;">步行去教学楼，顺手带走外卖包装</div></div>
+    <div class="type-line"><div class="type-meta">Caption 11px / 400<br>辅助说明</div><div style="font-size:11px;color:#7E8A80;">今日目标 100 分 · 已完成 64%</div></div>
+    <div class="type-line"><div class="type-meta">Micro 9.5px / 600<br>标签/角注</div><div style="font-size:9.5px;color:#AEB6AD;letter-spacing:.5px;">连续 3 天 · 南校园</div></div>
+  </div>
+  <div class="radius-row">
+    <div class="radius-demo" style="border-radius:10px;">r-s 10<br>输入框/小件</div>
+    <div class="radius-demo" style="border-radius:16px;">r-m 16<br>内嵌卡/瓷贴</div>
+    <div class="radius-demo" style="border-radius:22px;">r-l 22<br>页面大卡</div>
+    <div class="radius-demo" style="border-radius:999px;">pill 999<br>按钮/胶囊</div>
+  </div>
+
+  <!-- ============ 2. 四个主页 ============ -->
+  <h2 class="sec">02 · 四个主页</h2>
+  <p class="sec-desc">布局骨架保持不变，重点：①日程页"今日碳积分"升级为深绿渐变主视觉卡，给页面一个锚点；②所有卡片统一双层柔影 + 4px 内缩层级；③徽章、领取、时段等小件全部重绘为令牌化组件。</p>
+  <div class="phone-row">
+
+    <!-- 地图 -->
+    <div class="phone-col">
+      <div class="phone">
+        <div class="p-status"><span>9:41</span><span class="cap-r">●●●</span></div>
+        <div class="p-nav"><div class="t">森友地图</div><div class="s">南校园 · 12 棵树在册</div></div>
+        <div class="p-body">
+          <div class="map-area">
+            <div class="road"></div><div class="lake"></div>
+            <div class="pin pin-free" style="left:18%;top:30%"></div>
+            <div class="pin pin-mine" style="left:44%;top:52%"></div>
+            <div class="pin pin-owned" style="left:66%;top:26%"></div>
+            <div class="pin pin-free" style="left:76%;top:60%"></div>
+            <div class="pin pin-hz" style="left:30%;top:70%"></div>
+            <div class="map-f-search">
+              <div class="f-search">🔍 搜树名 / 树种</div>
+              <div class="f-chips"><div class="f-chip on">全部</div><div class="f-chip">我认养的</div><div class="f-chip">已认养</div><div class="f-chip">待认养</div></div>
+            </div>
+            <div class="f-btns">
+              <div class="f-loc">◎</div>
+              <div class="f-add">＋ 新增树木</div>
+            </div>
+            <div class="tree-detail">
+              <div class="td-top">
+                <div class="td-thumb">🌳</div>
+                <div class="td-info">
+                  <div class="td-name">图书馆西侧 · 香樟</div>
+                  <div class="td-meta">香樟 · 树龄 35 年 · 距你 120 m</div>
+                  <div class="td-tag">我认养的，可去养护</div>
+                </div>
+              </div>
+              <div class="td-stats">
+                <div class="td-stat"><div class="k">认养人</div><div class="v">林间拾光</div></div>
+                <div class="td-stat"><div class="k">成长值</div><div class="v">620</div></div>
+                <div class="td-stat"><div class="k">等级</div><div class="v">Lv.3</div></div>
+              </div>
+              <div class="td-cta">已认养 · 去给它浇水</div>
+              <div class="td-link">发现异常？<b>拍照上报</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="p-tabbar">
+          <div class="tb-item on"><div class="tb-ico" style="background:#3E7D5C"></div><div class="lb">地图</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">日程</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">林地</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">我的</div></div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">地图 · 认养</div><div class="s">详情卡浮层 + 令牌化 pin 配色</div></div>
+    </div>
+
+    <!-- 日程 -->
+    <div class="phone-col">
+      <div class="phone">
+        <div class="p-status"><span>9:41</span><span class="cap-r">●●●</span></div>
+        <div class="p-nav"><div class="t">低碳日程</div><div class="s">11月4日 · 周三</div></div>
+        <div class="p-body" style="overflow:hidden;">
+          <div class="energy-hero">
+            <div class="leaf">🍃</div>
+            <div class="eh-label">今日碳积分</div>
+            <div class="eh-row">
+              <div class="eh-num">68<i>分</i></div>
+              <div class="eh-right"><div class="eh-acc">1,240 g</div><div class="eh-acc-lb">累计少排 CO₂e</div></div>
+            </div>
+            <div class="eh-bar"><div class="eh-bar-in"></div></div>
+            <div class="eh-hint">今日目标 100 分 · 已完成 64%</div>
+          </div>
+          <div class="sec-h"><div class="t">今日日程</div><div class="x" style="color:#3E7D5C;font-weight:800;">＋ 新建</div></div>
+          <div class="card task-list">
+            <div class="g-label">上午 · 08:00 - 11:35</div>
+            <div class="t-row"><div class="t-time">08:00</div><div class="t-dot done"></div><div class="t-main"><div class="t-title done">步行去教学楼</div><div class="t-desc">3.2 km · 少排约 180 g</div></div><div class="t-pt done">+20</div></div>
+            <div class="t-row"><div class="t-time">11:35</div><div class="t-dot done"></div><div class="t-main"><div class="t-title done">光盘行动午餐</div><div class="t-desc">不剩饭菜 · 少排约 90 g</div></div><div class="t-pt done">+15</div></div>
+            <div class="g-label">下午 · 14:00 - 16:20</div>
+            <div class="t-row"><div class="t-time">14:00</div><div class="t-dot"></div><div class="t-main"><div class="t-title">自带水杯去图书馆</div><div class="t-desc">不买瓶装水 · 少排约 80 g</div></div><div class="t-pt">+10</div></div>
+          </div>
+          <div class="sec-h"><div class="t">本周碳账本</div><div class="streak">连续 3 天</div></div>
+          <div class="card week-card">
+            <div class="bars">
+              <div class="bar"><div class="b" style="height:22%"></div><div class="d">一</div></div>
+              <div class="bar"><div class="b mid" style="height:48%"></div><div class="d">二</div></div>
+              <div class="bar"><div class="b mid" style="height:36%"></div><div class="d">三</div></div>
+              <div class="bar"><div class="b" style="height:12%"></div><div class="d">四</div></div>
+              <div class="bar"><div class="b mid" style="height:58%"></div><div class="d">五</div></div>
+              <div class="bar"><div class="b" style="height:30%"></div><div class="d">六</div></div>
+              <div class="bar on"><div class="b on" style="height:72%"></div><div class="d">日</div></div>
+            </div>
+          </div>
+          <div class="ai-ask"><div class="ic">✨</div><div><div class="t">今天还能再省多少？</div><div class="s">让 AI 看看剩下的日程怎么排更低碳</div></div></div>
+        </div>
+        <div class="p-tabbar">
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">地图</div></div>
+          <div class="tb-item on"><div class="tb-ico" style="background:#3E7D5C"></div><div class="lb">日程</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">林地</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">我的</div></div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">低碳日程</div><div class="s">深绿能量主卡 + 周账本重绘</div></div>
+    </div>
+
+    <!-- 林地 -->
+    <div class="phone-col">
+      <div class="phone">
+        <div class="p-status"><span>9:41</span><span class="cap-r">●●●</span></div>
+        <div class="p-nav"><div class="t">我的林地</div><div class="s">在养 1 棵 · 成长值 620</div></div>
+        <div class="p-body" style="overflow:hidden;">
+          <div class="card forest-hero">
+            <div class="fh-top">
+              <div><div class="fh-name">中大樟树</div><div class="fh-meta">香樟 · 树龄 35 年</div></div>
+              <div class="lv-pill">Lv.2 绿叶守卫</div>
+            </div>
+            <div class="stage">
+              <div class="stage-halo">🌳</div>
+              <div class="weather">🍃 今天风大，叶子有点痒～</div>
+            </div>
+            <div class="growth-row"><div class="growth-lb">成长值 620 / 1000</div><div class="growth-hint">再涨 280 升 Lv.3</div></div>
+            <div class="gbar"><div class="gbar-in"></div></div>
+            <div class="acts">
+              <div class="act"><div class="ic">💧</div><div class="t">浇水</div><div class="n">成长 +20<br>耗 10 积分</div></div>
+              <div class="act"><div class="ic">🌱</div><div class="t">施肥</div><div class="n">成长 +50<br>耗 20 积分</div></div>
+              <div class="act"><div class="ic">📷</div><div class="t">生长实拍</div><div class="n">成长 +30<br>每 30 天一次</div></div>
+            </div>
+          </div>
+          <div class="sec-h"><div class="t">成长任务</div></div>
+          <div class="card" style="padding:4px 14px;">
+            <div class="kit-row"><div class="k-dot"></div><div class="k-t">给树浇一次水</div><div class="k-claim">领取 +15 币</div></div>
+            <div class="kit-row"><div class="k-dot"></div><div class="k-t">给树施一次肥</div><div class="k-claim off">待完成</div></div>
+            <div class="kit-row"><div class="k-dot"></div><div class="k-t">上传一张生长实拍</div><div class="k-claim off">已领取</div></div>
+          </div>
+          <div class="sec-h"><div class="t">同校树木等级榜</div><div class="x">我的排名 #4</div></div>
+          <div class="card" style="padding:6px 10px;">
+            <div class="rank-row"><div class="r-no g">1</div><div class="r-main"><div class="r-name">榕园老榕</div><div class="r-sub">林间拾光</div></div><div class="r-lv">Lv.4</div><div class="r-score">980</div></div>
+            <div class="rank-row"><div class="r-no s">2</div><div class="r-main"><div class="r-name">逸仙大道 · 樟</div><div class="r-sub">绿色足迹</div></div><div class="r-lv">Lv.3</div><div class="r-score">740</div></div>
+            <div class="rank-row mine"><div class="r-no">4</div><div class="r-main"><div class="r-name">中大樟树</div><div class="r-sub">我</div></div><div class="r-lv">Lv.2</div><div class="r-score">620</div></div>
+          </div>
+        </div>
+        <div class="p-tabbar">
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">地图</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">日程</div></div>
+          <div class="tb-item on"><div class="tb-ico" style="background:#3E7D5C"></div><div class="lb">林地</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">我的</div></div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">我的林地</div><div class="s">舞台式树卡 + 金色领取胶囊</div></div>
+    </div>
+
+    <!-- 我的 -->
+    <div class="phone-col">
+      <div class="phone">
+        <div class="p-status"><span>9:41</span><span class="cap-r">●●●</span></div>
+        <div style="height:10px"></div>
+        <div class="p-body" style="overflow:hidden;">
+          <div class="me-hero">
+            <div class="mh-sub">南校园 · 护林第 47 天</div>
+            <div class="mh-row">
+              <div class="mh-avatar">🐻</div>
+              <div>
+                <div class="mh-name">林间拾光</div>
+                <div class="mh-line1">Lv.3 护林人 · 初识护林员</div>
+                <div class="mh-line2">已点亮 3 / 6 枚勋章</div>
+              </div>
+              <div class="mh-edit">编辑资料</div>
+            </div>
+          </div>
+          <div class="card stats-card">
+            <div class="st"><div class="n">1,860</div><div class="l">可用碳积分</div></div>
+            <div class="st"><div class="n">2,340</div><div class="l">累计成长值</div></div>
+            <div class="st"><div class="n">1<i style="font-style:normal;font-size:10px;color:#7E8A80">棵</i></div><div class="l">我的树</div></div>
+            <div class="st"><div class="n gold">128</div><div class="l">护林币</div></div>
+          </div>
+          <div class="sec-h"><div class="t">勋章墙 · 3 / 6</div><div class="x">全部勋章 ›</div></div>
+          <div class="badges">
+            <div class="bd"><div class="ic">🌱</div><div class="t">初次认养</div></div>
+            <div class="bd"><div class="ic">💧</div><div class="t">浇水新手</div></div>
+            <div class="bd"><div class="ic">📸</div><div class="t">成长记录</div></div>
+            <div class="bd off"><div class="ic">🏅</div><div class="t">护林达人</div></div>
+          </div>
+          <div class="sec-h"><div class="t">我的林地 · 在养 1 棵</div></div>
+          <div class="card tree-row" style="margin:0 16px;">
+            <div class="tr-thumb">🌳</div>
+            <div class="tr-main"><div class="tr-name">中大樟树</div><div class="tr-sub">Lv.2 · 成长值 620 / 1000</div></div>
+            <div class="tr-go">去养护</div>
+          </div>
+          <div class="sec-h"><div class="t">森林补给站</div></div>
+          <div class="goods">
+            <div class="gd"><div class="gd-img">🗒️</div><div class="gd-name">种子笔记本</div><div class="gd-cost">80 护林币</div></div>
+            <div class="gd g2"><div class="gd-img">🧴</div><div class="gd-name">护林帆布袋</div><div class="gd-cost">120 护林币</div></div>
+          </div>
+        </div>
+        <div class="p-tabbar">
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">地图</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">日程</div></div>
+          <div class="tb-item"><div class="tb-ico" style="background:#DFE5DB"></div><div class="lb">林地</div></div>
+          <div class="tb-item on"><div class="tb-ico" style="background:#3E7D5C"></div><div class="lb">我的</div></div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">我的 · 补给站</div><div class="s">英雄区 + 四格统计卡</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 3. 弹窗 ============ -->
+  <h2 class="sec">03 · 弹窗与浮层</h2>
+  <p class="sec-desc">所有底部弹层统一增加顶部"抓手"（grabber），标题 17px/800、副标题 11px、按钮高度 46px 圆角胶囊。下面是四个高频弹窗的定稿样式，其余弹窗（编辑资料 / 勋章馆 / 兑换记录 / 新增树木表单）按同一套规范执行。</p>
+  <div class="phone-row">
+
+    <div class="phone-col">
+      <div class="phone" style="background:#EFEDE4;">
+        <div style="flex:1;position:relative;">
+          <div class="mask">
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="sh-t">添加今日日程</div>
+              <div class="sh-s">写下要做的事 · 今日已排 4 / 10</div>
+              <div class="field"><div class="lb">要做的事</div><div class="v dim">如：去教学楼上课</div></div>
+              <div class="field"><div class="lb">时间</div><div class="v">14:30</div></div>
+              <div class="btn-main">创建日程</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">添加日程</div><div class="s">表单弹窗</div></div>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" style="background:#EFEDE4;">
+        <div style="flex:1;position:relative;">
+          <div class="mask">
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="result-badge"><div class="rb">✓ 核验通过</div></div>
+              <div class="big-num">320<i>g</i></div>
+              <div class="big-lb">本次减少碳排放</div>
+              <div class="field" style="display:block;"><div style="font-size:11.5px;color:#5C6B60;line-height:1.7;">照片里清晰看到你自带水杯在图书馆接水，做法属实。坚持自带水杯一周约可再减 560 g。</div></div>
+              <div class="btn-main">领取 20 积分</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">核验结果</div><div class="s">结果弹窗 · 大数字</div></div>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" style="background:#EFEDE4;">
+        <div style="flex:1;position:relative;">
+          <div class="mask">
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="sh-t">AI 巡检结果</div>
+              <div class="sh-s">工单号 GD-20261104-017</div>
+              <div class="hazard-img">🌴<div class="lv">II 级预警</div></div>
+              <div class="field" style="display:block;"><div style="font-size:11.5px;color:#5C6B60;line-height:1.7;">树冠顶部存在 3 处枯叶悬垂，风力 5 级以上有坠落风险。</div></div>
+              <div class="field" style="display:block;"><div style="font-size:11.5px;color:#5C6B60;line-height:1.7;">建议处理：48 小时内安排高空作业清理枯叶。</div></div>
+              <div class="btn-main">提交后勤工单 · 领 100 积分</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">隐患上报</div><div class="s">AI 巡检结果弹窗</div></div>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" style="background:#EFEDE4;">
+        <div style="flex:1;position:relative;">
+          <div class="mask">
+            <div class="sheet">
+              <div class="grab"></div>
+              <div class="result-badge"><div class="rb gold">🎉 兑换成功</div></div>
+              <div class="big-num" style="font-size:22px;">种子笔记本</div>
+              <div class="big-lb">已扣除 80 护林币</div>
+              <div class="code-box">
+                <div class="code-lb">兑换凭证码</div>
+                <div class="code-v">SY-8F2K-91</div>
+              </div>
+              <div class="btn-soft">收好了</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-cap"><div class="t">兑换成功</div><div class="s">凭证码弹窗</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 4. 动效 ============ -->
+  <h2 class="sec">04 · 动效清单（建议新增 / 修正）</h2>
+  <p class="sec-desc">原则：所有动效 ≤ 300ms、只动 transform 与 opacity（不触发重排）、尊重"切页不抢戏"。第 1 条是本次卡帧修复的核心。</p>
+  <div class="motion-grid">
+    <div class="mo-card"><span class="n">① Tab 切页入场（修卡帧）</span><span class="w">P0</span><div class="d">根因见对话结论：预置动画的 setData 未等渲染层生效就执行了 switchTab，首帧仍显示旧画面，随后跳到动画起点，看起来像"一帧重复"。修复后统一为 240ms 位移 24px + 淡入，地图页保持纯淡入。</div><div class="p">ease-out-cubic / 240ms / translateX(24px)→0 + opacity</div></div>
+    <div class="mo-card"><span class="n">② 弹层弹入 + 遮罩淡入</span><span class="w">P1</span><div class="d">sheet 从底部 32px 上滑 + 遮罩 200ms 淡入；关闭反向 180ms。现有页面弹窗是瞬时出现，这是"AI 感"的主要来源之一。</div><div class="p">sheet 260ms cubic-bezier(.22,.9,.35,1) / mask 200ms</div></div>
+    <div class="mo-card"><span class="n">③ 按压反馈</span><span class="w">P1</span><div class="d">所有可点卡片与按钮 hover-class 压缩 scale(0.97) + 阴影收紧，松手回弹。给全局一致的"手感"。</div><div class="p">scale .97 / 120ms</div></div>
+    <div class="mo-card"><span class="n">④ 进度条生长</span><span class="w">P1</span><div class="d">碳积分 / 成长值进度条在页面入场后从 0 生长到目标值，一次触发，不循环。</div><div class="p">width 600ms ease-out / onShow 触发一次</div></div>
+    <div class="mo-card"><span class="n">⑤ 卡片列表阶梯入场</span><span class="w">P2</span><div class="d">页面首屏卡片依次上浮淡入（延迟 60ms 递增），只在前 4 张生效，避免滚动区卡顿。</div><div class="p">translateY(14px)→0 / 260ms / stagger 60ms</div></div>
+    <div class="mo-card"><span class="n">⑥ 可领取徽章呼吸</span><span class="w">P2</span><div class="d">林地页"领取 +N 护林币"金色胶囊 2s 呼吸一次（阴影+亮度），引导点击；已领取/待完成不动画。</div><div class="p">2.2s ease-in-out infinite / 仅 claimable 态</div></div>
+    <div class="mo-card"><span class="n">⑦ 树灵气泡轻浮</span><span class="w">P2</span><div class="d">林地页树灵天气气泡 3s 上下 2px 浮动，配合树插画轻微摇摆，让页面"活"但克制。</div><div class="p">translateY ±2px / 3s loop</div></div>
+    <div class="mo-card"><span class="n">⑧ tabBar 切换</span><span class="w">P1</span><div class="d">选中胶囊背景用 transition 平滑变色（现有 chip 已有此处理，tabBar 没有）；图标 140ms 微缩放回弹。</div><div class="p">bg 180ms / icon scale 1→1.12→1</div></div>
+  </div>
+
+  <!-- ============ 5. 实施范围 ============ -->
+  <h2 class="sec">05 · 落地实施范围（确认后执行）</h2>
+  <div class="impl">
+    <table>
+      <tr><th>文件</th><th>改动</th><th>风险</th></tr>
+      <tr><td class="f">common/util.js</td><td>armTabAnim 支持回调：预置动画的 setData 等渲染层生效后再触发 switchTab；pageEnter 增加首次进入兜底（onLoad 预置淡入）</td><td>低 · 只动切换时序</td></tr>
+      <tr><td class="f">custom-tab-bar/index.js</td><td>go() 改为等预置动画落地后再 switchTab；选中胶囊加 transition</td><td>低</td></tr>
+      <tr><td class="f">app.wxss</td><td>收敛设计令牌（色/字阶/圆角/阴影/动效时长），更新 sheet 通用件：抓手、按钮 46px、按压反馈类</td><td>中 · 四页共用，改完逐页核对</td></tr>
+      <tr><td class="f">pages/*/*.wxss</td><td>按设计稿调整字体层级、间距、卡片阴影；新增 ④⑤⑥⑦ 动效类；不改 wxml 结构与 js 逻辑</td><td>低 · 样式层</td></tr>
+      <tr><td class="f">components/sheet、nav-bar 及 map 组件</td><td>统一弹窗抓手/圆角/阴影；导航栏字阶按令牌</td><td>低</td></tr>
+      <tr><td class="f">不动的部分</td><td>common/store.js、db.js、mock.js、各页 js 业务逻辑、wxml 结构（除必要的动画 class 挂点）一律不动</td><td>—</td></tr>
+    </table>
+    <p style="font-size:11px;color:#7E8A80;margin-top:14px;line-height:1.8;">⚠ 说明：① 修复后需要在微信开发者工具 + 真机各验证一次四页互切（A↔B、A↔C、跳角切换共 12 条路径）；② 字体仍用现有 HYSans 子集，不新增字体文件，包体积不变；③ 所有动效只动 transform/opacity，低端机不掉帧。</p>
+  </div>
+
+</div>
+</body>
+</html>

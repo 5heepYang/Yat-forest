@@ -9,7 +9,7 @@
 		<text class="slogan">认养一棵真树 · 见证它慢慢长大</text>
 
 		<view class="panel">
-			<view class="login-btn {{entering ? 'login-btn-mute' : ''}}" bindtap="onWxLogin">
+			<view class="login-btn {{entering ? 'login-btn-mute' : ''}}" hover-class="hv-press" bindtap="onWxLogin">
 				<text class="login-btn-t">{{entering ? '正在进入…' : '微信一键登录'}}</text>
 			</view>
 			<text class="tip">登录即开通护林员档案，昵称头像可稍后在「我的」页设置</text>

@@ -42,11 +42,11 @@
 			</view>
 		</view>
 
-		<view class="loc-btn" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onLocate">
+		<view class="loc-btn" hover-class="hv-press" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onLocate">
 			<image class="loc-ic" src="/pages/map/assets/loc-green.png"></image>
 		</view>
 
-		<view class="add-tree-btn" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onAddTree">
+		<view class="add-tree-btn" hover-class="hv-press" wx:if="{{!showCard && !showUpload && !pickMode}}" bindtap="onAddTree">
 			<image class="add-tree-ic" src="/pages/map/assets/plus-white.png"></image>
 			<text class="add-tree-t">新增树木</text>
 		</view>

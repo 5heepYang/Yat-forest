@@ -1,7 +1,7 @@
 const store = require('../../common/store')
 const db = require('../../common/db')
 const auth = require('../../common/auth')
-const { fmt, toast, resolveCloudUrl, pageEnter, switchTabAnim, clearTabPages, setTabBarHidden } = require('../../common/util')
+const { fmt, toast, resolveCloudUrl, pageEnter, pagePreset, switchTabAnim, clearTabPages, setTabBarHidden } = require('../../common/util')
 const { speciesArt } = require('../../common/speciesArt')
 
 function badgeClass(b) {
@@ -100,6 +100,8 @@ Page({
   },
 
   onLoad(options) {
+    // 首次创建即预置入场动画，首帧就是动画起点（onShow 的 pageEnter 负责后续切换）
+    pagePreset(this, 'me')
     const app = getApp()
     const g = (app && app.globalData) || {}
     this._alive = true   // 页面存活标记：异步回调（openid 获取等）用，销毁后不再 setData

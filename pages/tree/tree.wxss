@@ -3,7 +3,7 @@
 	flex-direction: column;
 	height: 100vh;
 	position: relative;
-	background-color: #FFFCF6;
+	background-color: #FAF7F0;
 	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -19,7 +19,8 @@
 	border-radius: 22px;
 	margin: 6px 16px 0 16px;
 	padding: 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 backwards;
 }
 
 .mc-head {
@@ -38,7 +39,7 @@
 .mc-name {
 	font-size: 14px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -55,7 +56,7 @@
 	flex-direction: row;
 	height: 24px;
 	border-radius: 12px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 10px;
 	padding-right: 10px;
 	align-items: center;
@@ -65,7 +66,7 @@
 .lv-t {
 	font-size: 10px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSansBold;
 }
 
@@ -79,9 +80,26 @@
 	position: relative;
 }
 
+/* 舞台式同心光晕：让树插画有一个"被注视"的中心，纯装饰不占位 */
+.stage::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 180px;
+	height: 180px;
+	margin-left: -90px;
+	margin-top: -90px;
+	border-radius: 90px;
+	background: radial-gradient(circle, #E1EFD9 0%, #EDF5E7 58%, transparent 72%);
+	z-index: 0;
+}
+
 .stage-img {
 	width: 168px;
 	height: 168px;
+	position: relative;
+	z-index: 1;
 }
 
 .weather-pill {
@@ -97,7 +115,9 @@
 	padding-right: 11px;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.10);
+	box-shadow: 0px 2px 8px rgba(36, 90, 65, 0.10);
+	z-index: 2;
+	animation: floaty 3s ease-in-out infinite;
 }
 
 .weather-t {
@@ -118,7 +138,7 @@
 .growth-lb {
 	font-size: 11px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -130,17 +150,18 @@
 }
 
 .gbar {
-	height: 10px;
-	background-color: #EDF3E7;
-	border-radius: 5px;
+	height: 8px;
+	background-color: #EDF2E7;
+	border-radius: 4px;
 	margin-top: 9px;
 	overflow: hidden;
 }
 
 .gbar-in {
-	height: 10px;
-	background-color: #6BB98A;
-	border-radius: 5px;
+	height: 8px;
+	background: linear-gradient(90deg, #5FA97F, #3E7D5C);
+	border-radius: 4px;
+	animation: barGrow 600ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 both;
 }
 
 .act-row {
@@ -162,16 +183,17 @@
 	flex-direction: column;
 	width: 100%;
 	height: 40px;
-	border-radius: 20px;
-	background-color: #EAF4E6;
+	border-radius: 16px;
+	background-color: #F2F7EC;
 	align-items: center;
 	justify-content: center;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .act-t {
 	font-size: 13px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -191,7 +213,7 @@
 	border-radius: 22px;
 	margin: 12px 16px 0 16px;
 	padding: 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0px 4px 14px rgba(36, 90, 65, 0.05);
 }
 
 .pk-head {
@@ -204,7 +226,7 @@
 .pk-title {
 	font-size: 13px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -213,7 +235,7 @@
 	flex-direction: row;
 	height: 24px;
 	border-radius: 12px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 11px;
 	padding-right: 11px;
 	align-items: center;
@@ -223,7 +245,7 @@
 .pk-btn-t {
 	font-size: 10px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSansBold;
 }
 
@@ -252,7 +274,7 @@
 .pk-in-me {
 	height: 9px;
 	border-radius: 5px;
-	background-color: #4E8A6B;
+	background-color: #3E7D5C;
 }
 
 .pk-in-rival {
@@ -280,13 +302,13 @@
 .sec-title {
 	font-size: 13px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
 .tl-add-t {
 	font-size: 10px;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSans;
 }
 
@@ -333,7 +355,7 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(30, 40, 33, 0.32);
+	background-color: rgba(26, 36, 30, 0.40);
 	justify-content: flex-end;
 	z-index: 100;
 }
@@ -353,7 +375,7 @@
 .sheet-title {
 	font-size: 17px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -367,7 +389,7 @@
 .hint-box {
 	display: flex;
 	flex-direction: column;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 14px;
 	padding: 12px;
 	margin-top: 12px;
@@ -383,19 +405,21 @@
 .sheet-btn {
 	display: flex;
 	flex-direction: column;
-	height: 48px;
-	border-radius: 24px;
+	height: 46px;
+	border-radius: 23px;
 	align-items: center;
 	justify-content: center;
 	margin-top: 12px;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .sheet-btn-main {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
 }
 
 .sheet-btn-soft {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .sheet-btn-t {
@@ -409,7 +433,7 @@
 }
 
 .sheet-btn-t-deep {
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 .pk-compare {
@@ -424,7 +448,7 @@
 	display: flex;
 	flex-direction: column;
 	flex: 1;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 16px;
 	padding: 14px;
 	align-items: center;
@@ -439,7 +463,7 @@
 .pkc-score {
 	font-size: 24px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	margin-top: 4px;
 	font-family: HYSansBold;
 }
@@ -463,7 +487,7 @@
 .loading-t {
 	font-size: 15px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -527,7 +551,7 @@
 	top: 22px;
 	height: 24px;
 	border-radius: 12px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 10px;
 	padding-right: 10px;
 	display: flex;
@@ -539,7 +563,7 @@
 .gain-t {
 	font-size: 11px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 @keyframes gainFloat {
@@ -554,7 +578,8 @@
 	border-radius: 22px;
 	margin: 12px 16px 0 16px;
 	padding: 14px 16px 6px 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 70ms 1 backwards;
 }
 
 .sec-head {
@@ -565,9 +590,9 @@
 }
 
 .sec-title {
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 .sec-extra {
@@ -609,7 +634,7 @@
 .ttitle {
 	font-size: 12px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 }
 
 .ttitle-done {
@@ -637,7 +662,9 @@
 }
 
 .tclaim-on {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #E8B04B, #D99C2B);
+	box-shadow: 0 4px 10px rgba(217, 156, 43, 0.30);
+	animation: claimBreath 2.2s ease-in-out infinite;
 }
 
 .tclaim-on .tclaim-t {
@@ -663,7 +690,7 @@
 	border-radius: 22px;
 	margin: 12px 16px 0 16px;
 	padding: 14px 16px 8px 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
 }
 
 .rrow {
@@ -690,7 +717,7 @@
 	margin-right: 8px;
 }
 
-.rno-gold { background-color: #F5D9A8; }
+.rno-gold { background: linear-gradient(135deg, #F2CE8B, #D99C2B); }
 .rno-silver { background-color: #DDE3DA; }
 .rno-bronze { background-color: #EBD3C4; }
 .rno-plain { background-color: #EEF2E9; }
@@ -710,7 +737,7 @@
 .rname {
 	font-size: 11px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 }
 
 .rsub {
@@ -722,7 +749,7 @@
 .rlv {
 	height: 18px;
 	border-radius: 9px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 7px;
 	padding-right: 7px;
 	display: flex;
@@ -734,7 +761,7 @@
 .rlv-t {
 	font-size: 9px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #3E7D5C;
 }
 
 .rscore {
@@ -810,7 +837,7 @@
 }
 
 .ht-badge-done {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .ht-badge-t {
@@ -820,7 +847,7 @@
 }
 
 .ht-badge-t-done {
-	color: #4E8A6B;
+	color: #3E7D5C;
 }
 
 .ht-main {
@@ -832,7 +859,7 @@
 .ht-no {
 	font-size: 11px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 }
 
 .ht-sub {
@@ -882,7 +909,7 @@
 .al-title {
 	font-size: 11px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 }
 
 .al-desc {
@@ -913,7 +940,7 @@
 }
 
 .mt-chip-on {
-	background-color: #4E8A6B;
+	background-color: #3E7D5C;
 }
 
 .mt-chip-n {

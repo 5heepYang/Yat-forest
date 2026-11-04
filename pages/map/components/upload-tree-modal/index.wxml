@@ -34,10 +34,10 @@
 			</view>
 		</view>
 
-		<view wx:if="{{result.ok}}" class="um-submit" bindtap="onResultClose">
+		<view wx:if="{{result.ok}}" class="um-submit" hover-class="hv-press" bindtap="onResultClose">
 			<text class="um-submit-t">知道了</text>
 		</view>
-		<view wx:else class="um-submit um-submit-warn" bindtap="onRetake">
+		<view wx:else class="um-submit um-submit-warn" hover-class="hv-press" bindtap="onRetake">
 			<text class="um-submit-t">重拍一张</text>
 		</view>
 	</view>
@@ -91,7 +91,7 @@
 			</view>
 		</scroll-view>
 
-		<view class="um-submit" bindtap="onSubmit">
+		<view class="um-submit" hover-class="hv-press" bindtap="onSubmit">
 			<text class="um-submit-t">提交</text>
 		</view>
 	</view>

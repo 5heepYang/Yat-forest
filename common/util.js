@@ -137,6 +137,17 @@ function toast(msg) {
 /* ------------------------------------------------------------------ */
 const TAB_PAGES = {}
 
+/** Node 测试环境没有 getApp：纯 UI 辅助函数统一兜底，不在测试里抛错 */
+function globalData() {
+  try {
+    if (typeof getApp !== 'function') return {}
+    const app = getApp()
+    return (app && app.globalData) || {}
+  } catch (e) {
+    return {}
+  }
+}
+
 /** seq 奇数/偶数交替两套等价关键帧：computed animation 变化才会重放动画 */
 function animClass(dir, seq) {
   const n = seq % 2 === 1 ? '1' : '2'
@@ -150,15 +161,19 @@ function animDir(key, dir) {
   return key === 'map' ? '' : (dir || '')
 }
 
-/** tabBar 点击前预置目标页动画；目标页实例还不存在时返回 false，由 onShow 兜底 */
-function armTabAnim(key, dir) {
+/** tabBar 点击前预置目标页动画；目标页实例还不存在时返回 false，由 onLoad 预置兜底。
+ *  cb 会在预置真正落到渲染层之后回调——必须等这一步再 switchTab，
+ *  否则切过去的第一帧仍按旧状态渲染（用户看到的“重复一帧”）。 */
+function armTabAnim(key, dir, cb) {
   const page = TAB_PAGES[key]
   if (!page || !page.setData) return false
   page._animSeq = (page._animSeq || 0) + 1
   try {
-    page.setData({ navAnim: 'page-anim-paused ' + animClass(animDir(key, dir), page._animSeq) })
+    page.setData({ navAnim: 'page-anim-paused ' + animClass(animDir(key, dir), page._animSeq) }, function () {
+      if (cb) cb()
+    })
   } catch (e) {
-    // 页面实例可能已经销毁（退出登录等 reLaunch）：丢掉旧引用，交给目标页 onShow 兜底
+    // 页面实例可能已经销毁（退出登录等 reLaunch）：丢掉旧引用，交给目标页 onLoad 兜底
     delete TAB_PAGES[key]
     return false
   }
@@ -175,8 +190,7 @@ function clearTabPages() {
 /** 页面 onShow 第一条调用：注册 tab 页实例 + 播放入场动画 */
 function pageEnter(page, key) {
   if (key) TAB_PAGES[key] = page
-  const app = getApp()
-  const g = (app && app.globalData) || {}
+  const g = globalData()
   const dir = animDir(key, g.tabAnim || '')
   if (g.tabAnim) g.tabAnim = ''
   const cur = page.data.navAnim || ''
@@ -188,14 +202,37 @@ function pageEnter(page, key) {
       return
     }
   }
+  // 已有入场动画（onLoad 预置的首进动画 / 刚播完的上一轮）：不重放。
+  // 副作用是好的：从后台切回前台时页面不再无端再动一次。
+  if (cur) return
   page._animSeq = (page._animSeq || 0) + 1
   page.setData({ navAnim: animClass(dir, page._animSeq) })
 }
 
-/** 非 tabBar 触发的 switchTab（看认养人、认养成功跳林地等）：同样先预置动画，避免常驻页一帧跳 */
+/** tab 页 onLoad 第一条调用：页面首次创建时预置入场动画。
+ *  onLoad 的 setData 一定发生在首帧渲染之前，首帧即动画起点，
+ *  堵住“首次进入该页先静止一帧、onShow 才开始播”的跳变。 */
+function pagePreset(page, key) {
+  const g = globalData()
+  const dir = animDir(key, g.tabAnim || '')
+  if (g.tabAnim) g.tabAnim = ''
+  page._animSeq = (page._animSeq || 0) + 1
+  page.setData({ navAnim: animClass(dir, page._animSeq) })
+}
+
+/** 非 tabBar 触发的 switchTab（看认养人、认养成功跳林地等）：
+ *  同样先预置动画；页面还没创建时把方向存进 globalData，供目标页 onLoad 预置 */
 function switchTabAnim(path, key, dir) {
-  armTabAnim(key, dir || '')
-  wx.switchTab({ url: path })
+  const g = globalData()
+  if (g) g.tabAnim = dir || ''
+  let jumped = false
+  const jump = function () {
+    if (jumped) return
+    jumped = true
+    wx.switchTab({ url: path })
+  }
+  if (!armTabAnim(key, dir || '', jump)) jump()
+  else setTimeout(jump, 120) // 后台页 setData 回调延迟时的兜底，jump 自带去重
 }
 
 /**
@@ -210,4 +247,4 @@ function setTabBarHidden(page, hidden) {
   }
 }
 
-module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl, resolveCloudUrl, pageEnter, armTabAnim, switchTabAnim, clearTabPages, setTabBarHidden }
+module.exports = { istr, pct, pxs, fmt, todayText, stamp, toast, toPublicUrl, resolveCloudUrl, pageEnter, pagePreset, armTabAnim, switchTabAnim, clearTabPages, setTabBarHidden }

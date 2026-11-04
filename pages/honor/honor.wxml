@@ -10,7 +10,7 @@
 			<text class="hero-sub">{{viewing ? '南校园 · 森友主页' : '南校园 · 护林第 ' + days + ' 天'}}</text>
 			<view class="name-row" wx:if="{{!viewing}}">
 				<text class="hero-name">{{nickname}}</text>
-				<view class="edit-btn" bindtap="openProfile">
+				<view class="edit-btn" hover-class="hv-press" bindtap="openProfile">
 					<text class="edit-t">编辑资料</text>
 				</view>
 			</view>
@@ -56,7 +56,7 @@
 
 		<view class="tree-stack">
 			<view
-				class="mytree-card tree-card-row"
+				class="mytree-card tree-card-row" hover-class="hv-press"
 				wx:for="{{treeList}}"
 				wx:key="treeId"
 				data-id="{{item.treeId}}"
@@ -74,7 +74,7 @@
 				</view>
 			</view>
 
-			<view class="mytree-card" wx:if="{{treeList.length == 0}}">
+			<view class="mytree-card" hover-class="hv-press" wx:if="{{treeList.length == 0}}">
 				<view class="mt-thumb">
 					<image class="mt-img" src="/static/illus/tree-gray.png"></image>
 				</view>
@@ -103,7 +103,7 @@
 
 			<view class="goods-row">
 				<view
-					class="goods-card"
+					class="goods-card" hover-class="hv-press"
 					wx:for="{{topGoods}}"
 					wx:key="itemId"
 					data-id="{{item.itemId}}"
@@ -117,7 +117,7 @@
 				</view>
 			</view>
 
-			<view class="logout-btn" bindtap="onLogout">
+			<view class="logout-btn" hover-class="hv-press" bindtap="onLogout">
 				<text class="logout-btn-t">退出登录</text>
 			</view>
 		</block>
@@ -141,7 +141,7 @@
 					<text class="form-label">昵称</text>
 					<input class="form-input" value="{{nicknameInput}}" bindinput="onNickInput" maxlength="12" placeholder="最多 12 个字" />
 				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="saveProfile">
+				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="saveProfile">
 					<text class="sheet-btn-t sheet-btn-t-white">保存</text>
 				</view>
 			</view>
@@ -161,7 +161,7 @@
 						<text class="{{item.unlocked ? 'bdg-state bdg-state-on' : 'bdg-state'}}">{{item.unlocked ? '已点亮' : '未解锁'}}</text>
 					</view>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">收好了</text>
 				</view>
 			</view>
@@ -180,7 +180,7 @@
 						<text class="hint-t">还没有兑换过纪念品。护林币在「林地」完成任务后点右侧「领取」获得，攒够了来换周边～</text>
 					</view>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">收好了</text>
 				</view>
 			</view>
@@ -191,7 +191,7 @@
 				<view class="hint-box">
 					<text class="hint-t">将消耗 {{currentGoods.costText}} 护林币，兑换后生成专属凭证码，到校园绿化服务点出示即可领取。护林币在「林地」完成任务后点右侧「领取」获得。</text>
 				</view>
-				<view class="sheet-btn sheet-btn-main" bindtap="doExchange">
+				<view class="sheet-btn sheet-btn-main" hover-class="hv-press" bindtap="doExchange">
 					<text class="sheet-btn-t sheet-btn-t-white">确认兑换</text>
 				</view>
 			</view>
@@ -205,7 +205,7 @@
 					<text class="code-lb">兑换凭证码</text>
 					<text class="code-t">{{codeText}}</text>
 				</view>
-				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
+				<view class="sheet-btn sheet-btn-soft" hover-class="hv-press" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">收好了</text>
 				</view>
 			</view>

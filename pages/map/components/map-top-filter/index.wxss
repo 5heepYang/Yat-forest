@@ -14,7 +14,7 @@
 	border-radius: 22px;
 	align-items: center;
 	padding-left: 16px;
-	box-shadow: 0px 2px 8px rgba(46, 107, 79, 0.06);
+	box-shadow: 0px 2px 8px rgba(36, 90, 65, 0.06);
 }
 
 .ic-search {
@@ -33,7 +33,7 @@
 .search-input {
 	flex: 1;
 	font-size: 12px;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSans;
 }
 
@@ -58,7 +58,8 @@
 }
 
 .chip-on {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 4px 10px rgba(62, 125, 92, 0.22);
 }
 
 .chip-t {

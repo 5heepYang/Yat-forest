@@ -23,7 +23,7 @@
 	background-color: #FFFFFF;
 	border-radius: 31px;
 	align-items: center;
-	box-shadow: 0px 6px 24px rgba(46, 107, 79, 0.12);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 10px 26px rgba(36, 90, 65, 0.14);
 }
 
 .tb-cell {
@@ -43,15 +43,21 @@
 	border-radius: 25px;
 	align-items: center;
 	justify-content: center;
+	transition: background-color 0.18s ease;
 }
 
 .tb-pill-on {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
+}
+
+.tb-pill-on .tb-ico {
+	transform: scale(1.08);
 }
 
 .tb-ico {
 	width: 20px;
 	height: 20px;
+	transition: transform 0.14s ease;
 }
 
 .tb-t {
@@ -62,6 +68,6 @@
 }
 
 .tb-t-on {
-	color: #2E6B4F;
+	color: #245A41;
 	font-weight: bold;
 }

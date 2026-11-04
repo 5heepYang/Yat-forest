@@ -8,7 +8,7 @@
   ],
   "window": {
     "navigationStyle": "custom",
-    "backgroundColor": "#FFFCF6",
+    "backgroundColor": "#FAF7F0",
     "backgroundTextStyle": "dark",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "中大森友会"
@@ -16,7 +16,7 @@
   "tabBar": {
     "custom": true,
     "color": "#9AA394",
-    "selectedColor": "#2E6B4F",
+    "selectedColor": "#245A41",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [

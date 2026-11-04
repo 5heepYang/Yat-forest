@@ -86,20 +86,32 @@ Component({
       if (app && app.globalData) {
         app.globalData.tabAnim = dir
       }
-      // 关键：切页前先给目标页预置「暂停在 0% 帧」的入场动画。
-      // 页面常驻，switchTab 后第一帧用的是旧 data；预置后首帧即动画起点，
-      // 不会再出现「先完整显示一帧、再跳到动画起点」的一帧跳变。
-      armTabAnim(key, dir)
       const prev = this.data.active
       // 先切选中态再跳转：switchTab 后页面不会重建，视觉上更跟手
       this.setData({ active: key })
-      wx.switchTab({
-        url: path,
-        fail: () => {
-          // 跳转失败（如路由未注册）把选中态还原，避免 tabBar 与实际页面不一致
-          this.setData({ active: prev })
-        }
-      })
+      let jumped = false
+      const jump = () => {
+        if (jumped) return
+        jumped = true
+        wx.switchTab({
+          url: path,
+          fail: () => {
+            // 跳转失败（如路由未注册）把选中态还原，避免 tabBar 与实际页面不一致
+            this.setData({ active: prev })
+          }
+        })
+      }
+      // 关键：先给目标页预置「暂停在 0% 帧」的入场动画，并且等 setData
+      // 真正落到渲染层（callback）之后再 switchTab。不等这一步，切过去的
+      // 第一帧仍按旧状态渲染，随后跳回动画起点——就是“重复一帧”的来源。
+      // 页面还没创建（首次进入该 tab）时 armTabAnim 返回 false，由目标页
+      // onLoad 的 pagePreset 兜底，直接跳即可。
+      if (!armTabAnim(key, dir, jump)) {
+        jump()
+      } else {
+        // 兜底：极少数机型后台页的 setData 回调会延迟，不能让 tab 点了没反应
+        setTimeout(jump, 120)
+      }
     }
   }
 })

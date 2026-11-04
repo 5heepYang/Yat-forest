@@ -3,7 +3,7 @@
 	flex-direction: column;
 	height: 100vh;
 	position: relative;
-	background-color: #FFFCF6;
+	background-color: #FAF7F0;
 	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -12,20 +12,22 @@
 	height: 0;
 }
 
+/* 今日碳积分：v1 的页面主视觉锚点 —— 深绿渐变 + 金色进度，纯样式改动 */
 .energy-card {
 	display: flex;
 	flex-direction: column;
-	background-color: #FFFFFF;
+	background: radial-gradient(120px 80px at 90% 0%, rgba(255, 255, 255, 0.14), transparent 60%), linear-gradient(135deg, #245A41, #3E7D5C 55%, #4E9A70);
 	border-radius: 22px;
-	padding: 16px;
+	padding: 18px 16px 16px;
 	margin: 6px 16px 0 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 10px 24px rgba(36, 90, 65, 0.28);
+	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 backwards;
 }
 
 .e-label {
-	font-size: 11px;
-	color: #9AA394;
-	letter-spacing: 0.4px;
+	font-size: 10.5px;
+	color: rgba(255, 255, 255, 0.72);
+	letter-spacing: 1px;
 	font-family: HYSans;
 }
 
@@ -44,15 +46,15 @@
 }
 
 .e-num {
-	font-size: 42px;
+	font-size: 44px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #FFFFFF;
 	font-family: HYSansBold;
 }
 
 .e-unit {
 	font-size: 11px;
-	color: #9AA394;
+	color: rgba(255, 255, 255, 0.70);
 	margin-left: 5px;
 	margin-bottom: 9px;
 	font-family: HYSans;
@@ -68,36 +70,37 @@
 .e-acc {
 	font-size: 15px;
 	font-weight: bold;
-	color: #22302A;
+	color: #F2C879;
 	font-family: HYSansBold;
 }
 
 .e-acc-lb {
 	font-size: 10px;
-	color: #9AA394;
+	color: rgba(255, 255, 255, 0.60);
 	margin-top: 3px;
 	font-family: HYSans;
 }
 
 .e-bar {
-	height: 10px;
-	background-color: #EDF3E7;
-	border-radius: 5px;
-	margin-top: 12px;
+	height: 8px;
+	background-color: rgba(255, 255, 255, 0.22);
+	border-radius: 4px;
+	margin-top: 14px;
 	overflow: hidden;
 }
 
 .e-bar-in {
-	height: 10px;
-	background-color: #6BB98A;
-	border-radius: 5px;
+	height: 8px;
+	background: linear-gradient(90deg, #F2C879, #EFC063);
+	border-radius: 4px;
+	animation: barGrow 600ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 both;
 }
 
 .e-hint {
 	font-size: 10px;
-	color: #B4BCAF;
+	color: rgba(255, 255, 255, 0.66);
 	margin-top: 8px;
-	letter-spacing: 0.4px;
+	letter-spacing: 0.6px;
 	font-family: HYSans;
 }
 
@@ -116,7 +119,8 @@
 	border-radius: 22px;
 	margin: 0 16px 0 16px;
 	padding: 4px 16px 4px 16px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 70ms 1 backwards;
 }
 
 /* 时段分组小标签（卡片内） */
@@ -140,7 +144,7 @@
 
 .task-add {
 	font-size: 12px;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSansBold;
 	padding: 2px 0 2px 12px;
 }
@@ -154,7 +158,7 @@
 .empty-t {
 	display: flex;
 	font-size: 13px;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	padding: 22px 0;
 	justify-content: center;
 	letter-spacing: 0.4px;
@@ -190,7 +194,7 @@
 .task-title {
 	font-size: 13px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -218,7 +222,7 @@
 
 /* 核验通过后积分变绿 */
 .task-pt-done {
-	color: #4E8A6B;
+	color: #3E7D5C;
 }
 
 .week-head {
@@ -230,9 +234,9 @@
 }
 
 .sec-title {
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -253,7 +257,7 @@
 	padding: 20px 0;
 	background-color: #FFFFFF;
 	border-radius: 18px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
 }
 
 .week-empty-t {
@@ -283,15 +287,16 @@
 .wbar {
 	width: 24px;
 	border-radius: 8px;
-	background-color: #DCEAD6;
+	background-color: #E2E8D8;
 }
 
 .wbar-mid {
-	background-color: #9AC7A6;
+	background-color: #9CC7AB;
 }
 
 .wbar-on {
-	background-color: #5AA877;
+	background: linear-gradient(180deg, #4E9A70, #3E7D5C);
+	box-shadow: 0 3px 8px rgba(62, 125, 92, 0.30);
 }
 
 .ai-btn {
@@ -299,17 +304,18 @@
 	flex-direction: column;
 	height: 52px;
 	border-radius: 26px;
-	background-color: #4E8A6B;
+	background-color: #FFFFFF;
+	border: 1.5px dashed #BFD6C3;
 	align-items: center;
 	justify-content: center;
 	margin: 20px 16px 0 16px;
-	box-shadow: 0px 6px 16px rgba(78, 138, 107, 0.28);
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .ai-t {
 	font-size: 13px;
 	font-weight: bold;
-	color: #FFFFFF;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -325,7 +331,7 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(30, 40, 33, 0.32);
+	background-color: rgba(26, 36, 30, 0.40);
 	justify-content: flex-end;
 	z-index: 100;
 }
@@ -345,7 +351,7 @@
 .sheet-title {
 	font-size: 17px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -359,7 +365,7 @@
 .hint-box {
 	display: flex;
 	flex-direction: column;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 14px;
 	padding: 12px;
 	margin-top: 14px;
@@ -375,19 +381,21 @@
 .sheet-btn {
 	display: flex;
 	flex-direction: column;
-	height: 48px;
-	border-radius: 24px;
+	height: 46px;
+	border-radius: 23px;
 	align-items: center;
 	justify-content: center;
 	margin-top: 12px;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .sheet-btn-main {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
 }
 
 .sheet-btn-soft {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .sheet-btn-t {
@@ -401,7 +409,7 @@
 }
 
 .sheet-btn-t-deep {
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 .loading-box {
@@ -414,7 +422,7 @@
 .loading-t {
 	font-size: 15px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -437,7 +445,7 @@
 	flex-direction: row;
 	height: 26px;
 	border-radius: 13px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 12px;
 	padding-right: 12px;
 	align-items: center;
@@ -447,14 +455,14 @@
 .result-badge-t {
 	font-size: 11px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSansBold;
 }
 
 .result-carbon {
 	font-size: 34px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	margin-top: 12px;
 	font-family: HYSansBold;
 }
@@ -495,7 +503,7 @@
 .verify-val {
 	font-size: 13px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -508,7 +516,7 @@
 
 .verify-evidence {
 	font-size: 10px;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	margin-top: 6px;
 	line-height: 15px;
 	font-family: HYSans;
@@ -519,7 +527,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 14px;
 	padding: 12px;
 	margin-top: 12px;
@@ -536,7 +544,7 @@
 	flex: 1;
 	height: 34px;
 	font-size: 13px;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSans;
 }
 
@@ -547,7 +555,7 @@
 .picker-val {
 	font-size: 15px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -588,7 +596,7 @@
 	flex-direction: row;
 	height: 26px;
 	border-radius: 13px;
-	background-color: #FDECEA;
+	background-color: #FBEDE8;
 	padding-left: 12px;
 	padding-right: 12px;
 	align-items: center;

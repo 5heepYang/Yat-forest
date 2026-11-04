@@ -5,7 +5,7 @@ const { aiVerifyProof, aiAdvice, aiPlanTask, guessMode } = require('../../common
 const TASK_MAX = 10
 const { today } = require('../../common/mock')
 const db = require('../../common/db')
-const { fmt, todayText, toast, pageEnter, setTabBarHidden } = require('../../common/util')
+const { fmt, todayText, toast, pageEnter, pagePreset, setTabBarHidden } = require('../../common/util')
 
 function emptyTask() {
   return {
@@ -153,6 +153,8 @@ Page({
   },
 
   onLoad() {
+    // 首次创建即预置入场动画，首帧就是动画起点（onShow 的 pageEnter 负责后续切换）
+    pagePreset(this, 'task')
     this.dotTimer = 0
     this.planning = {}   // 正在分析中的 taskId -> true，防止重复请求
     this._alive = true   // 页面存活标记：销毁后异步回调不再 setData

@@ -3,7 +3,7 @@
 	flex-direction: column;
 	height: 100vh;
 	position: relative;
-	background-color: #FFFCF6;
+	background-color: #FAF7F0;
 	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -15,7 +15,7 @@
 .hero {
 	display: flex;
 	flex-direction: column;
-	background-color: #EAF4E6;
+	background: linear-gradient(160deg, #E9F2E4, #F4F8EE);
 	padding-left: 20px;
 	padding-right: 20px;
 	padding-bottom: 18px;
@@ -38,7 +38,7 @@
 .hero-name {
 	font-size: 22px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	margin-top: 6px;
 	font-family: HYSansBold;
 }
@@ -56,7 +56,7 @@
 	width: 58px;
 	height: 58px;
 	border-radius: 29px;
-	background-color: #FFF6E4;
+	background-color: #FBF3DF;
 	align-items: center;
 	justify-content: center;
 }
@@ -89,30 +89,45 @@
 	font-family: HYSans;
 }
 
+/* 四格统计收进一张白卡，数字之间加发丝分隔，层级更清楚 */
 .stats {
 	display: flex;
 	flex-direction: row;
-	padding-top: 18px;
-	padding-bottom: 14px;
-	margin: 0 20px 0 20px;
+	background-color: #FFFFFF;
+	border-radius: 22px;
+	padding: 14px 6px;
+	margin: 12px 16px 0 16px;
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	animation: riseIn 260ms cubic-bezier(0.22, 0.9, 0.35, 1) 1 backwards;
 }
 
 .stat-cell {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
+	position: relative;
+}
+
+.stat-cell + .stat-cell::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 6px;
+	bottom: 6px;
+	width: 1px;
+	background-color: #E7ECE3;
 }
 
 .stat-num {
 	font-size: 24px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
 /* 护林币数字用主题金 */
 .stat-num-gold {
-	color: #E0A93F;
+	color: #D99C2B;
 }
 
 .stat-num-row {
@@ -143,9 +158,9 @@
 }
 
 .sec-title {
-	font-size: 12px;
+	font-size: 14px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -173,7 +188,7 @@
 }
 
 .badge-gold {
-	background-color: #FFF6E4;
+	background-color: #FBF3DF;
 }
 
 .badge-pink {
@@ -181,7 +196,7 @@
 }
 
 .badge-green {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .badge-off {
@@ -219,7 +234,8 @@
 	border-radius: 18px;
 	margin: 0 16px 0 16px;
 	padding: 12px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .mt-thumb {
@@ -248,7 +264,7 @@
 .mt-name {
 	font-size: 12px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -265,7 +281,7 @@
 	flex-direction: row;
 	height: 26px;
 	border-radius: 13px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 	padding-left: 13px;
 	padding-right: 13px;
 	align-items: center;
@@ -275,14 +291,14 @@
 .go-pill-t {
 	font-size: 10px;
 	font-weight: bold;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-family: HYSansBold;
 }
 
 .list-card {
 	display: flex;
 	flex-direction: column;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 18px;
 	margin: 10px 16px 0 16px;
 	padding-left: 14px;
@@ -331,7 +347,8 @@
 	border-radius: 18px;
 	padding: 10px;
 	margin-bottom: 12px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.04), 0 8px 24px rgba(36, 90, 65, 0.08);
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .goods-box {
@@ -361,7 +378,7 @@
 .goods-name {
 	font-size: 12px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	margin-top: 9px;
 	font-family: HYSansBold;
 }
@@ -410,12 +427,12 @@
 	padding-left: 10px;
 	padding-right: 10px;
 	border-radius: 11px;
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .edit-t {
 	font-size: 10px;
-	color: #4E8A6B;
+	color: #3E7D5C;
 	letter-spacing: 0.3px;
 	font-family: HYSans;
 }
@@ -434,7 +451,7 @@
 .back-t {
 	font-size: 11px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -476,7 +493,7 @@
 	width: 64px;
 	height: 64px;
 	border-radius: 32px;
-	background-color: #FFF6E4;
+	background-color: #FBF3DF;
 }
 
 .avatar-tip {
@@ -539,7 +556,7 @@
 }
 
 .bdg-name-on {
-	color: #22302A;
+	color: #1F2B24;
 }
 
 .bdg-desc {
@@ -556,7 +573,7 @@
 }
 
 .bdg-state-on {
-	color: #4E8A6B;
+	color: #3E7D5C;
 	font-weight: bold;
 	font-family: HYSansBold;
 }
@@ -582,13 +599,13 @@
 .rec-name {
 	font-size: 12px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
 .rec-code {
 	font-size: 11px;
-	color: #E0A93F;
+	color: #D99C2B;
 	font-family: HYSans;
 }
 
@@ -598,11 +615,12 @@
 	flex-direction: column;
 	height: 44px;
 	border-radius: 22px;
-	border: 1px solid #E07A5F;
+	border: 1px solid #D96C52;
 	background-color: #FFFFFF;
 	margin: 26px 16px 0 16px;
 	align-items: center;
 	justify-content: center;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .logout-btn-t {
@@ -624,7 +642,7 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: rgba(30, 40, 33, 0.32);
+	background-color: rgba(26, 36, 30, 0.40);
 	justify-content: flex-end;
 	z-index: 100;
 }
@@ -644,7 +662,7 @@
 .sheet-title {
 	font-size: 17px;
 	font-weight: bold;
-	color: #22302A;
+	color: #1F2B24;
 	font-family: HYSansBold;
 }
 
@@ -658,7 +676,7 @@
 .hint-box {
 	display: flex;
 	flex-direction: column;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 14px;
 	padding: 12px;
 	margin-top: 14px;
@@ -674,19 +692,21 @@
 .sheet-btn {
 	display: flex;
 	flex-direction: column;
-	height: 48px;
-	border-radius: 24px;
+	height: 46px;
+	border-radius: 23px;
 	align-items: center;
 	justify-content: center;
 	margin-top: 12px;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .sheet-btn-main {
-	background-color: #4E8A6B;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
+	box-shadow: 0 8px 18px rgba(62, 125, 92, 0.28);
 }
 
 .sheet-btn-soft {
-	background-color: #EAF4E6;
+	background-color: #E9F2E4;
 }
 
 .sheet-btn-t {
@@ -700,7 +720,7 @@
 }
 
 .sheet-btn-t-deep {
-	color: #2E6B4F;
+	color: #245A41;
 }
 
 .ok-head {
@@ -713,7 +733,7 @@
 .ok-title {
 	font-size: 16px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSansBold;
 }
 
@@ -727,7 +747,7 @@
 .code-box {
 	display: flex;
 	flex-direction: column;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	border-radius: 16px;
 	padding: 14px;
 	margin-top: 14px;
@@ -743,7 +763,7 @@
 .code-t {
 	font-size: 20px;
 	font-weight: bold;
-	color: #2E6B4F;
+	color: #245A41;
 	margin-top: 6px;
 	font-family: HYSansBold;
 }
@@ -779,7 +799,7 @@
 	border-radius: 18px;
 	padding: 10px;
 	margin-right: 10px;
-	box-shadow: 0px 4px 14px rgba(46, 107, 79, 0.05);
+	box-shadow: 0px 4px 14px rgba(36, 90, 65, 0.05);
 	border: 1px solid transparent;
 }
 
@@ -794,7 +814,7 @@
 	justify-content: center;
 	height: 56px;
 	border-radius: 18px;
-	background-color: #F6FAF2;
+	background-color: #F2F7EC;
 	margin: 0 16px 0 16px;
 }
 
@@ -822,6 +842,6 @@
 
 .back-pill-t {
 	font-size: 11px;
-	color: #2E6B4F;
+	color: #245A41;
 	font-family: HYSans;
 }

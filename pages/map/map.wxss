@@ -2,8 +2,8 @@
  * 森友地图页样式
  *
  * 配色统一用视觉稿 v5 色板（色值常量见 common/theme.js）：
- *   主绿 #4E8A6B / 深绿 #2E6B4F / 浅绿面 #EAF4E6 / 页面暖白底 #FFFCF6
- *   警示橙红 #E07A5F / 警示文字 #B4553F / 次要文字 #9AA394
+ *   主绿 #3E7D5C / 深绿 #245A41 / 浅绿面 #E9F2E4 / 页面暖白底 #FAF7F0
+ *   警示橙红 #D96C52 / 警示文字 #B4553F / 次要文字 #9AA394
  * 顶部筛选、详情卡片的样式在各自组件 wxss 里，这里只保留页面骨架和悬浮定位。
  */
 .page {
@@ -11,7 +11,7 @@
 	flex-direction: column;
 	height: 100vh;
 	position: relative;
-	background-color: #FFFCF6;
+	background-color: #FAF7F0;
 	font-family: "HarmonyOS Sans SC", "HarmonyOS Sans", "PingFang SC", "MiSans", "Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -28,8 +28,9 @@
 	background-color: #FFFFFF;
 	align-items: center;
 	justify-content: center;
-	box-shadow: 0px 3px 10px rgba(46, 107, 79, 0.18);
+	box-shadow: 0 1px 2px rgba(31, 43, 36, 0.05), 0 6px 18px rgba(36, 90, 65, 0.16);
 	z-index: 10;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .loc-ic {
@@ -45,14 +46,15 @@
 	position: absolute;
 	right: 14px;
 	bottom: 20px;
-	height: 32px;
-	border-radius: 16px;
-	background-color: #4E8A6B;
+	height: 34px;
+	border-radius: 17px;
+	background: linear-gradient(135deg, #4A8A66, #3E7D5C);
 	align-items: center;
 	padding-left: 12px;
 	padding-right: 14px;
-	box-shadow: 0px 3px 10px rgba(46, 107, 79, 0.25);
+	box-shadow: 0 6px 16px rgba(62, 125, 92, 0.35);
 	z-index: 10;
+	transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
 .add-tree-ic {
@@ -98,7 +100,7 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
-	background-color: #FFFCF6;
+	background-color: #FAF7F0;
 	align-items: center;
 	justify-content: center;
 	z-index: 8;
@@ -132,7 +134,7 @@
 	bottom: 24px;
 	min-height: 44px;
 	border-radius: 22px;
-	background-color: #22302A;
+	background-color: #1F2B24;
 	align-items: center;
 	justify-content: space-between;
 	padding: 10px 8px 10px 14px;

@@ -16,7 +16,7 @@
 const store = require('../../common/store')
 const { aiAnalyzeHazard, aiTreeSpirit, aiReviewTree } = require('../../common/ai')
 const db = require('../../common/db')
-const { toast, stamp, toPublicUrl, resolveCloudUrl, pageEnter, setTabBarHidden } = require('../../common/util')
+const { toast, stamp, toPublicUrl, resolveCloudUrl, pageEnter, pagePreset, setTabBarHidden } = require('../../common/util')
 const { WATER_COST, FERT_COST, WATER_GAIN, FERT_GAIN } = require('../../common/theme')
 const { SUBSCRIBE_TEMPLATE_ID } = require('../../common/config')
 const { speciesArt } = require('../../common/speciesArt')
@@ -230,6 +230,8 @@ Page({
   },
 
   onLoad() {
+    // 首次创建即预置入场动画，首帧就是动画起点（onShow 的 pageEnter 负责后续切换）
+    pagePreset(this, 'tree')
     this.dotTimer = 0
     this.gainTimer = 0
     this.kt = loadKit()
@@ -680,7 +682,7 @@ Page({
             : (r.msg || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
           showCancel: false,
           confirmText: '重拍',
-          confirmColor: '#4E8A6B'
+          confirmColor: '#3E7D5C'
         })
         return
       }
@@ -718,7 +720,7 @@ Page({
           : (verdict.reason || '照片里看不出这棵树') + '\n\n换一张能看清树木本身的照片再试。',
         showCancel: false,
         confirmText: '重拍',
-        confirmColor: '#4E8A6B'
+        confirmColor: '#3E7D5C'
       })
       return
     }

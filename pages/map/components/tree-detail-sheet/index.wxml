@@ -40,7 +40,7 @@
 			<text class="tc-desc-t">{{tree.desc}}</text>
 		</view>
 
-		<view class="tc-btn {{tree.btnBg}}" bindtap="onAction">
+		<view class="tc-btn {{tree.btnBg}}" hover-class="hv-press" bindtap="onAction">
 			<text class="tc-btn-t {{tree.btnColor}}">{{tree.btnText}}</text>
 		</view>
 

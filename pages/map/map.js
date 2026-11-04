@@ -3,7 +3,7 @@ const store = require('../../common/store')
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
 const { aiAnalyzeHazard, aiReviewTree } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
-const { toast, toPublicUrl, pageEnter, switchTabAnim } = require('../../common/util')
+const { toast, toPublicUrl, pageEnter, pagePreset, switchTabAnim } = require('../../common/util')
 const db = require('../../common/db')
 const { getTrees } = require('./services/treeService')
 const { speciesArt } = require('../../common/speciesArt')
@@ -163,6 +163,8 @@ Page({
   },
 
   onLoad() {
+    // 首次创建即预置入场动画，首帧就是动画起点（onShow 的 pageEnter 负责后续切换）
+    pagePreset(this, 'map')
     // 全量树木缓存（非渲染数据，不放 data，避免 setData 拷贝大数组）
     this.trees = []
     // marker.id（数组下标）-> treeId 的映射，Step 3 的 markertap 靠它找回树木
@@ -324,7 +326,7 @@ Page({
         content: '开启后可查看你与树木的距离，并支持一键回到当前位置',
         confirmText: '去设置',
         cancelText: '暂不',
-        confirmColor: '#4E8A6B',
+        confirmColor: '#3E7D5C',
         success: (res) => {
           if (!res.confirm) return
           wx.openSetting({
@@ -353,7 +355,7 @@ Page({
       content: why + '。可以先手动浏览校园地图，或检查小程序后台是否已申请「获取当前的地理位置」接口权限。',
       showCancel: false,
       confirmText: '知道了',
-      confirmColor: '#4E8A6B'
+      confirmColor: '#3E7D5C'
     })
   },
 
@@ -457,7 +459,7 @@ Page({
         content: r.analysis + '\n\n建议：' + r.advice + '\n\n提交后可获得 ' + r.reward.toFixed(0) + ' 碳积分',
         confirmText: '提交工单',
         cancelText: '取消',
-        confirmColor: '#4E8A6B',
+        confirmColor: '#3E7D5C',
         success: (m) => {
           if (!m.confirm) return
           const err = store.reportHazard(
@@ -524,7 +526,7 @@ Page({
       content: costText + '「' + sel.name + '」？\n当前可用积分：' + me.availablePoints.toFixed(0),
       confirmText: '确认认养',
       cancelText: '再想想',
-      confirmColor: '#4E8A6B',
+      confirmColor: '#3E7D5C',
       success: async (res) => {
         if (!res.confirm) return
 
