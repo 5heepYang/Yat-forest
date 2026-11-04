@@ -225,7 +225,9 @@ Page({
       recordList: recordList,
       topGoods: goods,
       // 只有演示管理员能看到「重置演示数据」入口（真正的权限校验在云函数里）
-      isAdmin: store.isAdmin()
+      isAdmin: store.isAdmin(),
+      // 调试用：报 userId 用（加白名单时需要）
+      myUserId: st.user.userId
     })
 
     this.fixAvatar()
@@ -484,6 +486,16 @@ Page({
     await store.reload()
     auth.markLoggedIn()
     wx.reLaunch({ url: '/pages/map/map' })
+  },
+
+  /** 复制自己的 userId（要把某个号加进管理员白名单时用它） */
+  onCopyUserId() {
+    const id = this.data.myUserId || (store.state.user && store.state.user.userId) || ''
+    if (!id) return
+    wx.setClipboardData({
+      data: id,
+      success: function () { toast('已复制：' + id) }
+    })
   },
 
   async doResetDemo() {

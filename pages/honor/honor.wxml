@@ -242,6 +242,11 @@
 					<text class="sheet-btn-t sheet-btn-t-deep">知道了</text>
 				</view>
 
+				<!-- 调试用：让用户能报出自己的 userId，配管理员白名单 -->
+				<view class="dev-userid" bindtap="onCopyUserId">
+					<text class="dev-userid-t">我的ID：{{myUserId}} · 点击复制</text>
+				</view>
+
 				<!-- 仅演示管理员可见：从零开始，连账号档案一起删 -->
 				<view wx:if="{{isAdmin}}" class="wipe-entry" bindtap="onWipeData">
 					<text class="wipe-entry-t">清空所有用户数据</text>
