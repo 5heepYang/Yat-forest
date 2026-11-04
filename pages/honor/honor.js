@@ -3,6 +3,7 @@ const db = require('../../common/db')
 const auth = require('../../common/auth')
 const { fmt, toast, resolveCloudUrl } = require('../../common/util')
 const { speciesArt, treeCover } = require('../../common/speciesArt')
+const { mockGoods } = require('../../common/mock')
 
 function badgeClass(b) {
   if (!b.unlocked) return 'badge-circle badge-off'
@@ -415,6 +416,74 @@ Page({
         })
       }
     })
+  },
+
+  /**
+   * 清空所有用户数据，回到全新用户（比重置演示数据更彻底）。
+   *
+   * 不可逆，挡两道：先讲清楚删什么，再要求手输「清空」。
+   * 云端删完后本机也要清干净——旧 state 缓存、林地页容器、登录标记，
+   * 否则界面还是旧的。然后重新拉取：云端查不到档案会自动注册全新账号。
+   */
+  onWipeData() {
+    const that = this
+    wx.showModal({
+      title: '清空所有用户数据',
+      content: '删除全部账号档案、日程、成长日志、兑换记录和用户上传的树，商品库存复原。执行后你自己也会变成全新用户（随机昵称、初始积分），不可恢复。',
+      confirmText: '继续',
+      confirmColor: '#C0392B',
+      success: function (m) {
+        if (!m.confirm) return
+        wx.showModal({
+          title: '最后确认',
+          editable: true,
+          placeholderText: '输入「清空」两个字',
+          confirmText: '确认清空',
+          confirmColor: '#C0392B',
+          success: function (m2) {
+            if (!m2.confirm) return
+            if (String(m2.content || '').replace(/^\s+|\s+$/g, '') !== '清空') {
+              toast('没输入「清空」，已取消')
+              return
+            }
+            that.doWipeData()
+          }
+        })
+      }
+    })
+  },
+
+  async doWipeData() {
+    wx.showLoading({ title: '清空中', mask: true })
+
+    // 本地模式（测试号）：没有云端可清，直接重置本机数据
+    if (!store.isCloud()) {
+      try { wx.removeStorageSync('tree_kit_v1') } catch (e) { /* 没有就不清 */ }
+      store.resetForNewUser()
+      wx.hideLoading()
+      wx.reLaunch({ url: '/pages/map/map' })
+      return
+    }
+
+    // 库存初值从 mock 里拿，云函数不用再抄一份
+    const stocks = {}
+    mockGoods().forEach(function (g) { stocks[g.itemId] = g.stock })
+    const r = await store.cloudWipeData({ stocks: stocks })
+    wx.hideLoading()
+
+    if (!r || !r.ok) {
+      const why = (r && r.msg) || (r && r.failed && r.failed.length ? r.failed.join('; ') : '')
+      toast(why || '清空失败，稍后再试')
+      return
+    }
+
+    // 本机清干净：旧账号缓存、林地页容器、登录标记
+    try { wx.clearStorageSync() } catch (e) { /* 个别机型清不掉也不拦 */ }
+
+    // 重新拉取：云端查不到档案 → 自动注册全新账号（护林员XXXX、初始积分）
+    await store.reload()
+    auth.markLoggedIn()
+    wx.reLaunch({ url: '/pages/map/map' })
   },
 
   async doResetDemo() {

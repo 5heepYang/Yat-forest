@@ -163,6 +163,16 @@ function cloudResetDemoData() {
   return cloudCall('resetDemoData', {})
 }
 
+/**
+ * 清空所有用户数据（从零开始）。
+ * 比 resetDemoData 更狠：连 users 档案一起删，下次进来是全新账号。
+ * 不可逆，云端按白名单校验身份，调用方必须自己再问两次用户。
+ * stocks 传商品库存初值（itemId -> stock），云端照着复原。
+ */
+function cloudWipeData(stocks) {
+  return cloudCall('wipeData', { stocks: stocks || {} })
+}
+
 /** 隐患上报：云函数内部做 AI 巡检再记账 */
 function cloudReportHazard(info) {
   return cloudCall('reportHazard', info)
@@ -879,6 +889,7 @@ module.exports = {
   isCloud,
   cloudAddTree, cloudReportHazard, cloudAddGrowthLog, cloudCompleteTask, cloudCreateTask, cloudUpdateProfile,
   cloudResetDemoData,
+  cloudWipeData,
   persist,
 
   treeById, myTree, myTrees, selectTree, careTarget,

@@ -782,6 +782,31 @@
 	color: #2E6B4F;
 }
 
+/* 清空所有用户数据：比重置更狠，红色加重提醒 */
+.wipe-entry {
+	display: flex;
+	flex-direction: column;
+	margin-top: 18px;
+	padding: 12px;
+	border-radius: 12px;
+	background-color: #C0392B;
+}
+
+.wipe-entry-t {
+	font-size: 12px;
+	font-weight: bold;
+	color: #FFFFFF;
+	font-family: HYSansBold;
+}
+
+.wipe-entry-d {
+	font-size: 10px;
+	color: #F2C6BF;
+	margin-top: 4px;
+	line-height: 15px;
+	font-family: HYSans;
+}
+
 /* 演示数据重置入口：故意做得不起眼，只有管理员看得到 */
 .reset-entry {
 	display: flex;

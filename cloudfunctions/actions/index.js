@@ -661,11 +661,18 @@ async function getTempUrl(openid, payload) {
   }
 }
 
+/** 种子树的 treeId 固定是三位数（t_101~t_112），用户新增的是 t_+13 位时间戳 */
+function isUserUploadedTree(t) {
+  const createdBy = String(t.createdBy || '')
+  const treeId = String(t.treeId || '')
+  return createdBy !== '' && !/^t_\d{3}$/.test(treeId)
+}
+
 /**
  * 演示数据重置：把库恢复到"刚部署"的样子，供答辩前反复演练。
  *
  * 不依赖 common/mock.js（云函数目录里 require 不到），所以用规则复原而不是重建种子：
- *   - 种子树的 createdBy 为空，用户新增的 createdBy 是 userId → 据此只删用户新增的
+ *   - 用 isUserUploadedTree 区分：种子树（t_1xx）保留，用户新增的删掉
  *   - 种子树本身保留，清掉归属/等级/成长/隐患，顺便把历史 pending 转 approved
  *   - tasks / tree_logs / records 是个人过程数据，全清
  *   - users 只归零数值，不动昵称头像（删了 users 会导致用户下次进来重新开号、头像丢失）
@@ -692,7 +699,7 @@ async function resetDemoData(openid) {
   let rows = ((await db.collection('trees').limit(100).get()).data) || []
   for (let i = 0; i < rows.length; i++) {
     const t = rows[i]
-    if (String(t.createdBy || '') === '') continue
+    if (!isUserUploadedTree(t)) continue
     try {
       await db.collection('trees').doc(t._id).remove()
       out.removedTrees++
@@ -714,7 +721,8 @@ async function resetDemoData(openid) {
           growthScore: 0,
           status: 'normal',
           hazardText: '',
-          reviewStatus: 'approved'
+          reviewStatus: 'approved',
+          createdBy: ''
         }
       })
       out.resetTrees++
@@ -750,6 +758,117 @@ async function resetDemoData(openid) {
   }
 
   out.user = pubUser(await myDoc(openid))
+  return out
+}
+
+/**
+ * 清空所有用户数据，让下一个人进来就是全新用户。
+ *
+ * 和 resetDemoData 的区别：
+ *   resetDemoData：保留账号档案（昵称/头像），只清业务数据 —— 答辩前反复演练用
+ *   wipeData     ：连 users 文档一起删 —— 真的要"从零开始导入数据"时用
+ *
+ * 为什么**保留** 12 棵种子树：
+ *   db.pullCloud 里 `isFirstUser = !trees.length`，树被清空后第一个进来的人
+ *   会继承 u_001 这个演示身份（现有积分、已认养 t_101、三条日志），
+ *   那就不是"新用户界面"了。留树 + 清人 → 才会走 newUser() 分支开干净新号。
+ *   用户上传的树（isUserUploadedTree）照删，归属全部清空。
+ *
+ * 不可逆，且执行完自己也变成新用户（管理员身份随之消失），只能在白名单内调。
+ */
+async function wipeData(openid, payload) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+  if (ADMIN_IDS.indexOf(me.userId) < 0) {
+    return { ok: false, msg: '只有演示管理员能清空数据', user: pubUser(me) }
+  }
+
+  const out = {
+    ok: true,
+    removedTrees: 0,
+    resetTrees: 0,
+    removedUsers: 0,
+    cleared: { tasks: 0, tree_logs: 0, records: 0 },
+    resetGoods: 0,
+    failed: []
+  }
+
+  // 1) 删掉用户上传的树（种子树 t_1xx 保留）
+  let rows = ((await db.collection('trees').limit(100).get()).data) || []
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]
+    if (!isUserUploadedTree(t)) continue
+    try {
+      await db.collection('trees').doc(t._id).remove()
+      out.removedTrees++
+    } catch (e) {
+      out.failed.push('tree:' + (t.treeId || t._id))
+    }
+  }
+
+  // 2) 剩下的种子树清归属/成长/隐患（回到"刚播种"的样子）
+  rows = ((await db.collection('trees').limit(100).get()).data) || []
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]
+    try {
+      await db.collection('trees').doc(t._id).update({
+        data: {
+          ownerId: '',
+          ownerName: '',
+          level: 0,
+          growthScore: 0,
+          status: 'normal',
+          hazardText: '',
+          reviewStatus: 'approved',
+          createdBy: ''
+        }
+      })
+      out.resetTrees++
+    } catch (e) {
+      out.failed.push('tree-reset:' + (t.treeId || t._id))
+    }
+  }
+
+  // 3) 个人过程数据全清
+  const names = ['tasks', 'tree_logs', 'records']
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i]
+    try {
+      const r = await db.collection(name).where({}).remove()
+      out.cleared[name] = (r && r.stats && r.stats.removed) || 0
+    } catch (e) {
+      out.failed.push(name + ': ' + ((e && e.message) || String(e)))
+    }
+  }
+
+  // 4) 商品库存回初值（客户端把 mock 里的初值传上来，避免云函数里再抄一份）
+  const stocks = payload && payload.stocks
+  if (stocks && typeof stocks === 'object') {
+    const keys = Object.keys(stocks)
+    for (let i = 0; i < keys.length; i++) {
+      const itemId = keys[i]
+      try {
+        const g = await db.collection('goods').where({ itemId: itemId }).limit(100).get()
+        const list = (g && g.data) || []
+        for (let k = 0; k < list.length; k++) {
+          await db.collection('goods').doc(list[k]._id).update({ data: { stock: Number(stocks[itemId]) || 0 } })
+          out.resetGoods++
+        }
+      } catch (e) {
+        out.failed.push('goods:' + itemId)
+      }
+    }
+  }
+
+  // 5) 最后删用户：放在最后，前面的步骤还要靠 me 做身份校验
+  try {
+    const r = await db.collection('users').where({}).remove()
+    out.removedUsers = (r && r.stats && r.stats.removed) || 0
+  } catch (e) {
+    out.failed.push('users: ' + ((e && e.message) || String(e)))
+    return Object.assign({ ok: false, msg: '删除用户失败，数据只清了一部分' }, out)
+  }
+
   return out
 }
 
@@ -871,11 +990,12 @@ exports.main = async function (event) {
     if (action === 'migrateUsers') return await migrateUsers(openid)
     if (action === 'cleanBrokenTreeImages') return await cleanBrokenTreeImages(openid)
     if (action === 'resetDemoData') return await resetDemoData(openid)
+    if (action === 'wipeData') return await wipeData(openid, payload)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)
     // 诊断类 action 把真实错误吐回去，别再一律"服务器开小差了"
-    if (action === 'migrateUsers' || action === 'cleanBrokenTreeImages' || action === 'resetDemoData') {
+    if (action === 'migrateUsers' || action === 'cleanBrokenTreeImages' || action === 'resetDemoData' || action === 'wipeData') {
       return {
         ok: false,
         msg: '执行失败：' + ((e && (e.errMsg || e.message)) || String(e)),

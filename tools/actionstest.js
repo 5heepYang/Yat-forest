@@ -73,7 +73,7 @@ const db = {
     {
       _id: 't_doc_2',
       _openid: 'openid_B',
-      treeId: 't_200',
+      treeId: 't_1730001112001',
       name: '图书馆西侧 · 柠檬桉',
       species: '柠檬桉',
       ownerId: '',
@@ -87,7 +87,7 @@ const db = {
     {
       _id: 't_doc_3',
       _openid: 'openid_B',
-      treeId: 't_201',
+      treeId: 't_1730001112002',
       name: '待审核的树',
       species: '樟树',
       ownerId: '',
@@ -272,15 +272,15 @@ function treeDoc(treeId) {
 
 ;(async () => {
   console.log('===== 认养 =====')
-  let r = await actions.main({ action: 'adopt', payload: { treeId: 't_200' } })
+  let r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112001' } })
   check('无主树认养成功', r.ok === true, r.msg)
   check('积分扣 300', userDoc('openid_A').availablePoints === 700, userDoc('openid_A').availablePoints)
-  check('树归属变成我', treeDoc('t_200').ownerId === 'u_001', treeDoc('t_200').ownerId)
+  check('树归属变成我', treeDoc('t_1730001112001').ownerId === 'u_001', treeDoc('t_1730001112001').ownerId)
 
-  r = await actions.main({ action: 'adopt', payload: { treeId: 't_200' } })
+  r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112001' } })
   check('已认养的树不能再认养', r.ok === false, r.msg)
 
-  r = await actions.main({ action: 'adopt', payload: { treeId: 't_201' } })
+  r = await actions.main({ action: 'adopt', payload: { treeId: 't_1730001112002' } })
   check('待审核的树不能认养', r.ok === false && r.msg.indexOf('审核') >= 0, r.msg)
 
   r = await actions.main({ action: 'adopt', payload: { treeId: 'nope' } })
@@ -295,10 +295,10 @@ function treeDoc(treeId) {
   r = await actions.main({ action: 'water', payload: { treeId: 't_101' } })
   check('同一天再浇水被拒', r.ok === false && r.msg.indexOf('今天已经浇过水') >= 0, r.msg)
 
-  r = await actions.main({ action: 'fertilize', payload: { treeId: 't_200' } })
+  r = await actions.main({ action: 'fertilize', payload: { treeId: 't_1730001112001' } })
   check('施肥成功', r.ok === true, r.msg)
 
-  r = await actions.main({ action: 'water', payload: { treeId: 't_201' } })
+  r = await actions.main({ action: 'water', payload: { treeId: 't_1730001112002' } })
   check('别人的树不能浇水', r.ok === false && r.msg.indexOf('不是你认养') >= 0, r.msg)
 
   console.log('===== 兑换（扣库存 + 扣币）=====')
@@ -510,6 +510,37 @@ function treeDoc(treeId) {
   check('积分币归零到演示初值',
     userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
     userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
+
+  console.log('===== 清空所有用户数据（wipeData，从零开始）=====')
+  // 用户上传的树：真实形态是 t_+13 位时间戳
+  db.trees.push({
+    _id: 't_doc_uploaded', _openid: 'openid_B', treeId: 't_1730009999001',
+    name: '用户传的树', species: '银杏', ownerId: 'u_001', ownerName: '谁',
+    level: 1, growthScore: 99, status: 'normal', hazardText: '',
+    reviewStatus: 'approved', createdBy: 'u_018'
+  })
+  db.goods[0].stock = 3
+  const usersBeforeWipe = db.users.length
+
+  openid = 'openid_B'
+  r = await actions.main({ action: 'wipeData', payload: {} })
+  check('非管理员不能清库', r.ok === false && r.msg.indexOf('管理员') >= 0, r.msg)
+
+  openid = 'openid_A'
+  r = await actions.main({ action: 'wipeData', payload: { stocks: { s_301: 25, s_302: 12, s_303: 5 } } })
+  check('管理员可清库', r.ok === true, JSON.stringify(r).slice(0, 140))
+  check('用户上传的树被删', !treeDoc('t_1730009999001'))
+  check('种子树保留且归属/成长清空', (function () {
+    const d = treeDoc('t_101')
+    return !!d && d.ownerId === '' && d.growthScore === 0 && d.createdBy === ''
+  })(), JSON.stringify(treeDoc('t_101')).slice(0, 120))
+  check('日程/日志/兑换记录全清',
+    db.tasks.length === 0 && db.tree_logs.length === 0 && db.records.length === 0,
+    db.tasks.length + '/' + db.tree_logs.length + '/' + db.records.length)
+  check('商品库存回初值', db.goods[0].stock === 25, db.goods[0].stock)
+  check('users 全删（含管理员自己）', db.users.length === 0, db.users.length)
+  check('返回统计对得上', r.removedUsers === usersBeforeWipe && r.removedTrees >= 1,
+    r.removedUsers + '/' + r.removedTrees)
 
   console.log('===== 身份与未知 action =====')
   openid = ''
