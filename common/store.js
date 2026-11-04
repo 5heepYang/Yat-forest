@@ -513,10 +513,54 @@ function addRecord(text) {
   if (text && state.records.indexOf(text) < 0) state.records.push(text)
 }
 
+/**
+ * 把 callFunction 的报错翻译成一句能定位的人话。
+ *
+ * 原来这里一律吞成"云端未连接，数据只保存在本机"，等于把真正的原因
+ * （函数没传、传错环境、函数崩了、超时）全盖住了，只能靠猜。
+ * 这几个错误码是排查时最常撞到的，认出来就直接说清楚。
+ */
+function explainCloudError(e) {
+  const raw = String((e && (e.errMsg || e.message)) || e || '')
+  const flat = raw.replace(/\s+/g, ' ').trim()
+
+  if (/FunctionName|function not found|-501000/i.test(flat)) {
+    return '-501000 云函数 actions 不存在：还没上传部署，或者传到了别的环境'
+  }
+  if (/ResourceNotFound/i.test(flat)) return '找不到云函数 actions（控制台看看是不是被删了）'
+  if (/-504002|execution error|runtime error/i.test(flat)) {
+    return '-504002 云函数执行报错：去云开发控制台 → 云函数 → actions → 日志'
+  }
+  if (/timeout|timed out|超时/i.test(flat)) return '云函数超时（AI 识别太慢，控制台可把超时调大）'
+  if (/env|环境/i.test(flat)) return '云环境对不上：db.js 的 CLOUD_ENV 与当前 AppID 不匹配'
+  if (/network|errno|offline|断网/i.test(flat)) return '网络不通：检查开发者工具右上角是否断网/未登录'
+  if (flat === '') return '调用失败但没有错误信息（多半是云开发未开通或额度用完）'
+  return flat.slice(0, 120)
+}
+
+/** 云端不可用的完整原因只在本次会话弹一次，避免每次操作都挡一层弹窗 */
+let cloudBrokenShown = false
+
+function reportCloudBroken(action, reason) {
+  console.error('[store] actions 调用失败 →', action, '|', reason)
+  if (cloudBrokenShown) return
+  cloudBrokenShown = true
+  if (typeof wx === 'undefined' || typeof wx.showModal !== 'function') return
+  wx.showModal({
+    title: '云端连接失败',
+    content: reason + '\n\n当前所有改动只存在本机，换设备/清缓存就没了。排查完请重启小程序。',
+    showCancel: false,
+    confirmText: '知道了',
+    confirmColor: '#C0392B'
+  })
+}
+
 function cloudCall(action, payload) {
   if (!isCloud()) return Promise.resolve({ ok: false, offline: true, msg: '本地模式' })
   if (!wx.cloud || !wx.cloud.callFunction) {
-    return Promise.resolve({ ok: false, offline: true, msg: '云能力不可用' })
+    const reason = '当前基础库没有云能力（wx.cloud 不存在），检查调试基础库版本'
+    reportCloudBroken(action, reason)
+    return Promise.resolve({ ok: false, offline: true, msg: '云端未连接，数据只保存在本机', detail: reason })
   }
   return wx.cloud.callFunction({
     name: 'actions',
@@ -530,8 +574,9 @@ function cloudCall(action, payload) {
     if (r.record) addRecord(r.record)
     return r
   }).catch(function (e) {
-    console.warn('[store] actions 云函数不可用（未部署或断网），本次只写本地', e && e.message)
-    return { ok: false, offline: true, msg: '云端未连接，数据只保存在本机' }
+    const reason = explainCloudError(e)
+    reportCloudBroken(action, reason)
+    return { ok: false, offline: true, msg: '云端未连接，数据只保存在本机', detail: reason }
   })
 }
 
