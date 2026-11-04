@@ -511,8 +511,8 @@ function treeDoc(treeId) {
     userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
     userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
 
-  console.log('===== 清空用户数据（wipeData：只清用户层，树一棵不删）=====')
-  // 用户上传的树：真实形态是 t_+13 位时间戳，按新语义要保留、只清归属
+  console.log('===== 清空用户数据（wipeData：用户层全清 + 删假树）=====')
+  // 用户上传的树：真实形态是 t_+13 位时间戳，都是测试期假数据，清空时删掉
   db.trees.push({
     _id: 't_doc_uploaded', _openid: 'openid_B', treeId: 't_1730009999001',
     name: '用户传的树', species: '银杏', ownerId: 'u_001', ownerName: '谁',
@@ -532,12 +532,8 @@ function treeDoc(treeId) {
   check('此时库里只剩自己', db.users.length === 1, db.users.length)
   r = await actions.main({ action: 'wipeData' })
   check('唯一用户可自助清空', r.ok === true, JSON.stringify(r).slice(0, 140))
-  check('用户上传的树保留（一棵不删）', !!treeDoc('t_1730009999001'))
-  check('但认养关系已清空', (function () {
-    const d = treeDoc('t_1730009999001')
-    return d.ownerId === '' && d.ownerName === '' && d.growthScore === 0 && d.createdBy === ''
-  })(), JSON.stringify(treeDoc('t_1730009999001')).slice(0, 120))
-  check('种子树同样保留并清空', (function () {
+  check('用户上传的树被删（假数据不入库）', !treeDoc('t_1730009999001'))
+  check('种子树保留并清空归属', (function () {
     const d = treeDoc('t_101')
     return !!d && d.ownerId === '' && d.growthScore === 0
   })())
