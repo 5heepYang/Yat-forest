@@ -440,6 +440,29 @@ Page({
     })
   },
 
+  /* ---------- 图片加载失败兜底 ---------- */
+
+  /** 时光轴缩略图失败 → 换成内置示意图，避免空白块 */
+  onPhotoError(e) {
+    const i = e.currentTarget.dataset.i
+    if (!this.data.photos[i]) return
+    const patch = {}
+    patch['photos[' + i + '].imageUrl'] = '/static/illus/stage2.png'
+    this.setData(patch)
+  },
+
+  onAllPhotoError(e) {
+    const i = e.currentTarget.dataset.i
+    if (!this.data.allPhotos[i]) return
+    const patch = {}
+    patch['allPhotos[' + i + '].imageUrl'] = '/static/illus/stage2.png'
+    this.setData(patch)
+  },
+
+  onHazardImgError() {
+    this.setData({ hazardImage: '/static/illus/palm.png' })
+  },
+
   /* ---------- 多树切换 ---------- */
 
   onSwitchTree(e) {

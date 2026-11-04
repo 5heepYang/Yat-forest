@@ -145,7 +145,7 @@
 		</view>
 		<view class="tl-row" wx:else>
 			<view class="tl-card" wx:for="{{photos}}" wx:key="logId">
-				<image class="tl-img" src="{{item.imageUrl}}"></image>
+				<image class="tl-img" src="{{item.imageUrl}}" data-i="{{index}}" binderror="onPhotoError"></image>
 				<text class="tl-label">{{item.label}}</text>
 			</view>
 		</view>
@@ -217,7 +217,7 @@
 					</view>
 					<text class="ticket-no">工单号 {{hazard.ticket}}</text>
 				</view>
-				<image class="hz-preview" src="{{hazardImage}}" mode="aspectFill"></image>
+				<image class="hz-preview" src="{{hazardImage}}" mode="aspectFill" binderror="onHazardImgError"></image>
 				<view class="hint-box">
 					<text class="hint-t">{{hazard.analysis}}</text>
 				</view>
@@ -250,7 +250,7 @@
 				<text class="sheet-sub">按时间从新到旧排列</text>
 				<scroll-view class="all-scroll" scroll-y>
 					<view class="al-row" wx:for="{{allPhotos}}" wx:key="logId">
-						<image class="al-img" src="{{item.imageUrl}}" mode="aspectFill"></image>
+						<image class="al-img" src="{{item.imageUrl}}" mode="aspectFill" data-i="{{index}}" binderror="onAllPhotoError"></image>
 						<view class="al-main">
 							<text class="al-title">{{item.label}}</text>
 							<text class="al-desc">{{item.desc}}</text>

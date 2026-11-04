@@ -63,7 +63,7 @@
 				bindtap="onTreeTap"
 			>
 				<view class="mt-thumb">
-					<image class="mt-img" src="{{item.img}}"></image>
+					<image class="mt-img" src="{{item.img}}" data-i="{{index}}" binderror="onTreeImgError"></image>
 				</view>
 				<view class="mt-info">
 					<text class="mt-name">{{item.name}}</text>

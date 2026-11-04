@@ -245,6 +245,19 @@ Page({
     })
   },
 
+  /**
+   * 树卡图片加载失败（云存储临时链接过期 / 文件被删 / 权限不可读）时回退默认图，
+   * 避免卡片上出现一块空白。
+   */
+  onTreeImgError(e) {
+    const i = e.currentTarget.dataset.i
+    const list = this.data.treeList
+    if (!list || !list[i]) return
+    const patch = {}
+    patch['treeList[' + i + '].img'] = '/static/illus/palm.png'
+    this.setData(patch)
+  },
+
   /** 在养的树卡片：只有本人的主页能点进林地页；带 id 时顺便切成当前养护树 */
   onTreeTap(e) {
     if (this.data.viewing) return
