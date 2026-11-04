@@ -164,13 +164,12 @@ function cloudResetDemoData() {
 }
 
 /**
- * 清空所有用户数据（从零开始）。
- * 比 resetDemoData 更狠：连 users 档案一起删，下次进来是全新账号。
- * 不可逆，云端按白名单校验身份，调用方必须自己再问两次用户。
- * stocks 传商品库存初值（itemId -> stock），云端照着复原。
+ * 清空用户数据，回到"一个用户也没有"的初始状态。
+ * 删 users 档案和全部个人记录；树一棵不删，只清认养关系；商品不动。
+ * 云端权限：管理员，或"库里只剩自己一个用户"。调用方必须自己再问两次用户。
  */
-function cloudWipeData(stocks) {
-  return cloudCall('wipeData', { stocks: stocks || {} })
+function cloudWipeData() {
+  return cloudCall('wipeData', {})
 }
 
 /** 隐患上报：云函数内部做 AI 巡检再记账 */

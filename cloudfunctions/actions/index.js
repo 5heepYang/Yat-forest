@@ -762,52 +762,47 @@ async function resetDemoData(openid) {
 }
 
 /**
- * 清空所有用户数据，让下一个人进来就是全新用户。
+ * 清空所有用户数据，回到"一个用户也没有"的初始状态。
  *
- * 和 resetDemoData 的区别：
- *   resetDemoData：保留账号档案（昵称/头像），只清业务数据 —— 答辩前反复演练用
- *   wipeData     ：连 users 文档一起删 —— 真的要"从零开始导入数据"时用
+ * 删：users 全部档案、tasks / tree_logs / records 全部。
+ * 清：每棵树的认养关系与成长状态（人都没了，树不能还挂着前任主人）。
+ * 不动：树本身一棵不删（品种、位置、用户上传的树都保留）、goods 商品与库存。
  *
- * 为什么**保留** 12 棵种子树：
- *   db.pullCloud 里 `isFirstUser = !trees.length`，树被清空后第一个进来的人
- *   会继承 u_001 这个演示身份（现有积分、已认养 t_101、三条日志），
- *   那就不是"新用户界面"了。留树 + 清人 → 才会走 newUser() 分支开干净新号。
- *   用户上传的树（isUserUploadedTree）照删，归属全部清空。
+ * 权限：管理员（ADMIN_IDS），或**库里只剩你自己一个用户**。
+ *   第二条是给"从零开始"场景用的：先在控制台把 users 删到只剩自己，
+ *   再进来点这个按钮，就能自助完成清空，不用改代码加白名单。
+ *   库里还有别人时谁都不能清 —— 防止有人误把所有人的数据抹掉。
  *
- * 不可逆，且执行完自己也变成新用户（管理员身份随之消失），只能在白名单内调。
+ * 树一棵不删还有个好处：pullCloud 的 isFirstUser = !trees.length 恒为 false，
+ * 清完重新进来一定是 newUser() 新号，不会落进 u_001 演示身份。
+ *
+ * 不可逆。执行完自己也变成新用户（管理员身份随之消失）。
  */
-async function wipeData(openid, payload) {
+async function wipeData(openid) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
-  if (ADMIN_IDS.indexOf(me.userId) < 0) {
-    return { ok: false, msg: '只有演示管理员能清空数据', user: pubUser(me) }
+
+  // 白名单，或"库里只剩我一个"（此时清空不影响任何别人）
+  const cnt = await db.collection('users').count().catch(function () { return { total: -1 } })
+  const alone = cnt && cnt.total === 1
+  if (ADMIN_IDS.indexOf(me.userId) < 0 && !alone) {
+    return {
+      ok: false,
+      msg: '库里还有其他用户的档案，只有管理员或"唯一用户"能清空',
+      user: pubUser(me)
+    }
   }
 
   const out = {
     ok: true,
-    removedTrees: 0,
     resetTrees: 0,
     removedUsers: 0,
     cleared: { tasks: 0, tree_logs: 0, records: 0 },
-    resetGoods: 0,
     failed: []
   }
 
-  // 1) 删掉用户上传的树（种子树 t_1xx 保留）
-  let rows = ((await db.collection('trees').limit(100).get()).data) || []
-  for (let i = 0; i < rows.length; i++) {
-    const t = rows[i]
-    if (!isUserUploadedTree(t)) continue
-    try {
-      await db.collection('trees').doc(t._id).remove()
-      out.removedTrees++
-    } catch (e) {
-      out.failed.push('tree:' + (t.treeId || t._id))
-    }
-  }
-
-  // 2) 剩下的种子树清归属/成长/隐患（回到"刚播种"的样子）
-  rows = ((await db.collection('trees').limit(100).get()).data) || []
+  // 1) 所有树清认养关系/成长/隐患（一棵不删，品种位置都保留）
+  const rows = ((await db.collection('trees').limit(100).get()).data) || []
   for (let i = 0; i < rows.length; i++) {
     const t = rows[i]
     try {
@@ -829,7 +824,7 @@ async function wipeData(openid, payload) {
     }
   }
 
-  // 3) 个人过程数据全清
+  // 2) 个人过程数据全清
   const names = ['tasks', 'tree_logs', 'records']
   for (let i = 0; i < names.length; i++) {
     const name = names[i]
@@ -841,32 +836,13 @@ async function wipeData(openid, payload) {
     }
   }
 
-  // 4) 商品库存回初值（客户端把 mock 里的初值传上来，避免云函数里再抄一份）
-  const stocks = payload && payload.stocks
-  if (stocks && typeof stocks === 'object') {
-    const keys = Object.keys(stocks)
-    for (let i = 0; i < keys.length; i++) {
-      const itemId = keys[i]
-      try {
-        const g = await db.collection('goods').where({ itemId: itemId }).limit(100).get()
-        const list = (g && g.data) || []
-        for (let k = 0; k < list.length; k++) {
-          await db.collection('goods').doc(list[k]._id).update({ data: { stock: Number(stocks[itemId]) || 0 } })
-          out.resetGoods++
-        }
-      } catch (e) {
-        out.failed.push('goods:' + itemId)
-      }
-    }
-  }
-
-  // 5) 最后删用户：放在最后，前面的步骤还要靠 me 做身份校验
+  // 3) 最后删用户档案：放在最后，前面的步骤还要靠 me 做身份校验
   try {
     const r = await db.collection('users').where({}).remove()
     out.removedUsers = (r && r.stats && r.stats.removed) || 0
   } catch (e) {
     out.failed.push('users: ' + ((e && e.message) || String(e)))
-    return Object.assign({ ok: false, msg: '删除用户失败，数据只清了一部分' }, out)
+    return Object.assign({ ok: false, msg: '删除用户档案失败，数据只清了一部分' }, out)
   }
 
   return out
@@ -990,7 +966,7 @@ exports.main = async function (event) {
     if (action === 'migrateUsers') return await migrateUsers(openid)
     if (action === 'cleanBrokenTreeImages') return await cleanBrokenTreeImages(openid)
     if (action === 'resetDemoData') return await resetDemoData(openid)
-    if (action === 'wipeData') return await wipeData(openid, payload)
+    if (action === 'wipeData') return await wipeData(openid)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)

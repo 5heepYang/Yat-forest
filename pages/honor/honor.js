@@ -3,7 +3,6 @@ const db = require('../../common/db')
 const auth = require('../../common/auth')
 const { fmt, toast, resolveCloudUrl } = require('../../common/util')
 const { speciesArt, treeCover } = require('../../common/speciesArt')
-const { mockGoods } = require('../../common/mock')
 
 function badgeClass(b) {
   if (!b.unlocked) return 'badge-circle badge-off'
@@ -421,17 +420,19 @@ Page({
   },
 
   /**
-   * 清空所有用户数据，回到全新用户（比重置演示数据更彻底）。
+   * 清空用户数据，回到"一个用户也没有"的初始状态。
+   * 树一棵不删（品种/位置/上传的树都保留），只清认养关系；商品不动。
    *
    * 不可逆，挡两道：先讲清楚删什么，再要求手输「清空」。
    * 云端删完后本机也要清干净——旧 state 缓存、林地页容器、登录标记，
    * 否则界面还是旧的。然后重新拉取：云端查不到档案会自动注册全新账号。
+   * 云端权限：管理员，或"库里只剩自己一个用户"（从零开始场景）。
    */
   onWipeData() {
     const that = this
     wx.showModal({
       title: '清空所有用户数据',
-      content: '删除全部账号档案、日程、成长日志、兑换记录和用户上传的树，商品库存复原。执行后你自己也会变成全新用户（随机昵称、初始积分），不可恢复。',
+      content: '删除全部账号档案、日程、成长日志、兑换记录，并清空所有树的认养关系。树本身和商品都会保留。执行后你自己也会变成全新用户（随机昵称、初始积分），不可恢复。',
       confirmText: '继续',
       confirmColor: '#C0392B',
       success: function (m) {
@@ -467,10 +468,7 @@ Page({
       return
     }
 
-    // 库存初值从 mock 里拿，云函数不用再抄一份
-    const stocks = {}
-    mockGoods().forEach(function (g) { stocks[g.itemId] = g.stock })
-    const r = await store.cloudWipeData({ stocks: stocks })
+    const r = await store.cloudWipeData()
     wx.hideLoading()
 
     if (!r || !r.ok) {

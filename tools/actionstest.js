@@ -511,36 +511,41 @@ function treeDoc(treeId) {
     userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
     userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
 
-  console.log('===== 清空所有用户数据（wipeData，从零开始）=====')
-  // 用户上传的树：真实形态是 t_+13 位时间戳
+  console.log('===== 清空用户数据（wipeData：只清用户层，树一棵不删）=====')
+  // 用户上传的树：真实形态是 t_+13 位时间戳，按新语义要保留、只清归属
   db.trees.push({
     _id: 't_doc_uploaded', _openid: 'openid_B', treeId: 't_1730009999001',
     name: '用户传的树', species: '银杏', ownerId: 'u_001', ownerName: '谁',
     level: 1, growthScore: 99, status: 'normal', hazardText: '',
     reviewStatus: 'approved', createdBy: 'u_018'
   })
-  db.goods[0].stock = 3
-  const usersBeforeWipe = db.users.length
+  const stockBeforeWipe = db.goods[0].stock
 
+  // 库里还有两个用户：非管理员调用必须被拒（防止抹掉别人的数据）
   openid = 'openid_B'
-  r = await actions.main({ action: 'wipeData', payload: {} })
-  check('非管理员不能清库', r.ok === false && r.msg.indexOf('管理员') >= 0, r.msg)
+  r = await actions.main({ action: 'wipeData' })
+  check('多用户时非管理员被拒', r.ok === false && r.msg.indexOf('唯一用户') >= 0, r.msg)
+  check('拒绝时不删任何东西', db.users.length >= 2 && treeDoc('t_1730009999001').ownerId === 'u_001')
 
-  openid = 'openid_A'
-  r = await actions.main({ action: 'wipeData', payload: { stocks: { s_301: 25, s_302: 12, s_303: 5 } } })
-  check('管理员可清库', r.ok === true, JSON.stringify(r).slice(0, 140))
-  check('用户上传的树被删', !treeDoc('t_1730009999001'))
-  check('种子树保留且归属/成长清空', (function () {
+  // "库里只剩我一个"：从零开始场景，非管理员也能自助清
+  db.users = db.users.filter(function (u) { return u._id === 'u_018' })
+  check('此时库里只剩自己', db.users.length === 1, db.users.length)
+  r = await actions.main({ action: 'wipeData' })
+  check('唯一用户可自助清空', r.ok === true, JSON.stringify(r).slice(0, 140))
+  check('用户上传的树保留（一棵不删）', !!treeDoc('t_1730009999001'))
+  check('但认养关系已清空', (function () {
+    const d = treeDoc('t_1730009999001')
+    return d.ownerId === '' && d.ownerName === '' && d.growthScore === 0 && d.createdBy === ''
+  })(), JSON.stringify(treeDoc('t_1730009999001')).slice(0, 120))
+  check('种子树同样保留并清空', (function () {
     const d = treeDoc('t_101')
-    return !!d && d.ownerId === '' && d.growthScore === 0 && d.createdBy === ''
-  })(), JSON.stringify(treeDoc('t_101')).slice(0, 120))
+    return !!d && d.ownerId === '' && d.growthScore === 0
+  })())
   check('日程/日志/兑换记录全清',
     db.tasks.length === 0 && db.tree_logs.length === 0 && db.records.length === 0,
     db.tasks.length + '/' + db.tree_logs.length + '/' + db.records.length)
-  check('商品库存回初值', db.goods[0].stock === 25, db.goods[0].stock)
-  check('users 全删（含管理员自己）', db.users.length === 0, db.users.length)
-  check('返回统计对得上', r.removedUsers === usersBeforeWipe && r.removedTrees >= 1,
-    r.removedUsers + '/' + r.removedTrees)
+  check('商品完全不动', db.goods[0].stock === stockBeforeWipe, db.goods[0].stock)
+  check('users 全删（含自己）', db.users.length === 0, db.users.length)
 
   console.log('===== 身份与未知 action =====')
   openid = ''
