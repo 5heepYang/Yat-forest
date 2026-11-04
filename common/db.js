@@ -346,26 +346,18 @@ function pullCloud() {
     const seed = seedState()
     const jobs = []
 
-    // —— 全局数据只播种一次：谁先进来谁播 ——
-    // （两人同一秒首次进入会有重复种子，比赛规模可接受）
-    const isFirstUser = !trees.length
-    if (!trees.length) jobs.push(['trees', seed.trees])
+    // —— goods 是系统数据，空了自动补；trees 不再自动播种 ——
+    // 树要靠真实采集上传（地图加号），演示树只在本地模式（测试号）存在，
+    // 云端清空后就是空地图，等真树导入。谁先进来谁补 goods（同一秒并发可接受）。
     if (!goods.length) jobs.push(['goods', seed.goods])
 
     // —— 个人数据：查不到"我的"文档 = 第一次来，静默注册（openid 自动建档）——
+    // 每个新 openid 都开干净新号：随机昵称、初始积分、没有树
     let me = users[0]
     if (!me) {
-      // 第一个用户沿用种子身份 u_001（种子树 t_101 的 ownerId 就是它），
-      // 之后每个新 openid 发新 id、开干净新号
-      me = isFirstUser ? Object.assign({}, mockUser()) : newUser()
-      me.adoptedTreeId = isFirstUser ? 't_101' : ''
+      me = newUser()
       jobs.push(['users', [me]])
       jobs.push(['tasks', personalTasks(me.userId)])
-      if (isFirstUser) {
-        // 第一个进来的用户拿完整演示数据：认养 t_101 + 三条成长日志 + 两条兑换记录
-        jobs.push(['tree_logs', seed.logs])
-        jobs.push(['records', seed.records.map(function (t) { return { text: t } })])
-      }
     } else if (!tasks.length) {
       // 老用户但日程被清了，补一份
       jobs.push(['tasks', personalTasks(me.userId)])
@@ -378,14 +370,10 @@ function pullCloud() {
       })
     })).then(function () {
       // 写入完成后再拼 state，新写入的文档这里直接用内存值兜底
+      // 注意 trees 不兜底：云端没树就是没树（等真实数据导入）
       if (!users.length) users = [me]
-      if (!trees.length) trees = seed.trees
       if (!tasks.length) tasks = personalTasks(me.userId)
       if (!goods.length) goods = seed.goods
-      if (isFirstUser && !logs.length) logs = seed.logs
-      if (isFirstUser && !records.length) {
-        records = seed.records.map(function (t) { return { text: t } })
-      }
 
       return buildState(users, trees, tasks, logs, goods, records)
     })
@@ -395,7 +383,8 @@ function pullCloud() {
 /** 把云端拉到的各集合拼成 state。badges 是静态数据，不进云端，由 store 自带 */
 function buildState(users, trees, tasks, logs, goods, records) {
   const u = Object.assign({}, users[0] || mockUser())
-  const adoptedTreeId = typeof u.adoptedTreeId === 'string' ? u.adoptedTreeId : 't_101'
+  // 老数据没有这个字段时兜底成空（以前兜 't_101'，会让新号莫名指向一棵可能不存在的树）
+  const adoptedTreeId = typeof u.adoptedTreeId === 'string' ? u.adoptedTreeId : ''
   const carbonGoal = u.carbonGoal || 100
   delete u.adoptedTreeId
   delete u.carbonGoal

@@ -89,7 +89,7 @@ function check(label, cond, detail) {
   console.log('===== S1 首次 pull：播种 =====')
   wipeCloud()
   const s1 = await db.pull()
-  check('trees 12 条', countOf('trees') === 12, '实际 ' + countOf('trees'))
+  check('trees 0 条（云端不播种演示树，等真实导入）', countOf('trees') === 0, '实际 ' + countOf('trees'))
   check('tasks 4 条', countOf('tasks') === 4, '实际 ' + countOf('tasks'))
   check('state.user 存在', !!(s1 && s1.user && s1.user.userId), JSON.stringify(s1 && s1.user))
   console.log('  写入 ' + stats.writes + ' 次 / 删除 ' + stats.removes + ' 次')

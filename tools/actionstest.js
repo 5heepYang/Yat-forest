@@ -511,7 +511,7 @@ function treeDoc(treeId) {
     userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
     userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
 
-  console.log('===== 清空用户数据（wipeData：用户层全清 + 删假树）=====')
+  console.log('===== 清空用户数据（wipeData：用户层全清 + 树木全删）=====')
   // 用户上传的树：真实形态是 t_+13 位时间戳，都是测试期假数据，清空时删掉
   db.trees.push({
     _id: 't_doc_uploaded', _openid: 'openid_B', treeId: 't_1730009999001',
@@ -532,11 +532,9 @@ function treeDoc(treeId) {
   check('此时库里只剩自己', db.users.length === 1, db.users.length)
   r = await actions.main({ action: 'wipeData' })
   check('唯一用户可自助清空', r.ok === true, JSON.stringify(r).slice(0, 140))
-  check('用户上传的树被删（假数据不入库）', !treeDoc('t_1730009999001'))
-  check('种子树保留并清空归属', (function () {
-    const d = treeDoc('t_101')
-    return !!d && d.ownerId === '' && d.growthScore === 0
-  })())
+  check('用户上传的树被删', !treeDoc('t_1730009999001'))
+  check('种子演示树也一并删除', !treeDoc('t_101') && !treeDoc('t_seed_1'))
+  check('trees 集合已空（含种子演示树）', db.trees.length === 0, JSON.stringify(db.trees))
   check('日程/日志/兑换记录全清',
     db.tasks.length === 0 && db.tree_logs.length === 0 && db.records.length === 0,
     db.tasks.length + '/' + db.tree_logs.length + '/' + db.records.length)

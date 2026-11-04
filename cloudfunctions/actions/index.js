@@ -764,10 +764,12 @@ async function resetDemoData(openid) {
 /**
  * 清空所有用户数据，回到"一个用户也没有"的初始状态。
  *
- * 删：users 全部档案、tasks / tree_logs / records 全部、用户上传的树
- *   （都是测试期传的假数据，真树由用户之后重新采集上传）。
- * 清：剩下种子树的认养关系与成长状态（人都没了，树不能还挂着前任主人）。
- * 不动：12 棵种子树（t_1xx，地图的底子）、goods 商品与库存。
+ * 删：users 全部档案、tasks / tree_logs / records 全部、**所有树**
+ *   （种子演示树和测试期上传的假树都是假数据，真树由用户之后重新采集上传）。
+ * 不动：goods 商品与库存。
+ *
+ * 树全删后 pullCloud 不会再自动播种演示树（该逻辑已移除），
+ * 地图就是空的，等真实数据导入。
  *
  * 权限：管理员（ADMIN_IDS），或**库里只剩你自己一个用户**。
  *   第二条是给"从零开始"场景用的：先在控制台把 users 删到只剩自己，
@@ -797,17 +799,15 @@ async function wipeData(openid) {
   const out = {
     ok: true,
     removedTrees: 0,
-    resetTrees: 0,
     removedUsers: 0,
     cleared: { tasks: 0, tree_logs: 0, records: 0 },
     failed: []
   }
 
-  // 1) 删掉用户上传的树（测试期传的假数据；种子树 t_1xx 保留）
-  let rows = ((await db.collection('trees').limit(100).get()).data) || []
+  // 1) 所有树全删（种子演示树 + 测试期上传的，都是假数据）
+  const rows = ((await db.collection('trees').limit(100).get()).data) || []
   for (let i = 0; i < rows.length; i++) {
     const t = rows[i]
-    if (!isUserUploadedTree(t)) continue
     try {
       await db.collection('trees').doc(t._id).remove()
       out.removedTrees++
@@ -816,30 +816,7 @@ async function wipeData(openid) {
     }
   }
 
-  // 2) 剩下的种子树清认养关系/成长/隐患（回到"刚播种"的样子）
-  rows = ((await db.collection('trees').limit(100).get()).data) || []
-  for (let i = 0; i < rows.length; i++) {
-    const t = rows[i]
-    try {
-      await db.collection('trees').doc(t._id).update({
-        data: {
-          ownerId: '',
-          ownerName: '',
-          level: 0,
-          growthScore: 0,
-          status: 'normal',
-          hazardText: '',
-          reviewStatus: 'approved',
-          createdBy: ''
-        }
-      })
-      out.resetTrees++
-    } catch (e) {
-      out.failed.push('tree-reset:' + (t.treeId || t._id))
-    }
-  }
-
-  // 3) 个人过程数据全清
+  // 2) 个人过程数据全清
   const names = ['tasks', 'tree_logs', 'records']
   for (let i = 0; i < names.length; i++) {
     const name = names[i]
@@ -851,7 +828,7 @@ async function wipeData(openid) {
     }
   }
 
-  // 4) 最后删用户档案：放在最后，前面的步骤还要靠 me 做身份校验
+  // 3) 最后删用户档案：放在最后，前面的步骤还要靠 me 做身份校验
   try {
     const r = await db.collection('users').where({}).remove()
     out.removedUsers = (r && r.stats && r.stats.removed) || 0
