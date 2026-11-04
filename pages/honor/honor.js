@@ -128,9 +128,24 @@ Page({
       incoming = g.visUserId
       g.visUserId = ''
     }
+    // tab 页切进来不会重建，第一帧还是上次的自己主页数据；
+    // 先同步换成访客骨架，避免"先闪自己、再跳别人"
+    if (incoming !== '') {
+      this.visUserId = incoming
+      this.setData({
+        viewing: true,
+        nickname: '正在载入…',
+        heroLine1: '',
+        heroLine2: '',
+        stats: [],
+        unlockedCount: 0,
+        topBadges: [],
+        allBadges: [],
+        treeList: []
+      })
+    }
     await store.ready()
     if (incoming !== '' && incoming !== store.state.user.userId) {
-      this.visUserId = incoming
       this.loadVisitor()
     } else {
       this.visUserId = ''
@@ -265,9 +280,12 @@ Page({
         nickname = tm.list[0].ownerName || nickname
       }
 
-      // 只展示公开快照里已点亮的勋章（访客看不到未点亮的灰图标和完成条件）。
-      // 老档案没有 badgeIds 快照时显示 0 枚——不再用 badgeCount 按序号假点亮。
-      const badgeIds = (doc && Array.isArray(doc.badgeIds)) ? doc.badgeIds : []
+      // 只展示已点亮的勋章（访客看不到未点亮的灰图标和完成条件）。
+      // 底座是 users 里的公开快照；老档案没有快照时，用公开的 trees/users 数据
+      // 兜底补算一定能推出来的两枚，避免"种了树却显示 0 枚勋章"。
+      const badgeIds = (doc && Array.isArray(doc.badgeIds)) ? doc.badgeIds.slice() : []
+      if (tm.list.length > 0 && badgeIds.indexOf('b_03') < 0) badgeIds.push('b_03')
+      if (doc && (doc.days || 0) >= 100 && badgeIds.indexOf('b_04') < 0) badgeIds.push('b_04')
       const badges = st.badges
         .filter(function (b) { return badgeIds.indexOf(b.badgeId) >= 0 })
         .slice(0, 4)

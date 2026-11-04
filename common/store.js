@@ -227,6 +227,9 @@ function persist(only) {
     // 还没拉到远端数据就写，会把种子数据覆盖到云端，必须拦住
     return
   }
+  // 每次写库前刷新公开勋章快照：勋章靠个人数据算，别人读不到，
+  // 必须让 users 文档始终带着最新的 badgeIds（不能只等「我的」页刷新）
+  syncBadgeSnapshot(computeBadges())
   db.save(state, only)
 }
 
@@ -418,12 +421,12 @@ function myTreeCount() {
 /**
  * 勋章点亮状态（数据驱动，mockBadges 里的 unlocked 字段已废弃，只当定义表用）。
  *
- * 每次展示前算一遍，同时把「已点亮的 badgeId 列表」冗余到 users 文档里：
- * 勋章是从个人集合（tasks/tree_logs/trees）算出来的，别人按 openid 隔离读不到，
- * 访客主页只能看公开的 users 档案，所以必须存一份公开快照。
- * 只在勋章集合变化时写库，避免每次刷新都写一次。
+ * 拆成三块，避免"只有打开我的页才会更新公开快照"：
+ *   computeBadges()      纯计算，不改 state、不落库
+ *   syncBadgeSnapshot()  把点亮结果写进 state.user.badgeIds / badgeCount
+ *   persist()            任何写库前调用上面两步，快照跟着每次业务操作走
  */
-function badgeState() {
+function computeBadges() {
   let carbon = 0
   let i = 0
   while (i < state.tasks.length) {
@@ -450,28 +453,31 @@ function badgeState() {
     b_06: false                                  // 早八守护者：暂无数据源，保持未解锁
   }
 
-  const list = state.badges.map(function (b) {
+  return state.badges.map(function (b) {
     return Object.assign({}, b, { unlocked: !!rules[b.badgeId] })
   })
+}
 
+/** 把点亮结果同步到 users 文档要存的公开快照（只改内存，不落库） */
+function syncBadgeSnapshot(list) {
+  const ids = []
   let n = 0
-  i = 0
+  let i = 0
   while (i < list.length) {
-    if (list[i].unlocked) n++
+    if (list[i].unlocked) {
+      n++
+      ids.push(list[i].badgeId)
+    }
     i++
   }
   state.user.badgeCount = n
-
-  const ids = []
-  i = 0
-  while (i < list.length) {
-    if (list[i].unlocked) ids.push(list[i].badgeId)
-    i++
-  }
-  const prev = Array.isArray(state.user.badgeIds) ? state.user.badgeIds : []
-  const changed = prev.length !== ids.length || ids.some(function (id, k) { return prev[k] !== id })
   state.user.badgeIds = ids
-  if (changed) persist(['users'])
+}
+
+/** 页面展示用：现算一份带 unlocked 的勋章列表 */
+function badgeState() {
+  const list = computeBadges()
+  syncBadgeSnapshot(list)
   return list
 }
 

@@ -195,6 +195,13 @@ function ownerOf(treeId) {
   check('快照随之更新', JSON.stringify(store.state.user.badgeIds) === JSON.stringify(litAfter),
     JSON.stringify(store.state.user.badgeIds))
 
+  // 关键：不用打开「我的」页，任何写操作都会顺带刷新公开快照
+  store.state.user.badgeIds = []
+  store.updateUser({ bio: '写操作测试' })
+  check('写操作自动刷新快照（认养后跳林地页也能带上勋章）',
+    JSON.stringify(store.state.user.badgeIds) === JSON.stringify(litAfter),
+    JSON.stringify(store.state.user.badgeIds))
+
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
   process.exit(failCount === 0 ? 0 : 1)
 })().catch(function (e) {
