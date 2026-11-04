@@ -284,7 +284,25 @@ function syncCollection(name, docs, uid) {
 
       // 全局集合不清理；个人集合清掉本次快照里已经不存在的文档（如被删除的记录）
       if (!personal) return { written: written, failed: failed, removed: 0 }
-      const stale = rows.filter(function (r) { return !keepId[r._id] })
+
+      /*
+       * 只删"确定是我写的"旧文档。
+       *
+       * 之前这里见 stale 就 remove，结果换号重登后留下了别的 openid 的文档，
+       * 客户端按"仅创建者可读写"去删会报 -502001，每次启动刷一条警告（无害但很吵）。
+       * 云函数以管理员身份写的文档不带 _openid，客户端同样删不掉。
+       *
+       * 判据：这个文档的 _openid 必须是本次"要保留"的文档里出现过的 openid。
+       * 那些文档一定是我的（能读到、又要继续写），所以删同 openid 的兄弟文档不会被拒。
+       * 剩下的脏数据不在这里硬删，交给 actions 的 resetDemoData 以管理员身份清。
+       */
+      const ownOpenids = {}
+      rows.forEach(function (r) {
+        if (keepId[r._id] && r._openid) ownOpenids[r._openid] = true
+      })
+      const stale = rows.filter(function (r) {
+        return !keepId[r._id] && r._openid && ownOpenids[r._openid]
+      })
       if (!stale.length) return { written: written, failed: failed, removed: 0 }
 
       return Promise.all(stale.map(function (r) {

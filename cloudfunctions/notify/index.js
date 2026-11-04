@@ -39,6 +39,12 @@ const TEMPLATE_ID = process.env.REMIND_TEMPLATE_ID || DEFAULT_TEMPLATE_ID
 const WX_APPID = process.env.WX_APPID || DEFAULT_APPID
 /** AppSecret 是敏感信息，只从环境变量读，绝不写进代码 */
 const WX_SECRET = process.env.WX_SECRET || ''
+/**
+ * 订阅消息跳转的小程序版本：developer / trial / formal。
+ * 原来写死 developer，上线后用户点消息会被带去开发版（打不开）。
+ * 改成环境变量：不配默认 formal，开发期想跳开发版就配 developer。
+ */
+const MINI_STATE = process.env.MINI_STATE || 'formal'
 
 /** 43101 = 用户没订阅/额度用完，属于正常情况，不算故障 */
 const ERR_NO_SUBSCRIBE = 43101
@@ -199,7 +205,9 @@ exports.main = async function (event) {
       touser: u._openid,
       templateId: TEMPLATE_ID,
       page: 'pages/tree/tree',
-      miniprogramState: 'developer',   // 上线改成 formal
+      // developer = 开发版 / trial = 体验版 / formal = 正式版
+      // 走环境变量，免得每次上线都改代码重传：不配就用 formal
+      miniprogramState: MINI_STATE,
       data: {
         thing2: { value: names[0].slice(0, 20) },
         date4: { value: when },
