@@ -52,7 +52,7 @@
 		<!-- 任何一棵树都能拍照上报隐患（含别人认养的树） -->
 		<view class="tc-hazard" bindtap="onHazard">
 			<text class="tc-hazard-ic">!</text>
-			<text class="tc-hazard-t">拍照上报异常</text>
+			<text class="tc-hazard-t">有异常？拍照上报</text>
 		</view>
 	</view>
 </block>

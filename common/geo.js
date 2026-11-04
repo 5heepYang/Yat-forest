@@ -124,10 +124,12 @@ function nearbyTrees(lat, lng, trees, radius, onlyUnowned) {
   return out
 }
 
-/** 距离文案：120m / 1.2km */
+/** 距离文案：120m / 1.2km（拿不到有效距离时给占位符，避免页面上出现 NaN） */
 function formatDistance(m) {
-  if (m < 1000) return m + ' m'
-  return (m / 1000).toFixed(1) + ' km'
+  const n = Number(m)
+  if (!isFinite(n) || n < 0) return '—'
+  if (n < 1000) return Math.round(n) + ' m'
+  return (n / 1000).toFixed(1) + ' km'
 }
 
 /**

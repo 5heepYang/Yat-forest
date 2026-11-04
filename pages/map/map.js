@@ -195,6 +195,9 @@ Page({
     }
     store.synced().then(() => {
       this.trees = store.state.trees
+      // 云端同步会换掉整批树对象（distance 字段是运行时算的，不在数据里），
+      // 这里补算一次，否则同步之后点开的详情卡会显示 NaN
+      this.applyDistances()
       this.refresh()
     })
   },
@@ -257,13 +260,26 @@ Page({
     this.setData({ filter: k }, () => this.refresh())
   },
 
+  /**
+   * 补算单棵树的「距你」。
+   * 详情卡可能在地理定位 / 云端同步完成之前打开，此时树的 distance 还没算过，
+   * 直接格式化会得到 NaN；打开前统一在这里按当前定位（没有就按校园中心）现算一次。
+   */
+  ensureDistance(t) {
+    if (!t) return t
+    const loc = this.userLoc || CAMPUS
+    const p = treeLatLng(t)
+    t.distance = distanceMeters(loc.latitude, loc.longitude, p.latitude, p.longitude)
+    return t
+  },
+
   /** 点击 marker：marker.id 是数组下标，先换成 treeId 再找回树木；选中 pin 放大反馈 */
   onMarkerTap(e) {
     // 选点模式下点 marker 不弹详情卡，避免和选点提示条叠两层交互
     if (this.data.pickMode) return
     const treeId = this.markerTreeIds[e.detail.markerId]
     if (!treeId) return
-    const t = store.treeById(treeId)
+    const t = this.ensureDistance(store.treeById(treeId))
     if (!t) return
     this.selectedTreeId = treeId
     this.setData({
@@ -539,7 +555,8 @@ Page({
 
         // 认养成功：刷新地图 marker（变金色"我"字 pin），详情卡片就地更新为"我认养的"
         this.refresh()
-        this.setData({ sel: decorateSelected(store.treeById(sel.treeId)) })
+        const fresh = this.ensureDistance(store.treeById(sel.treeId))
+        this.setData({ sel: decorateSelected(fresh) })
 
         // 认养完直接进林地页看这棵树：先切成"当前养护树"，
         // 否则多树时林地页会停在上一次选中的那棵（跟上面"点我的树"分支同一套做法）
