@@ -597,6 +597,75 @@ async function getTempUrl(openid, payload) {
   }
 }
 
+/**
+ * 一次性数据迁移：把 users 文档的 _id 改成 userId。
+ *
+ * 背景：canonicalId 生效前写入的 users 文档 _id 是随机串，按主键 doc(userId) 查不到，
+ * 只能退回 where({userId}) 全表扫描（控制台一直提示建索引）。
+ * 迁移后 _id === userId，主键查询直接命中，不需要任何索引（腾讯云侧建索引要套餐）。
+ *
+ * 幂等，重复执行无副作用。每个失败都带上具体原因，不被统一兜底吞掉。
+ */
+async function migrateUsers(openid) {
+  const out = { ok: true, total: 0, migrated: 0, failed: [] }
+  let res
+  try {
+    res = await db.collection('users').limit(100).get()
+  } catch (e) {
+    return { ok: false, msg: '读取 users 失败：' + ((e && e.message) || e) }
+  }
+
+  const rows = res.data || []
+  out.total = rows.length
+  const list = rows.filter(function (u) { return u.userId && u._id !== u.userId })
+
+  for (let i = 0; i < list.length; i++) {
+    const u = list[i]
+    const data = Object.assign({}, u)
+    delete data._id
+    try {
+      await db.collection('users').doc(u.userId).set({ data: data })
+      await db.collection('users').doc(u._id).remove()
+      out.migrated++
+    } catch (e) {
+      out.failed.push({ userId: u.userId, oldId: u._id, msg: (e && e.message) || String(e) })
+    }
+  }
+  return out
+}
+
+/**
+ * 清理坏掉的树图片：trees.image 指向的文件若已不存在，就置空
+ * （页面自动回退到内置示意图），避免每次渲染都报网络错误。
+ */
+async function cleanBrokenTreeImages(openid) {
+  const res = await db.collection('trees').limit(100).get()
+  const rows = res.data || []
+  const ids = []
+  for (let i = 0; i < rows.length; i++) {
+    const img = String(rows[i].image || '')
+    if (img.indexOf('cloud://') === 0) ids.push(img)
+  }
+  if (!ids.length) return { ok: true, checked: 0, cleaned: 0 }
+
+  const urlRes = await cloud.getTempFileURL({ fileList: ids }).catch(function () { return { fileList: [] } })
+  const bad = {}
+  ;(urlRes.fileList || []).forEach(function (f) {
+    if (!f.tempFileURL) bad[f.fileID] = f.errMsg || 'not exists'
+  })
+
+  const cleaned = []
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]
+    const img = String(t.image || '')
+    if (bad[img]) {
+      await db.collection('trees').doc(t._id).update({ data: { image: '' } }).catch(function () {})
+      cleaned.push({ treeId: t.treeId, fileID: img, reason: bad[img] })
+    }
+  }
+  return { ok: true, checked: ids.length, cleaned: cleaned.length, detail: cleaned }
+}
+
 /** 改资料（昵称 / 签名 / 碳目标） */
 async function updateProfile(openid, payload) {
   const me = await myDoc(openid)
@@ -644,6 +713,7 @@ exports.main = async function (event) {
     if (action === 'updateProfile') return await updateProfile(openid, payload)
     if (action === 'getTempUrl') return await getTempUrl(openid, payload)
     if (action === 'migrateUsers') return await migrateUsers(openid)
+    if (action === 'cleanBrokenTreeImages') return await cleanBrokenTreeImages(openid)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)

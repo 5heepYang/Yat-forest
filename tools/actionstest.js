@@ -44,6 +44,19 @@ const db = {
   ],
   trees: [
     {
+      _id: 't_doc_broken',
+      _openid: 'openid_B',
+      treeId: 't_broken',
+      name: '坏图测试树',
+      species: '樟树',
+      ownerId: 'u_018',
+      level: 1,
+      growthScore: 10,
+      status: 'normal',
+      reviewStatus: 'approved',
+      image: 'cloud://env.bucket/tree_photos/gone.jpg'
+    },
+    {
       _id: 't_doc_1',
       _openid: 'openid_B',
       treeId: 't_101',
@@ -135,6 +148,17 @@ function makeQuery(name, cond) {
           if (!d) throw new Error('doc not found')
           Object.assign(d, arg.data)
           return { stats: { updated: 1 } }
+        },
+        set: async function (arg) {
+          db[name] = db[name] || []
+          const idx = db[name].findIndex(function (x) { return x._id === id })
+          if (idx >= 0) Object.assign(db[name][idx], arg.data)
+          else db[name].push(Object.assign({ _id: id }, arg.data))
+          return { _id: id }
+        },
+        remove: async function () {
+          db[name] = (db[name] || []).filter(function (x) { return x._id !== id })
+          return { stats: { removed: 1 } }
         }
       }
     },
@@ -182,8 +206,17 @@ const fakeDb = {
 let openid = 'openid_A'
 let aiResponder = function () { return { passed: true, carbonSavedG: 120, comment: 'OK', detail: '', level: '中危', analysis: '枯枝', advice: '修剪', reward: 100, desc: '骑行 · 少排约 120 g', basePoints: 40 } }
 
+const BAD_FILE = 'cloud://env.bucket/tree_photos/gone.jpg'
+
 const sdk = {
   DYNAMIC_CURRENT_ENV: 'test-env',
+  getTempFileURL: async function (arg) {
+    const list = (arg.fileList || []).map(function (id) {
+      if (String(id).indexOf(BAD_FILE) === 0) return { fileID: id, errMsg: 'storage file not exists' }
+      return { fileID: id, tempFileURL: 'https://tmp.example/' + encodeURIComponent(id) }
+    })
+    return { fileList: list }
+  },
   init: function () {},
   database: function () { return fakeDb },
   getWXContext: function () { return { OPENID: openid } },
@@ -329,6 +362,33 @@ function treeDoc(treeId) {
   r = await actions.main({ action: 'createTask', payload: { title: '' } })
   check('空标题被拒', r.ok === false, r.msg)
 
+  console.log('===== 老数据迁移（users._id -> userId）=====')
+  // 模拟历史数据：_id 是随机串而不是 userId
+  db.users.push({
+    _id: 'random_legacy_id_9f2',
+    _openid: 'openid_B',
+    userId: 'u_018_legacy',
+    nickname: '老用户',
+    availablePoints: 5,
+    coins: 1,
+    totalGrowthScore: 1
+  })
+  r = await actions.main({ action: 'migrateUsers' })
+  check('迁移返回 ok', r.ok === true, JSON.stringify(r).slice(0, 120))
+  check('至少迁移 1 条', r.migrated >= 1, r.migrated)
+  check('老文档已删除', !db.users.some(function (u) { return u._id === 'random_legacy_id_9f2' }))
+  check('新文档 _id 等于 userId',
+    db.users.some(function (u) { return u._id === 'u_018_legacy' && u.nickname === '老用户' }))
+  r = await actions.main({ action: 'migrateUsers' })
+  check('再跑一次是幂等的', r.migrated === 0, r.migrated)
+
+  console.log('===== 坏图清理 =====')
+  r = await actions.main({ action: 'cleanBrokenTreeImages' })
+  check('清理接口可用', r.ok === true, JSON.stringify(r).slice(0, 120))
+  check('清掉 1 张坏图', r.cleaned === 1, r.cleaned)
+  check('树上的 image 已置空',
+    db.trees.find(function (t) { return t.treeId === 't_broken' }).image === '')
+
   console.log('===== 改资料 =====')
   r = await actions.main({ action: 'updateProfile', payload: { nickname: '新名字' } })
   check('昵称已更新', r.ok === true && userDoc('openid_A').nickname === '新名字', r.msg)
@@ -342,6 +402,19 @@ function treeDoc(treeId) {
   openid = 'openid_A'
   r = await actions.main({ action: 'nonsense' })
   check('未知 action 有兜底', r.ok === false && r.msg.indexOf('未知') >= 0, r.msg)
+
+  console.log('===== 分发完整性（防止调用了没定义的函数）=====')
+  const src = fs.readFileSync(actionsPath, 'utf-8')
+  const dispatched = []
+  const re = /action === '([A-Za-z0-9_]+)'\) return await ([A-Za-z0-9_]+)\(/g
+  let m
+  while ((m = re.exec(src)) !== null) dispatched.push({ action: m[1], fn: m[2] })
+  const missing = dispatched.filter(function (d) {
+    return src.indexOf('async function ' + d.fn) === -1
+  })
+  check('分发的每个 action 都有对应函数（共 ' + dispatched.length + ' 个）',
+    missing.length === 0,
+    missing.map(function (d) { return d.action + '->' + d.fn }).join(', '))
 
   fs.rmSync(stubDir, { recursive: true, force: true })
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
