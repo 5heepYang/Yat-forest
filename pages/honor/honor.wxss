@@ -782,6 +782,31 @@
 	color: #2E6B4F;
 }
 
+/* 演示数据重置入口：故意做得不起眼，只有管理员看得到 */
+.reset-entry {
+	display: flex;
+	flex-direction: column;
+	margin-top: 18px;
+	padding: 12px;
+	border-radius: 12px;
+	background-color: #FDF3F1;
+}
+
+.reset-entry-t {
+	font-size: 12px;
+	font-weight: bold;
+	color: #C0392B;
+	font-family: HYSansBold;
+}
+
+.reset-entry-d {
+	font-size: 10px;
+	color: #B4877F;
+	margin-top: 4px;
+	line-height: 15px;
+	font-family: HYSans;
+}
+
 .ok-head {
 	display: flex;
 	flex-direction: column;

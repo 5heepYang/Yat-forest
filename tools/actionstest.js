@@ -167,6 +167,16 @@ function makeQuery(name, cond) {
       db[name] = db[name] || []
       db[name].push(doc)
       return { _id: doc._id }
+    },
+    /**
+     * 云函数端支持 where().remove() 批量删除（客户端不支持），
+     * resetDemoData 靠它清个人集合，所以假库也得实现。
+     */
+    remove: async function () {
+      const keep = (db[name] || []).filter(function (d) { return !matchCond(d, cond) })
+      const removed = (db[name] || []).length - keep.length
+      db[name] = keep
+      return { stats: { removed: removed } }
     }
   }
 }
@@ -320,18 +330,43 @@ function treeDoc(treeId) {
   r = await actions.main({ action: 'completeTask', payload: { taskId: 'task_201' } })
   check('空凭证直接拒绝', r.ok === false, r.msg)
 
-  console.log('===== 新增树木（服务端审核）=====')
-  aiResponder = function () { return { passed: true, reason: '是树' } }
-  r = await actions.main({ action: 'addTree', payload: { name: '东湖岸边 · 水杉', species: '水杉', age: '20', image: 'cloud://x.jpg', imageUrl: 'https://x.jpg', lat: 23.1, lng: 113.3, posX: 60, posY: 40 } })
-  check('审核通过直接上地图', r.ok === true && r.approved === true, JSON.stringify(r).slice(0, 80))
+  console.log('===== 新增树木（AI 识别是不是树 + 什么品种，无人工审核）=====')
+  aiResponder = function (d) {
+    if (d.action === 'review') {
+      return { isTree: true, passed: true, species: '水杉', confidence: 0.86, reason: '是水杉', detail: '针叶乔木，树干笔直' }
+    }
+    return {}
+  }
+  r = await actions.main({ action: 'addTree', payload: { name: '东湖岸边 · 那棵大树', age: '20', image: 'cloud://x.jpg', imageUrl: 'https://x.jpg', lat: 23.1, lng: 113.3, posX: 60, posY: 40 } })
+  check('识别通过直接上架', r.ok === true && r.approved === true, JSON.stringify(r).slice(0, 80))
+  check('品种用 AI 识别的结果（用户没填）', r.tree.species === '水杉', r.tree.species)
+  check('不再产生 pending 状态', r.tree.reviewStatus === 'approved' && r.tree.status === 'normal',
+    r.tree.reviewStatus + '/' + r.tree.status)
   check('树写进库了', !!treeDoc(r.tree.treeId))
+  check('返回置信度给卡片用', r.confidence > 0, r.confidence)
 
-  aiResponder = function () { return { passed: false, reason: '照片里没有树' } }
-  r = await actions.main({ action: 'addTree', payload: { name: '假树', species: '樟树', image: 'cloud://y.jpg', imageUrl: 'https://y.jpg', lat: 1, lng: 1, posX: 1, posY: 1 } })
-  check('审核不通过转 pending', r.ok === true && r.approved === false && r.tree.reviewStatus === 'pending', JSON.stringify(r).slice(0, 80))
+  // 模型吐泛称（"乔木"）时不能当作品种显示，卡片上没信息量
+  aiResponder = function () { return { isTree: true, passed: true, species: '乔木' } }
+  r = await actions.main({ action: 'addTree', payload: { name: '泛称测试', image: 'cloud://x2.jpg', imageUrl: 'https://x2.jpg', lat: 23.1, lng: 113.3, posX: 62, posY: 42 } })
+  check('泛称降级成未识别', r.ok === true && r.tree.species === '未识别', r.tree.species)
 
-  r = await actions.main({ action: 'addTree', payload: { name: '', species: '' } })
-  check('缺字段被拒', r.ok === false, r.msg)
+  // 不是树 → 一票否决，且不能落库（取消人工审核后没有兜底通道了）
+  aiResponder = function () { return { isTree: false, passed: false, reason: '照片里是书本' } }
+  const treeCountBefore = db.trees.length
+  r = await actions.main({ action: 'addTree', payload: { name: '假树', image: 'cloud://y.jpg', imageUrl: 'https://y.jpg', lat: 1, lng: 1, posX: 1, posY: 1 } })
+  check('不是树直接拒绝', r.ok === false && r.msg.indexOf('书本') >= 0, r.msg)
+  check('拒绝时不落库', db.trees.length === treeCountBefore, db.trees.length + ' / ' + treeCountBefore)
+
+  // AI 不可用：宁可上架一棵"未识别"，也不能让用户白填（演示容错）
+  aiResponder = function () { return null }
+  r = await actions.main({ action: 'addTree', payload: { name: 'AI 挂了的树', image: 'cloud://z2.jpg', imageUrl: 'https://z2.jpg', lat: 23.1, lng: 113.3, posX: 64, posY: 44 } })
+  check('AI 不可用时 fail-open 上架', r.ok === true && r.aiDown === true, JSON.stringify(r).slice(0, 80))
+  check('品种记未识别', r.tree.species === '未识别', r.tree.species)
+
+  r = await actions.main({ action: 'addTree', payload: { name: '' } })
+  check('缺名称被拒', r.ok === false, r.msg)
+  r = await actions.main({ action: 'addTree', payload: { name: '没照片', image: '' } })
+  check('缺照片被拒', r.ok === false && r.msg.indexOf('照片') >= 0, r.msg)
 
   console.log('===== 隐患上报（拒绝非树木照片）=====')
   aiResponder = function () { return { reject: true, reason: '图片为数学题截图，无树木' } }
@@ -394,6 +429,43 @@ function treeDoc(treeId) {
   check('昵称已更新', r.ok === true && userDoc('openid_A').nickname === '新名字', r.msg)
   r = await actions.main({ action: 'updateProfile', payload: { nickname: '   ' } })
   check('空昵称被拒', r.ok === false, r.msg)
+
+  console.log('===== 重置演示数据（仅管理员）=====')
+  // 造一棵"种子树"（createdBy 为空）和一棵用户新增的树，验证重置只删后者
+  db.trees.push({
+    _id: 't_doc_seed',
+    _openid: 'openid_B',
+    treeId: 't_seed_1',
+    name: '种子树 · 大王椰',
+    species: '大王椰子',
+    ownerId: 'u_001',
+    ownerName: '中大护林员小李',
+    level: 2,
+    growthScore: 620,
+    status: 'hazard',
+    hazardText: '枯枝',
+    reviewStatus: 'approved',
+    createdBy: ''
+  })
+  db.tasks.push({ _id: 'task_doc_x', _openid: 'openid_A', taskId: 'task_x', title: '待清', done: true })
+
+  openid = 'openid_B'
+  r = await actions.main({ action: 'resetDemoData' })
+  check('非管理员被拒', r.ok === false && r.msg.indexOf('管理员') >= 0, r.msg)
+
+  openid = 'openid_A'
+  r = await actions.main({ action: 'resetDemoData' })
+  check('管理员可重置', r.ok === true, JSON.stringify(r).slice(0, 120))
+  check('删掉了用户新增的树', r.removedTrees > 0, r.removedTrees)
+  check('种子树被保留', !!treeDoc('t_seed_1'))
+  const seed = treeDoc('t_seed_1')
+  check('种子树归属被清空', seed.ownerId === '' && seed.ownerName === '', seed.ownerId)
+  check('种子树成长值归零', seed.level === 0 && seed.growthScore === 0, seed.level + '/' + seed.growthScore)
+  check('种子树隐患状态复原', seed.status === 'normal' && seed.hazardText === '', seed.status)
+  check('日程被清空', db.tasks.length === 0, db.tasks.length)
+  check('积分币归零到演示初值',
+    userDoc('openid_A').availablePoints === 520 && userDoc('openid_A').coins === 120,
+    userDoc('openid_A').availablePoints + '/' + userDoc('openid_A').coins)
 
   console.log('===== 身份与未知 action =====')
   openid = ''

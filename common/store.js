@@ -129,11 +129,38 @@ function synced() {
   return syncedPromise
 }
 
+/**
+ * 重新从云端拉一遍并覆盖内存。
+ * 用于「重置演示数据」之后：云端的树/积分都变了，不重拉页面还是旧数据。
+ * 走的是和启动时同一条 pull 路径，所以各集合的口径完全一致。
+ */
+function reload() {
+  return db.pull()
+    .then(function (data) {
+      applyState(data)
+      syncGoods()
+      return state
+    })
+    .catch(function (e) {
+      console.warn('[store] 重新拉取失败', e)
+      return state
+    })
+}
+
 /* ---------- AI 类写操作的云端入口（本地模式由页面走原逻辑） ---------- */
 
-/** 新增树木：云函数内部做 AI 审核再写库 */
+/** 新增树木：云函数内部做 AI 识别（是不是树 / 什么品种）再写库 */
 function cloudAddTree(info) {
   return cloudCall('addTree', info)
+}
+
+/**
+ * 重置演示数据（答辩前反复演练用）。
+ * 危险操作：会删掉用户新增的树、清空日程/日志/兑换记录、把积分归零。
+ * 云端按白名单校验身份，调用方必须自己再问一次用户。
+ */
+function cloudResetDemoData() {
+  return cloudCall('resetDemoData', {})
 }
 
 /** 隐患上报：云函数内部做 AI 巡检再记账 */
@@ -414,30 +441,14 @@ function badgeState() {
 /* 写（每个函数末尾都要 persist([...])，标明本次动到的集合）           */
 /* ------------------------------------------------------------------ */
 
-/** 认养：成功返回空串，失败返回提示语 */
+/**
+ * 是否演示数据管理员。
+ *
+ * 人工审核取消后，这个判断只剩一个用途：个人页是否显示「重置演示数据」入口。
+ * 真正的权限校验在 actions 云函数里（common/config.js 的名单只控制 UI）。
+ */
 function isAdmin() {
   return ADMIN_IDS.indexOf(state.user.userId) >= 0
-}
-
-/**
- * 审核新增树木。
- * 通过：正常出现在地图上，可被认养；驳回：留档但地图上不再显示。
- */
-function reviewTree(treeId, pass) {
-  if (!isAdmin()) return '只有管理员能审核树木'
-  const t = treeById(treeId)
-  if (t === null) return '这棵树不存在'
-  if (t.reviewStatus !== 'pending') return '这棵树不在待审核状态'
-
-  if (pass) {
-    t.reviewStatus = 'approved'
-    t.status = 'normal'
-  } else {
-    t.reviewStatus = 'rejected'
-    t.status = 'rejected'
-  }
-  persist(['trees'])
-  return ''
 }
 
 /* ------------------------------------------------------------------ */
@@ -733,7 +744,7 @@ function exchange(itemId) {
 /* 给地图页 / 新增功能预留的通用写入口                                   */
 /* ------------------------------------------------------------------ */
 
-/** 新增一棵树（走审核流程：pending -> approved 才会在地图上显示点位） */
+/** 新增一棵树（本地模式用；云端模式由 actions.addTree 以 AI 识别结果落库） */
 function addTree(tree) {
   state.trees.push(tree)
   persist(['trees'])
@@ -819,15 +830,17 @@ module.exports = {
   state,
   ready,
   synced,
+  reload,
   isCloud,
   cloudAddTree, cloudReportHazard, cloudAddGrowthLog, cloudCompleteTask, cloudCreateTask, cloudUpdateProfile,
+  cloudResetDemoData,
   persist,
 
   treeById, myTree, myTrees, selectTree, careTarget,
   todayCarbon, todayPoints, totalCarbon, doneCount, todayTaskCount, progressPct, unownedCount, myTreeCount,
   badgeState,
 
-  isAdmin, reviewTree,
+  isAdmin,
   adoptTree, water, fertilize, completeTask,
   addGrowthLog, reportHazard, exchange,
   addTree, updateTree, addTask, updateTask, updateUser,

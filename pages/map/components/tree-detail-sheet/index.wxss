@@ -262,47 +262,6 @@
 	font-family: HYSansBold;
 }
 
-/* ---------- 审核（管理员） ---------- */
-
-.tc-review {
-	display: flex;
-	flex-direction: row;
-	margin-top: 8px;
-}
-
-.tc-review-btn {
-	display: flex;
-	flex-direction: row;
-	flex: 1;
-	align-items: center;
-	justify-content: center;
-	height: 40px;
-	border-radius: 12px;
-}
-
-.tc-review-no {
-	background-color: #FDECEA;
-	margin-right: 8px;
-}
-
-.tc-review-yes {
-	background-color: #4E8A6B;
-}
-
-.tc-review-t {
-	font-size: 13px;
-	font-weight: bold;
-	font-family: HYSansBold;
-}
-
-.tc-review-t-no {
-	color: #C0392B;
-}
-
-.tc-review-t-yes {
-	color: #FFFFFF;
-}
-
 /* ---------- 看认养人主页 ---------- */
 
 .tc-owner {

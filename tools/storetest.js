@@ -137,42 +137,43 @@ function ownerOf(treeId) {
   check('浇水日期记在第一棵', !!tW.lastWaterAt, tW.lastWaterAt)
   check('施肥日期记在第二棵', !!tF.lastFertAt, tF.lastFertAt)
 
-  console.log('===== S8 新增树审核流程 =====')
-  check('当前账号是管理员', store.isAdmin() === true)
+  console.log('===== S8 历史审核状态的兼容（人工审核已下线） =====')
+  check('当前账号是演示管理员', store.isAdmin() === true)
+  check('审核接口已下线', typeof store.reviewTree === 'undefined')
+
+  // 老库里可能还留着 pending / rejected 的树，这两个拦截分支必须继续生效，
+  // 否则历史脏数据会被认养。
   const pendingId = 't_pending_test'
   store.addTree({
-    treeId: pendingId, name: '测试·待审核的树', species: '樟树', posX: 60, posY: 40,
+    treeId: pendingId, name: '测试·历史待审核的树', species: '樟树', posX: 60, posY: 40,
     lat: 0, lng: 0, ownerId: '', ownerName: '', level: 0, growthScore: 0,
     status: 'pending', hazardText: '', age: '20', reviewStatus: 'pending',
     image: '', description: '', createdBy: store.state.user.userId
   })
-  const t1 = store.treeById(pendingId)
-  check('待审核树已入库', !!t1 && t1.reviewStatus === 'pending')
   const adoptErr = store.adoptTree(pendingId)
-  check('待审核的树不能认养', adoptErr === '这棵树还在人工审核中，通过后就能认养了', adoptErr)
-
-  const rvErr = store.reviewTree(pendingId, true)
-  check('管理员可通过审核', rvErr === '', rvErr)
-  const t2 = store.treeById(pendingId)
-  check('通过后状态为 approved/normal', t2.reviewStatus === 'approved' && t2.status === 'normal',
-    t2.reviewStatus + '/' + t2.status)
-  check('通过后可以认养了', store.treeById(pendingId).ownerId === '' && store.adoptTree(pendingId) === '')
-  const again = store.reviewTree(pendingId, true)
-  check('已审过的不能再审', again === '这棵树不在待审核状态', again)
+  check('历史 pending 树仍不可认养', adoptErr === '这棵树还在人工审核中，通过后就能认养了', adoptErr)
 
   const rejectId = 't_reject_test'
   store.addTree({
-    treeId: rejectId, name: '测试·要被驳回的树', species: '榕树', posX: 40, posY: 60,
+    treeId: rejectId, name: '测试·历史被驳回的树', species: '榕树', posX: 40, posY: 60,
     lat: 0, lng: 0, ownerId: '', ownerName: '', level: 0, growthScore: 0,
-    status: 'pending', hazardText: '', age: '未知', reviewStatus: 'pending',
+    status: 'rejected', hazardText: '', age: '未知', reviewStatus: 'rejected',
     image: '', description: '', createdBy: store.state.user.userId
   })
-  check('管理员可驳回', store.reviewTree(rejectId, false) === '')
-  const t3 = store.treeById(rejectId)
-  check('驳回后状态为 rejected', t3.reviewStatus === 'rejected' && t3.status === 'rejected',
-    t3.reviewStatus + '/' + t3.status)
   const rejAdopt = store.adoptTree(rejectId)
-  check('驳回的树也不能认养', rejAdopt === '这棵树没有通过审核，暂不可认养', rejAdopt)
+  check('历史 rejected 树仍不可认养', rejAdopt === '这棵树没有通过审核，暂不可认养', rejAdopt)
+
+  // 新流程：AI 识别通过 → reviewStatus 直接 approved → 立刻可认养
+  const freshId = 't_ai_approved_test'
+  store.addTree({
+    treeId: freshId, name: '测试·AI 识别通过的树', species: '凤凰木', posX: 30, posY: 30,
+    lat: 0, lng: 0, ownerId: '', ownerName: '', level: 0, growthScore: 0,
+    status: 'normal', hazardText: '', age: '15', reviewStatus: 'approved',
+    image: '', description: '', createdBy: store.state.user.userId
+  })
+  check('AI 通过的新树可直接认养', store.adoptTree(freshId) === '')
+  check('认养后归属自己', store.treeById(freshId).ownerId === store.state.user.userId,
+    store.treeById(freshId).ownerId)
 
   console.log('\n结果：' + pass + ' 通过 / ' + failCount + ' 失败')
   process.exit(failCount === 0 ? 0 : 1)

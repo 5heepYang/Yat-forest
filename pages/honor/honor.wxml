@@ -241,6 +241,12 @@
 				<view class="sheet-btn sheet-btn-soft" bindtap="closeSheet">
 					<text class="sheet-btn-t sheet-btn-t-deep">知道了</text>
 				</view>
+
+				<!-- 仅演示管理员可见：把库恢复到刚部署的样子，答辩前反复演练用 -->
+				<view wx:if="{{isAdmin}}" class="reset-entry" bindtap="onResetDemo">
+					<text class="reset-entry-t">重置演示数据</text>
+					<text class="reset-entry-d">删除用户新增的树、清空日程/日志/兑换记录、积分归零</text>
+				</view>
 			</view>
 
 			<view wx:if="{{sheetMode == 'confirm'}}">

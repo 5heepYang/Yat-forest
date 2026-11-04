@@ -38,6 +38,13 @@ const COIN = {
 const GROWTH_CAP = 1000
 const LEVEL_STEP = 300
 
+/**
+ * 演示数据重置白名单。
+ * 人工审核取消后，这份名单只剩一个用途：允许谁按"重置演示数据"。
+ * 校验必须留在这里（云函数），前端 common/config.js 的同名数组只用来控制入口显隐。
+ */
+const ADMIN_IDS = ['u_001']
+
 /* ------------------------------------------------------------------ */
 /* 小工具                                                              */
 /* ------------------------------------------------------------------ */
@@ -101,6 +108,16 @@ function pubTree(doc) {
   delete t._id
   delete t._openid
   return t
+}
+
+/** 树种名清理：模型偶尔吐学名/括号/泛称，卡片上要显示干净的具体品种 */
+function cleanSpecies(raw) {
+  let s = String(raw || '').trim()
+  s = s.replace(/[（(].*?[）)]/g, '').replace(/[,，。;；:：、\/]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (s === '' || s === '无' || s === '未知' || s === '不确定' || s === 'null') return '未识别'
+  const generic = ['乔木', '灌木', '绿植', '植物', '树木', '树', '行道树', '绿化树', '阔叶树', '针叶树']
+  if (generic.indexOf(s) >= 0) return '未识别'
+  return s.slice(0, 20)
 }
 
 /** 调 task-ai 做 AI 判定；云函数互调不受客户端额度影响 */
@@ -369,13 +386,18 @@ function pubTask(doc) {
   return t
 }
 
-/** 新增树木：服务端先 AI 审核，通过才写库（客户端无法绕过审核） */
+/**
+ * 新增树木：服务端 AI 识别「是不是树 + 什么品种」，通过就直接上架。
+ *
+ * 已取消人工审核，所以这里是唯一关卡：
+ *   - AI 明确说不是树 → 直接拒绝，不落库（没有 pending 可以转了）
+ *   - AI 调用失败 → fail-open 放行，species 记"未识别"，避免演示时卡死
+ */
 async function addTree(openid, payload) {
   const me = await myDoc(openid)
   if (!me) return { ok: false, msg: '请先登录' }
 
   const name = String(payload.name || '').trim()
-  const species = String(payload.species || '').trim()
   const age = String(payload.age || '').trim()
   const image = String(payload.image || '')
   const description = String(payload.description || '').trim()
@@ -384,18 +406,31 @@ async function addTree(openid, payload) {
   const posX = Number(payload.posX)
   const posY = Number(payload.posY)
 
-  if (name === '' || species === '') return { ok: false, msg: '名称或树种为空', user: pubUser(me) }
+  if (name === '') return { ok: false, msg: '请先给它起个名字', user: pubUser(me) }
   if (image === '') return { ok: false, msg: '请先上传现场照片', user: pubUser(me) }
+  if (!isFinite(posX) || !isFinite(posY)) return { ok: false, msg: '缺少树木位置', user: pubUser(me) }
 
   const r = await askAi({
     action: 'review',
     name: name,
-    species: species,
     age: age,
     description: description,
     imageUrl: String(payload.imageUrl || '')
   })
-  const approved = !(r && r.passed === false)
+
+  // 明确判定"不是树"才拒绝；AI 不可用（r 为 null）走下面的 fail-open
+  if (r && r.isTree === false) {
+    return {
+      ok: false,
+      msg: r.reason || '照片里看不到树木，换一张再试',
+      isTree: false,
+      reason: r.reason || '',
+      user: pubUser(me)
+    }
+  }
+
+  const aiDown = !r
+  const species = cleanSpecies((r && r.species) || payload.species)
 
   const doc = {
     treeId: 't_' + Date.now() + Math.floor(Math.random() * 1000),
@@ -410,9 +445,9 @@ async function addTree(openid, payload) {
     ownerName: '',
     level: 0,
     growthScore: 0,
-    status: approved ? 'normal' : 'pending',
+    status: 'normal',
     hazardText: '',
-    reviewStatus: approved ? 'approved' : 'pending',
+    reviewStatus: 'approved',
     reviewNote: (r && r.reason) || '',
     image: image,
     description: description,
@@ -425,8 +460,11 @@ async function addTree(openid, payload) {
   return {
     ok: true,
     tree: pubTree(doc),
-    approved: approved,
-    reason: (r && r.reason) || '',
+    approved: true,
+    species: species,
+    confidence: (r && Number(r.confidence)) || 0,
+    aiDown: aiDown,
+    reason: (r && r.reason) || (aiDown ? 'AI 暂时不可用' : ''),
     detail: (r && r.detail) || ''
   }
 }
@@ -598,6 +636,98 @@ async function getTempUrl(openid, payload) {
 }
 
 /**
+ * 演示数据重置：把库恢复到"刚部署"的样子，供答辩前反复演练。
+ *
+ * 不依赖 common/mock.js（云函数目录里 require 不到），所以用规则复原而不是重建种子：
+ *   - 种子树的 createdBy 为空，用户新增的 createdBy 是 userId → 据此只删用户新增的
+ *   - 种子树本身保留，清掉归属/等级/成长/隐患，顺便把历史 pending 转 approved
+ *   - tasks / tree_logs / records 是个人过程数据，全清
+ *   - users 只归零数值，不动昵称头像（删了 users 会导致用户下次进来重新开号、头像丢失）
+ *
+ * 不可逆，只能在白名单内调用。
+ */
+async function resetDemoData(openid) {
+  const me = await myDoc(openid)
+  if (!me) return { ok: false, msg: '请先登录' }
+  if (ADMIN_IDS.indexOf(me.userId) < 0) {
+    return { ok: false, msg: '只有管理员能重置演示数据', user: pubUser(me) }
+  }
+
+  const out = {
+    ok: true,
+    removedTrees: 0,
+    resetTrees: 0,
+    cleared: { tasks: 0, tree_logs: 0, records: 0 },
+    resetUsers: 0,
+    failed: []
+  }
+
+  // 1) 删掉用户新增的树
+  let rows = ((await db.collection('trees').limit(100).get()).data) || []
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]
+    if (String(t.createdBy || '') === '') continue
+    try {
+      await db.collection('trees').doc(t._id).remove()
+      out.removedTrees++
+    } catch (e) {
+      out.failed.push('tree:' + (t.treeId || t._id))
+    }
+  }
+
+  // 2) 种子树复原
+  rows = ((await db.collection('trees').limit(100).get()).data) || []
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]
+    try {
+      await db.collection('trees').doc(t._id).update({
+        data: {
+          ownerId: '',
+          ownerName: '',
+          level: 0,
+          growthScore: 0,
+          status: 'normal',
+          hazardText: '',
+          reviewStatus: 'approved'
+        }
+      })
+      out.resetTrees++
+    } catch (e) {
+      out.failed.push('tree-reset:' + (t.treeId || t._id))
+    }
+  }
+
+  // 3) 个人过程数据全清（管理员身份可越过"仅创建者可读写"）
+  const names = ['tasks', 'tree_logs', 'records']
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i]
+    try {
+      const r = await db.collection(name).where({}).remove()
+      out.cleared[name] = (r && r.stats && r.stats.removed) || 0
+    } catch (e) {
+      out.failed.push(name + ': ' + ((e && e.message) || String(e)))
+    }
+  }
+
+  // 4) users 数值归零，档案保留
+  const users = ((await db.collection('users').limit(100).get()).data) || []
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i]
+    try {
+      await db.collection('users').doc(u._id).update({
+        data: { availablePoints: 520, coins: 120, totalGrowthScore: 0, badgeCount: 0, days: 1 }
+      })
+      out.resetUsers++
+    } catch (e) {
+      out.failed.push('user:' + (u.userId || u._id))
+    }
+  }
+
+  out.user = pubUser(await myDoc(openid))
+  return out
+}
+
+/**
  * 一次性数据迁移：把 users 文档的 _id 改成 userId。
  *
  * 背景：canonicalId 生效前写入的 users 文档 _id 是随机串，按主键 doc(userId) 查不到，
@@ -714,11 +844,12 @@ exports.main = async function (event) {
     if (action === 'getTempUrl') return await getTempUrl(openid, payload)
     if (action === 'migrateUsers') return await migrateUsers(openid)
     if (action === 'cleanBrokenTreeImages') return await cleanBrokenTreeImages(openid)
+    if (action === 'resetDemoData') return await resetDemoData(openid)
     return { ok: false, msg: '未知 action: ' + action }
   } catch (e) {
     console.error('[actions] 执行失败', action, e && e.message)
     // 诊断类 action 把真实错误吐回去，别再一律"服务器开小差了"
-    if (action === 'migrateUsers' || action === 'cleanBrokenTreeImages') {
+    if (action === 'migrateUsers' || action === 'cleanBrokenTreeImages' || action === 'resetDemoData') {
       return {
         ok: false,
         msg: '执行失败：' + ((e && (e.errMsg || e.message)) || String(e)),

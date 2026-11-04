@@ -57,7 +57,6 @@
 			tree="{{sel}}"
 			bind:action="onCardAction"
 			bind:hazard="onCardHazard"
-			bind:review="onCardReview"
 			bind:owner="onViewOwner"
 			bind:close="onCardClose"
 		></tree-detail-sheet>
@@ -66,10 +65,13 @@
 			show="{{showUpload}}"
 			location="{{uploadLoc}}"
 			draft="{{uploadDraft}}"
+			result="{{uploadResult}}"
 			bind:close="onUploadClose"
 			bind:pick="onUploadPick"
 			bind:draftchange="onUploadDraft"
 			bind:submit="onUploadSubmit"
+			bind:retake="onUploadRetake"
+			bind:resultclose="onUploadResultClose"
 		></upload-tree-modal>
 	</view>
 

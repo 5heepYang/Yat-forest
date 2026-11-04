@@ -1,9 +1,12 @@
 /**
  * task-ai 云函数：低碳日程页 AI 云调度
  *
- * 一个函数两个 action，零 npm 依赖（纯 Node 内置 https，上传即用）：
+ * 一个函数多个 action，零 npm 依赖（纯 Node 内置 https，上传即用）：
  *   plan   { action, title }                                     -> { desc, basePoints }
  *   verify { action, title, basePoints, proofText, imageUrl }    -> { passed, carbonSavedG, comment, detail }
+ *   review { action, name, age, imageUrl }                       -> { isTree, species, confidence, passed, reason }
+ *   hazard { action, name, species, imageUrl }                   -> { level, analysis, advice, reward }
+ *   （review 名保留：旧版 actions 还在按这个名字调，改名会制造部署中间态）
  *
  * 任何失败（未配 key / 模型超时 / 参数缺失）都返回 { fallback: true, reason }，
  * 小程序端 common/ai.js 收到 fallback 后自动回退本地模拟，页面不瘫。
@@ -188,49 +191,86 @@ async function handleHazard(event) {
   }
 }
 
-/** action=review：新增树木的 AI 审核（有图走视觉模型，没图走文本模型） */
+/** 把模型给的树种名清理成卡片上能显示的短词 */
+function cleanSpecies(raw) {
+  let s = String(raw || '').trim()
+  // 去掉括号注释、学名、标点，只留中文/字母主体
+  s = s.replace(/[（(].*?[）)]/g, '').replace(/[,，。;；:：、\/]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (s === '' || s === '无' || s === '未知' || s === '不确定' || s === 'null') return '未识别'
+  // 泛称不算识别出来，卡片上没有信息量
+  const generic = ['乔木', '灌木', '绿植', '植物', '树木', '树', '行道树', '绿化树', '阔叶树', '针叶树']
+  if (generic.indexOf(s) >= 0) return '未识别'
+  return s.slice(0, 20)
+}
+
+/**
+ * action=review：识别新增树木（有图走视觉模型）
+ *
+ * 注意：action 名仍叫 review —— 改名会让"先传 task-ai 再传 actions"出现中间态：
+ * 旧版 actions 还在调 review，新函数没有就会整个新增树流程失败。
+ * 所以这里只扩展返回字段（species/isTree/confidence），passed 保留给旧调用方。
+ */
 async function handleReview(event) {
   const name = String(event.name || '').trim()
-  const species = String(event.species || '').trim()
   const age = String(event.age || '').trim()
   const description = String(event.description || '').trim()
   const imageUrl = String(event.imageUrl || '').trim()
+  const inputSpecies = String(event.species || '').trim()
 
-  if (name === '' || species === '') {
-    return { fallback: true, reason: '名称或树种为空' }
+  if (name === '') {
+    return { fallback: true, reason: '名称不能为空' }
+  }
+
+  // 没有照片就无法识图：回退文本模型只做基本判断，品种沿用用户填的（没有就未识别）
+  if (imageUrl === '') {
+    const content = await callModel(TEXT_MODEL, [
+      { role: 'system', content: '你是校园绿化管理员，判断这条树木登记信息是否合理。' },
+      {
+        role: 'user',
+        content: '树木名称：' + name + '；树龄：' + (age || '未填') + '；描述：' + (description || '无') + '。' +
+          '只输出 JSON，格式 {"isTree":true或false,"species":"具体树种中文名，不确定填未识别","confidence":0到1,"reason":"不超过30字"}。'
+      }
+    ])
+    const rt = extractJson(content)
+    const ok = rt.isTree === true || rt.isTree === 'true'
+    return {
+      passed: ok,
+      isTree: ok,
+      species: cleanSpecies(rt.species) === '未识别' ? cleanSpecies(inputSpecies) : cleanSpecies(rt.species),
+      confidence: Number(rt.confidence) || 0,
+      reason: String(rt.reason || (ok ? '信息合理' : '信息不合理')).slice(0, 40),
+      detail: '没有现场照片，仅按文字判断'
+    }
   }
 
   const requirement =
-    '你在审核一条校园树木新增申请，判断它是否可信。' +
-    '名称：' + name + '；树种：' + species + '；树龄：' + (age || '未填') + '；' +
-    '描述：' + (description || '无') + '。' +
-    (imageUrl !== '' ? '请重点核对照片里是否真的是一棵树/植物，是否与名称、树种相符。' : '没有照片，请只按文字合理性判断。') +
-    '只输出 JSON，格式 {"passed":true或false,"reason":"不超过30字的原因","detail":"判断依据不超过40字"}。'
+    '看这张照片，判断画面主体是不是一棵树/一株植物，并识别它的品种。' +
+    (name ? '用户给它起名叫「' + name + '」，这个名字只是位置+外号，不代表品种，不要被它干扰。' : '') +
+    '判断标准放宽：只要画面主体是树木或植株就算通过，不要求拍摄专业、不要求整树入镜。' +
+    '品种要具体到中文俗名（例如：香樟、大王椰子、凤凰木、细叶榕、小叶榄仁）；' +
+    '如果只是背景里有一点绿、主体是书本/人/建筑/食物/屏幕，则 isTree 为 false。' +
+    '只输出 JSON，格式 {"isTree":true或false,"species":"具体树种中文名，认不出填未识别","confidence":0到1,"reason":"不超过30字的原因","detail":"外观特征不超过40字"}。'
 
-  let content
-  if (imageUrl !== '') {
-    content = await callModel(VISION_MODEL, [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: requirement },
-          { type: 'image_url', image_url: { url: imageUrl } }
-        ]
-      }
-    ])
-  } else {
-    content = await callModel(TEXT_MODEL, [
-      { role: 'system', content: '你是校园绿化管理员，负责审核树木新增申请。' },
-      { role: 'user', content: requirement }
-    ])
-  }
+  const content = await callModel(VISION_MODEL, [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: requirement },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    }
+  ])
 
   const r = extractJson(content)
-  // 只认明确布尔值，缺字段按"未通过"处理，避免脏数据直接上地图
-  const passed = r.passed === true || r.passed === 'true'
+  // 只认明确布尔值；缺字段说明模型没看懂 → 不通过，交给用户重拍
+  const isTree = r.isTree === true || r.isTree === 'true'
+  const species = cleanSpecies(r.species) === '未识别' ? cleanSpecies(inputSpecies) : cleanSpecies(r.species)
   return {
-    passed: passed,
-    reason: String(r.reason || (passed ? '审核通过' : '照片或信息不符')).slice(0, 40),
+    passed: isTree,
+    isTree: isTree,
+    species: species,
+    confidence: Number(r.confidence) || 0,
+    reason: String(r.reason || (isTree ? '识别通过' : '照片里看不到树木')).slice(0, 40),
     detail: String(r.detail || '').slice(0, 60)
   }
 }

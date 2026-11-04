@@ -201,7 +201,6 @@ function aiReviewTree(info, cb) {
   const payload = {
     action: 'review',
     name: info.name || '',
-    species: info.species || '',
     age: info.age || '',
     description: info.description || '',
     imageUrl: info.imageUrl || ''
@@ -210,7 +209,14 @@ function aiReviewTree(info, cb) {
   if (cloudReady()) {
     callTaskAi(payload, function (r) {
       if (r && typeof r.passed === 'boolean') {
-        cb({ passed: r.passed, reason: r.reason || '', detail: r.detail || '' })
+        cb({
+          passed: r.passed,
+          isTree: r.isTree !== false,
+          species: r.species || '未识别',
+          confidence: Number(r.confidence) || 0,
+          reason: r.reason || '',
+          detail: r.detail || ''
+        })
         return
       }
       cb(localReviewTree(info))
@@ -225,11 +231,14 @@ function aiReviewTree(info, cb) {
 
 /** 本地兜底：不做图像判断，只校验必填项（测试号 / 云端不可用时用） */
 function localReviewTree(info) {
-  const ok = !!info.imageUrl && !!info.name && !!info.species
+  const ok = !!info.imageUrl && !!info.name
   return {
     passed: ok,
-    reason: ok ? '信息完整，本地规则直接通过' : '缺少照片或树种信息',
-    detail: '本地规则审核'
+    isTree: ok,
+    species: info.species || '未识别',
+    confidence: 0,
+    reason: ok ? '信息完整，本地规则直接通过' : '缺少照片或名称',
+    detail: '本地规则识别'
   }
 }
 

@@ -66,11 +66,6 @@ Component({
       this.triggerEvent('hazard')
     },
 
-    /** 管理员审核：pass=true 上架，false 驳回 */
-    onReview(e) {
-      this.triggerEvent('review', { pass: String(e.currentTarget.dataset.pass) === '1' })
-    },
-
     /** 看认养人主页 */
     onOwner() {
       this.triggerEvent('owner')

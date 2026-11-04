@@ -69,7 +69,7 @@
 | `growthScore` | number | 成长值，满 1000 升 4 级 |
 | `status` | string | 见下表，**枚举值不能自创** |
 | `hazardText` | string | 隐患描述 |
-| `reviewStatus` | string | `pending` / `approved` / `rejected`，人工审核用 |
+| `reviewStatus` | string | `approved` / `rejected`；人工审核已下线，新树由 AI 识别后恒为 `approved` |
 | `createdBy` | string | 提交人 userId（用户在地图上新增的树） |
 
 `status` 枚举：
@@ -78,11 +78,11 @@
 | --- | --- | --- |
 | `normal` | 正常（可认养 / 已认养） | ✅ 按归属着色 |
 | `hazard` | 有隐患，暂不可认养 | ✅ 红色感叹号 |
-| `pending` | 刚提交，等审核 | ❌ 不显示（配合 `reviewStatus`） |
+| `pending` | 历史数据（旧版人工审核留下的待审态） | ❌ 不显示 |
 | `rejected` | 审核驳回 | ❌ 不显示 |
 
-> 用户在地图上新增的树：`status: 'normal'` + `reviewStatus: 'pending'`。
-> 地图渲染时过滤 `reviewStatus !== 'approved'` 的点位。
+> 用户在地图上新增的树：AI 识别通过 → `status: 'normal'` + `reviewStatus: 'approved'`，立刻上地图。
+> AI 判不是树 → 直接拒绝、不落库。`pending` 只剩历史兼容：地图仍隐藏、`adoptTree` 仍拦截。
 
 ### tasks（日程任务）
 
@@ -325,8 +325,8 @@ onWater() {
 | 功能 | 改哪个页面 | 依赖字段 / 接口 |
 | --- | --- | --- |
 | 地图换成原生 map 组件 | `pages/map` | `trees.lat/lng` + `geo.posToLatLng` |
-| 地图加号新增树 | `pages/map` | `store.addTree()`，`reviewStatus: 'pending'` |
-| 树木人工审核 | `pages/honor`（管理员入口） | `store.updateTree(id, { reviewStatus: 'approved' })` |
+| 地图加号新增树 | `pages/map` | `store.cloudAddTree()` → `actions.addTree`，AI 识别品种后直接 `approved` |
+| ~~树木人工审核~~ | 已取消 | 审核动作整体移除；`ADMIN_IDS` 只用于「重置演示数据」入口 |
 | 定位 + 附近可认养 | `pages/map` | `geo.getCurrentLocation()` + `geo.nearbyTrees()` |
 | 看别人的个人主页 | `pages/map` → `pages/honor?userId=xxx` | `trees.ownerId` + `db.fetchUserDoc()`（访客模式：只看不改、不显示补给站） |
 | 微信一键登录 / 退出登录 | `pages/login`、`pages/honor`（退出入口） | `common/auth.js` 本地登录标记；身份靠微信 openid 静默建档（云端自动按 `_openid` 隔离），本地首登一次性 `resetForNewUser()` |

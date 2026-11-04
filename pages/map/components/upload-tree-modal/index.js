@@ -1,7 +1,9 @@
 /**
- * 新增树木弹窗
+ * 新增树木弹窗（表单态 + 识别结果态）
  *
- * 表单：名称* / 树种* / 树龄 / 现场照片*（wx.chooseMedia）/ 位置* / 描述。
+ * 表单只有：名称* / 现场照片* / 位置* / 树龄（选填）/ 描述（选填）。
+ * 树种不再让用户填 —— 提交后由 AI 看照片识别，结果直接出现在同一张卡片里，
+ * 也就是"生成树卡片给出树的品种"。
  *
  * 位置有两种来源：
  *   1. 打开弹窗时页面的地图中心（默认）
@@ -9,7 +11,7 @@
  *
  * 为了选点回来不丢草稿，表单状态由页面持有：
  * 组件每次输入抛 draftchange，页面存下来再通过 draft 属性回灌，
- * 所以"选点 → 回到弹窗"时名称、树种、照片都还在。
+ * 所以"选点 → 回到弹窗"时名称、树龄、照片都还在。
  */
 const { toast } = require('../../../../common/util')
 
@@ -36,12 +38,19 @@ Component({
     draft: {
       type: Object,
       value: null
+    },
+    /**
+     * 识别结果：null = 表单态。
+     * { ok, name, image, species, age, aiDown, reason }
+     */
+    result: {
+      type: Object,
+      value: null
     }
   },
 
   data: {
     name: '',
-    species: '',
     age: '',
     image: '',
     description: '',
@@ -66,7 +75,6 @@ Component({
         const d = this.data.draft || {}
         this.setData({
           name: d.name || '',
-          species: d.species || '',
           age: d.age || '',
           image: d.image || '',
           description: d.description || '',
@@ -96,7 +104,6 @@ Component({
     emitDraft() {
       this.triggerEvent('draftchange', {
         name: this.data.name,
-        species: this.data.species,
         age: this.data.age,
         image: this.data.image,
         description: this.data.description
@@ -107,13 +114,17 @@ Component({
       this.triggerEvent('close')
     },
 
-    onNameInput(e) {
-      this.setData({ name: e.detail.value })
-      this.emitDraft()
+    /** 点遮罩：结果态直接关（已经落库了），表单态等同取消 */
+    onMaskTap() {
+      if (this.data.result) {
+        this.triggerEvent('resultclose')
+        return
+      }
+      this.triggerEvent('close')
     },
 
-    onSpeciesInput(e) {
-      this.setData({ species: e.detail.value })
+    onNameInput(e) {
+      this.setData({ name: e.detail.value })
       this.emitDraft()
     },
 
@@ -157,14 +168,9 @@ Component({
 
     onSubmit() {
       const name = trim(this.data.name)
-      const species = trim(this.data.species)
 
       if (name === '') {
-        toast('请填写树木名称')
-        return
-      }
-      if (species === '') {
-        toast('请填写树种')
+        toast('请先给它起个名字')
         return
       }
       if (this.data.image === '') {
@@ -178,11 +184,20 @@ Component({
 
       this.triggerEvent('submit', {
         name: name,
-        species: species,
-        age: trim(this.data.age) || '未知',
+        age: trim(this.data.age),
         image: this.data.image,
         description: trim(this.data.description)
       })
+    },
+
+    /** 结果卡片：关闭 */
+    onResultClose() {
+      this.triggerEvent('resultclose')
+    },
+
+    /** 结果卡片：没认出来，回表单重拍 */
+    onRetake() {
+      this.triggerEvent('retake')
     }
   }
 })

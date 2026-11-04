@@ -1,7 +1,49 @@
 <block wx:if="{{render}}">
-	<view class="um-mask {{anim ? 'um-mask-on' : ''}}" bindtap="onClose"></view>
+	<view class="um-mask {{anim ? 'um-mask-on' : ''}}" bindtap="onMaskTap"></view>
 
-	<view class="um-card {{anim ? 'um-on' : ''}}">
+	<!-- 结果态：AI 识别完生成的树卡片 -->
+	<view wx:if="{{result}}" class="um-card um-card-result {{anim ? 'um-on' : ''}}">
+		<view class="um-head">
+			<text class="um-title">{{result.ok ? '树卡片' : '没认出是树'}}</text>
+			<view class="um-close" bindtap="onResultClose">
+				<text class="um-close-t">×</text>
+			</view>
+		</view>
+
+		<view class="um-result">
+			<image wx:if="{{result.image}}" class="um-result-img" src="{{result.image}}" mode="aspectFill"></image>
+
+			<view class="um-result-info">
+				<text class="um-result-name">{{result.name}}</text>
+
+				<block wx:if="{{result.ok}}">
+					<view class="um-result-species-row">
+						<text class="um-result-label">树种</text>
+						<text class="um-result-species">{{result.species}}</text>
+					</view>
+					<text wx:if="{{result.age}}" class="um-result-meta">树龄 {{result.age}} 年</text>
+					<text wx:if="{{result.aiDown}}" class="um-result-hint">品种识别暂时不可用，已按「未识别」记录</text>
+					<text wx:elif="{{result.reason}}" class="um-result-hint">{{result.reason}}</text>
+					<text class="um-result-done">已生成树卡片，并标注在地图上</text>
+				</block>
+
+				<block wx:else>
+					<text class="um-result-fail">{{result.reason}}</text>
+					<text class="um-result-hint">换一张能看清树木主体的照片再试，画面里要是树，不是书本或人。</text>
+				</block>
+			</view>
+		</view>
+
+		<view wx:if="{{result.ok}}" class="um-submit" bindtap="onResultClose">
+			<text class="um-submit-t">知道了</text>
+		</view>
+		<view wx:else class="um-submit um-submit-warn" bindtap="onRetake">
+			<text class="um-submit-t">重拍一张</text>
+		</view>
+	</view>
+
+	<!-- 表单态 -->
+	<view wx:else class="um-card {{anim ? 'um-on' : ''}}">
 		<view class="um-head">
 			<text class="um-title">新增树木</text>
 			<view class="um-close" bindtap="onClose">
@@ -12,17 +54,7 @@
 		<scroll-view class="um-body" scroll-y>
 			<view class="um-field">
 				<text class="um-label">树木名称 <text class="um-req">*</text></text>
-				<input class="um-input" value="{{name}}" placeholder="请填写区域和名称，用·连接，例如：图书馆西侧·樟树" placeholder-class="um-ph" bindinput="onNameInput" />
-			</view>
-
-			<view class="um-field">
-				<text class="um-label">树种 <text class="um-req">*</text></text>
-				<input class="um-input" value="{{species}}" placeholder="例如：大王椰子" placeholder-class="um-ph" bindinput="onSpeciesInput" />
-			</view>
-
-			<view class="um-field">
-				<text class="um-label">树龄</text>
-				<input class="um-input" value="{{age}}" type="text" placeholder="例如 35（年），不清楚可留空" placeholder-class="um-ph" bindinput="onAgeInput" />
+				<input class="um-input" value="{{name}}" placeholder="给它起个名，例如：图书馆西侧·那棵大树" placeholder-class="um-ph" bindinput="onNameInput" />
 			</view>
 
 			<view class="um-field">
@@ -34,6 +66,7 @@
 						<text class="um-photo-t">拍摄 / 选择现场照片</text>
 					</view>
 				</view>
+				<text class="um-photo-tip">AI 会看这张照片判断是不是树，并给出树种</text>
 			</view>
 
 			<view class="um-field">
@@ -51,13 +84,18 @@
 			</view>
 
 			<view class="um-field">
+				<text class="um-label">树龄（选填）</text>
+				<input class="um-input" value="{{age}}" type="text" placeholder="例如 35，不清楚可留空" placeholder-class="um-ph" bindinput="onAgeInput" />
+			</view>
+
+			<view class="um-field">
 				<text class="um-label">描述（选填）</text>
 				<textarea class="um-textarea" value="{{description}}" placeholder="介绍树木位置、状态等" placeholder-class="um-ph" bindinput="onDescInput"></textarea>
 			</view>
 		</scroll-view>
 
 		<view class="um-submit" bindtap="onSubmit">
-			<text class="um-submit-t">提交新增</text>
+			<text class="um-submit-t">提交，让 AI 认一下</text>
 		</view>
 	</view>
 </block>

@@ -1,6 +1,5 @@
 const { emptyTree } = require('../../common/mock')
 const store = require('../../common/store')
-const { isAdmin } = store
 const { CAMPUS, posToLatLng, latLngToPos, treeLatLng, distanceMeters, formatDistance, getCurrentLocation, nearbyTrees } = require('../../common/geo')
 const { aiAnalyzeHazard, aiReviewTree } = require('../../common/ai')
 const { ADOPT_COST } = require('../../common/theme')
@@ -47,8 +46,6 @@ function buildMarkers(list, me, selectedId) {
       latitude: p.latitude,
       longitude: p.longitude,
       iconPath: markerIcon(t, me),
-      // 待审核的树画淡一点，和正式点位区分开
-      alpha: t.reviewStatus === 'pending' ? 0.55 : 1,
       width: on ? 44 : 36,
       height: on ? 56 : 46,
       // 锚点设在 pin 尖端，点位正好落在树的经纬度上
@@ -62,13 +59,8 @@ function buildMarkers(list, me, selectedId) {
 function decorateSelected(t) {
   const me = store.state.user.userId
 
-  const admin = isAdmin()
-  const pending = t.reviewStatus === 'pending'
-
   let tagText = ''
-  if (pending) {
-    tagText = admin ? '待审核 · 通过后才上地图' : '待审核，等待管理员通过'
-  } else if (t.status === 'hazard') {
+  if (t.status === 'hazard') {
     tagText = '隐患预警，待后勤处理'
   } else if (t.ownerId === '') {
     tagText = '待认养，可立即认养'
@@ -81,11 +73,7 @@ function decorateSelected(t) {
   let btnText = ''
   let btnBg = ''
   let btnColor = ''
-  if (pending) {
-    btnText = '审核通过后才能认养'
-    btnBg = 'btn-mute'
-    btnColor = 'tc-btn-t-white'
-  } else if (t.ownerId === me) {
+  if (t.ownerId === me) {
     btnText = '已认养 · 去给它浇水'
     btnBg = 'btn-soft'
     btnColor = 'tc-btn-t-deep'
@@ -130,9 +118,8 @@ function decorateSelected(t) {
     descClass: isHazard ? 'tc-desc-warn' : '',
     distanceText: formatDistance(t.distance),
     tagText: tagText,
-    tagBg: (pending || t.status === 'hazard') ? 'tag-warn' : 'tag-cream',
-    tagColor: (pending || t.status === 'hazard') ? 'tc-tag-t-warn' : 'tc-tag-t-cream',
-    canReview: pending && admin,
+    tagBg: isHazard ? 'tag-warn' : 'tag-cream',
+    tagColor: isHazard ? 'tc-tag-t-warn' : 'tc-tag-t-cream',
     canViewOwner: t.ownerId !== '' && t.ownerId !== me,
     ownerId: t.ownerId,
     btnText: btnText,
@@ -160,6 +147,8 @@ Page({
     showUpload: false,
     uploadLoc: null,
     uploadDraft: null,
+    // 识别结果卡片：null = 表单态，有值 = 结果态（成功给树卡片 / 失败给原因）
+    uploadResult: null,
     pickMode: false,
     loaded: false,
     showEmpty: false,
@@ -208,13 +197,12 @@ Page({
   refresh() {
     const f = this.data.filter
     const me = store.state.user.userId
-    const admin = isAdmin()
     const kw = this.data.keyword.replace(/^\s+|\s+$/g, '').toLowerCase()
 
-    // 审核可见性：驳回的谁都不看；待审核只有管理员和提交者本人能看
+    // 人工审核已取消：新树由 AI 识别后直接上架。
+    // 只保留 rejected 过滤，用于隐藏历史上被驳回的脏数据。
     const visible = this.trees.filter(function (t) {
       if (t.reviewStatus === 'rejected') return false
-      if (t.reviewStatus === 'pending' && !admin && t.createdBy !== me) return false
       return true
     })
 
@@ -249,17 +237,16 @@ Page({
     } else if (f !== 'all' || kw !== '') {
       hintText = '当前显示 ' + picked.length.toFixed(0) + ' 棵'
     } else if (this.userLoc && this.userLoc.real) {
-      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养（待审核的不算）
+      // 有真实定位才敢说"附近"：按 500 米半径数一遍待认养
       const nearFree = nearbyTrees(this.userLoc.latitude, this.userLoc.longitude, visible, NEAR_RADIUS, true)
       hintText = '附近 ' + nearFree.length.toFixed(0) + ' 棵可认养 · ' + NEAR_RADIUS + ' 米内'
     } else {
-      const free = visible.filter(function (t) { return t.ownerId === '' && t.reviewStatus !== 'pending' }).length
+      const free = visible.filter(function (t) { return t.ownerId === '' }).length
       hintText = '全校 ' + free + ' 棵可认养'
     }
 
     this.setData({
-      subtitle: '南校园 · ' + visible.length.toFixed(0) + ' 棵树在册'
-        + (admin && this.trees.length !== visible.length ? ' · 含待审核' : ''),
+      subtitle: '南校园 · ' + visible.length.toFixed(0) + ' 棵树在册',
       markers: buildMarkers(picked, me, this.selectedTreeId),
       showEmpty: this.loaded && picked.length === 0,
       hintText: hintText
@@ -394,36 +381,6 @@ Page({
     this.selectedTreeId = ''
     this.setData({ showCard: false })
     this.refresh()
-  },
-
-  /** 管理员审核：通过则上地图可认养，驳回则从地图移除（保留记录） */
-  onCardReview(e) {
-    const sel = this.data.sel
-    if (!sel) return
-    const pass = !!(e.detail && e.detail.pass)
-    const that = this
-
-    wx.showModal({
-      title: pass ? '通过上架' : '驳回这棵树',
-      content: pass
-        ? '通过后「' + sel.name + '」会出现在地图上，可被认养。'
-        : '驳回后地图上不再显示这棵树，记录会保留。',
-      confirmText: pass ? '通过' : '驳回',
-      cancelText: '取消',
-      confirmColor: pass ? '#4E8A6B' : '#C0392B',
-      success: function (m) {
-        if (!m.confirm) return
-        const err = store.reviewTree(sel.treeId, pass)
-        if (err) {
-          toast(err)
-          return
-        }
-        that.selectedTreeId = ''
-        that.setData({ showCard: false })
-        that.refresh()
-        toast(pass ? '已通过，已上地图' : '已驳回')
-      }
-    })
   },
 
   /** 看认养人主页（只读，数据从公有 trees 集合推算） */
@@ -601,6 +558,7 @@ Page({
         showUpload: true,
         uploadLoc: loc,
         uploadDraft: null,
+        uploadResult: null,
         pickMode: false,
         showCard: false
       })
@@ -633,7 +591,7 @@ Page({
   },
 
   onUploadClose() {
-    this.setData({ showUpload: false, uploadDraft: null })
+    this.setData({ showUpload: false, uploadDraft: null, uploadResult: null })
   },
 
   /** 弹窗把表单内容实时抛上来，选点往返时不会丢已填内容 */
@@ -671,11 +629,12 @@ Page({
 
   /** 表单校验通过后入库：新树默认待认养（status normal + ownerId 空），立刻上图 */
   /**
-   * 提交新增树木：照片上云 → AI 审核 → 通过直接上地图，不通过转人工复核。
+   * 提交新增树木：照片上云 → AI 识别（是不是树 / 什么品种）→ 通过直接上地图。
    *
-   * 两个关键点：
+   * 三个人工审核取消后留下的关键点：
    *   1. 照片必须传到云存储（原来存的是本机临时路径，别人看不到、重启就失效）
    *   2. 视觉模型取不到 cloud:// 地址，要换成临时 https 链接才能识图
+   *   3. AI 说不是树就不落库，结果卡片直接显示原因让用户重拍
    */
   async onUploadSubmit(e) {
     const f = e.detail
@@ -701,12 +660,11 @@ Page({
     }
     wx.hideLoading()
 
-    // 3) 云端模式：审核与写库都在 actions 云函数里完成，客户端无法绕过
+    // 3) 云端模式：识别与写库都在 actions 云函数里完成，客户端无法绕过
     if (store.isCloud()) {
-      wx.showLoading({ title: 'AI 审核中', mask: true })
+      wx.showLoading({ title: 'AI 识别中', mask: true })
       const r = await store.cloudAddTree({
         name: f.name,
-        species: f.species,
         age: f.age,
         image: image,
         imageUrl: visionUrl,
@@ -717,33 +675,36 @@ Page({
         posY: pos.posY
       })
       wx.hideLoading()
-      this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
       this.refresh()
 
       if (!r.ok) {
-        toast(r.msg || '提交失败')
+        this.showUploadResult({
+          ok: false,
+          name: f.name,
+          image: f.image,
+          species: '',
+          reason: r.msg || r.reason || 'AI 没认出这是一棵树'
+        })
         return
       }
-      if (r.approved) {
-        toast('AI 审核通过，已上地图')
-      } else {
-        wx.showModal({
-          title: 'AI 审核未通过',
-          content: (r.reason || '照片或信息与树木不符') + '\n\n已转人工复核，管理员通过后仍会出现在地图上。',
-          showCancel: false,
-          confirmText: '知道了',
-          confirmColor: '#4E8A6B'
-        })
-      }
+
+      this.showUploadResult({
+        ok: true,
+        name: f.name,
+        image: f.image,
+        species: r.species || '未识别',
+        age: f.age,
+        aiDown: !!r.aiDown,
+        reason: r.detail || r.reason || ''
+      })
       return
     }
 
-    // 本地模式：客户端 AI 审核 + 本地写库
-    wx.showLoading({ title: 'AI 审核中', mask: true })
+    // 本地模式：客户端 AI 识别 + 本地写库（测试号用，行为和云端保持一致）
+    wx.showLoading({ title: 'AI 识别中', mask: true })
     const verdict = await new Promise((resolve) => {
       aiReviewTree({
         name: f.name,
-        species: f.species,
         age: f.age,
         description: f.description,
         imageUrl: visionUrl
@@ -751,42 +712,63 @@ Page({
     })
     wx.hideLoading()
 
-    const approved = verdict.passed !== false
+    if (verdict.passed === false) {
+      this.showUploadResult({
+        ok: false,
+        name: f.name,
+        image: f.image,
+        species: '',
+        reason: verdict.reason || 'AI 没认出这是一棵树'
+      })
+      return
+    }
 
+    const species = verdict.species || '未识别'
     store.addTree({
       treeId: db.newId('t'),
       name: f.name,
-      species: f.species,
+      species: species,
       posX: pos.posX,
       posY: pos.posY,
       lat: loc.latitude,
       lng: loc.longitude,
       ownerId: '', ownerName: '', level: 0, growthScore: 0,
-      status: approved ? 'normal' : 'pending',
+      status: 'normal',
       hazardText: '',
       age: f.age || '未知',
       distance: distanceMeters((this.userLoc || CAMPUS).latitude, (this.userLoc || CAMPUS).longitude, loc.latitude, loc.longitude),
-      reviewStatus: approved ? 'approved' : 'pending',
+      reviewStatus: 'approved',
       reviewNote: verdict.reason || '',
       image: image,
       description: f.description,
       createdBy: store.state.user.userId
     })
 
-    this.setData({ showUpload: false, uploadDraft: null, pickMode: false })
     this.refresh()
+    this.showUploadResult({
+      ok: true,
+      name: f.name,
+      image: f.image,
+      species: species,
+      age: f.age,
+      aiDown: false,
+      reason: verdict.detail || verdict.reason || ''
+    })
+  },
 
-    if (approved) {
-      toast('AI 审核通过，已上地图')
-    } else {
-      wx.showModal({
-        title: 'AI 审核未通过',
-        content: (verdict.reason || '照片或信息与树木不符') + '\n\n已转人工复核，管理员通过后仍会出现在地图上。',
-        showCancel: false,
-        confirmText: '知道了',
-        confirmColor: '#4E8A6B'
-      })
-    }
+  /** 把弹窗切到"识别结果"态：成功给树卡片，失败给红色原因 */
+  showUploadResult(result) {
+    this.setData({ uploadResult: result, showUpload: true, pickMode: false })
+  },
+
+  /** 结果卡片上点「重拍一张」：回到表单，名称/树龄/位置都还在 */
+  onUploadRetake() {
+    this.setData({ uploadResult: null })
+  },
+
+  /** 结果卡片关闭 */
+  onUploadResultClose() {
+    this.setData({ showUpload: false, uploadResult: null, uploadDraft: null })
   },
 
   /** cloud:// fileID -> 临时 https 链接（视觉模型只能读公网地址） */

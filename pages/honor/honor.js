@@ -220,7 +220,9 @@ Page({
       totalCarbonText: fmt(totalCarbon) + ' g',
       recordText: recordText,
       recordList: recordList,
-      topGoods: goods
+      topGoods: goods,
+      // 只有演示管理员能看到「重置演示数据」入口（真正的权限校验在云函数里）
+      isAdmin: store.isAdmin()
     })
 
     this.fixAvatar()
@@ -377,6 +379,56 @@ Page({
 
   closeSheet() {
     this.setData({ sheetMode: '' })
+  },
+
+  /**
+   * 重置演示数据（仅管理员）。
+   *
+   * 不可逆，所以挡两道：先讲清楚会删什么，再要求手输「重置」两个字。
+   * 真正能不能执行由 actions 云函数按白名单判定，前端这道只是防手滑。
+   */
+  onResetDemo() {
+    const that = this
+    wx.showModal({
+      title: '重置演示数据',
+      content: '会删除用户新增的树、清空所有日程/日志/兑换记录、把积分和护林币归零（种子树保留）。此操作不可恢复。',
+      confirmText: '继续',
+      confirmColor: '#C0392B',
+      success: function (m) {
+        if (!m.confirm) return
+        wx.showModal({
+          title: '再确认一次',
+          editable: true,
+          placeholderText: '输入「重置」两个字',
+          confirmText: '确认重置',
+          confirmColor: '#C0392B',
+          success: function (m2) {
+            if (!m2.confirm) return
+            if (String(m2.content || '').replace(/^\s+|\s+$/g, '') !== '重置') {
+              toast('没输入「重置」，已取消')
+              return
+            }
+            that.doResetDemo()
+          }
+        })
+      }
+    })
+  },
+
+  async doResetDemo() {
+    wx.showLoading({ title: '重置中', mask: true })
+    const r = await store.cloudResetDemoData()
+    wx.hideLoading()
+
+    if (!r || !r.ok) {
+      toast((r && r.msg) || '重置失败，请稍后再试')
+      return
+    }
+
+    await store.reload()
+    this.setData({ sheetMode: '' })
+    this.refresh()
+    toast('已重置：清 ' + (r.removedTrees || 0) + ' 棵新增树，复原 ' + (r.resetTrees || 0) + ' 棵种子树')
   },
 
   /** 勋章馆弹层：全部勋章 + 点亮状态 + 获取条件 */
