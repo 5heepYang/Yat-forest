@@ -47,6 +47,7 @@ const ALIAS = {
   '木棉': 'kapok',
   '英雄树': 'kapok',
   '美丽异木棉': 'kapok',
+  '凤凰木': 'flame-tree',
   // 针叶
   '水杉': 'dawn-redwood',
   '落羽杉': 'dawn-redwood',
@@ -69,7 +70,7 @@ const ALIAS = {
 const FORMS = [
   { re: /椰|棕|榈|葵|槟榔|苏铁|蒲/, slug: 'coconut-palm' },
   { re: /杉|松|柏|桧|针叶/, slug: 'dawn-redwood' },
-  { re: /棉|凤凰木|蓝花楹|紫荆|樱|桃|梅|紫薇|鸡蛋花|刺桐|黄槐|决明|木荷|羊蹄甲/, slug: 'kapok' },
+  { re: /棉|蓝花楹|紫荆|樱|桃|梅|紫薇|鸡蛋花|刺桐|黄槐|决明|木荷|羊蹄甲/, slug: 'kapok' },
   { re: /榕|樟|桂|楠|杜英|冬青|芒果|荔枝|龙眼|橄榄|女贞|石栗|重阳木|枇杷|杨梅|白兰/, slug: 'camphor' },
   { re: /银杏|枫|梧桐|白蜡|朴|合欢|柳|榆|榉|槐|紫叶李|栾/, slug: 'magnolia' }
 ]
